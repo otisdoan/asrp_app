@@ -52,13 +52,30 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
-    // Check if user has completed onboarding
+    final phone = _phoneController.text.trim();
     const storage = FlutterSecureStorage();
-    final hasOnboarded = await storage.read(key: 'onboarding_completed');
-    if (hasOnboarded == 'true') {
-      if (mounted) context.go(AppConstants.routeHome);
+
+    // Mock role check:
+    // '01...' → Staff, '02...' → Cashier, others → Customer
+    // In production: backend returns role after authentication
+    final isStaff = phone.startsWith('01');
+    final isCashier = phone.startsWith('02');
+
+    if (isStaff) {
+      await storage.write(key: 'user_role', value: 'staff');
+      if (mounted) context.go(AppConstants.routeStaffHome);
+    } else if (isCashier) {
+      await storage.write(key: 'user_role', value: 'cashier');
+      if (mounted) context.go(AppConstants.routeCashier);
     } else {
-      if (mounted) context.go(AppConstants.routeOnboarding);
+      // Customer → check onboarding
+      await storage.write(key: 'user_role', value: 'customer');
+      final hasOnboarded = await storage.read(key: 'onboarding_completed');
+      if (hasOnboarded == 'true') {
+        if (mounted) context.go(AppConstants.routeHome);
+      } else {
+        if (mounted) context.go(AppConstants.routeOnboarding);
+      }
     }
   }
 

@@ -7,6 +7,8 @@ class AppConstants {
   static const String routeForgotPassword = '/forgot-password';
   static const String routeResetPassword = '/reset-password';
   static const String routeOnboarding = '/onboarding';
+  static const String routeStaffHome = '/staff';
+  static const String routeCashier = '/cashier';
   static const String routeHome = '/';
   static const String routeProfile = '/profile';
 
