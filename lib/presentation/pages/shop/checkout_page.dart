@@ -105,10 +105,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
       pinned: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.primary,
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+        icon: const Icon(Icons.arrow_back, color: AppColors.onPrimary),
         onPressed: () => Navigator.pop(context),
       ),
       title: Column(
@@ -119,16 +119,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: AppColors.onPrimary,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           Text(
             'Khoảng cách tới quán: ${widget.distance}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: AppColors.onPrimary.withValues(alpha: 0.8),
             ),
           ),
         ],

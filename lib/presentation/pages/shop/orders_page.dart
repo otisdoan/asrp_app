@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import 'order_status_page.dart';
 
-/// Orders Page — shows order status categories and order history.
+/// Orders Page — shows order status categories and suggested stores.
 /// Business: No delivery, customer picks up at store, QR payment.
 /// Status flow: Chờ thanh toán → Chờ xác nhận → Chờ nhận đơn → Chờ đánh giá → Trả hàng
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class OrdersPage extends StatefulWidget {
+class OrdersPage extends StatelessWidget {
   const OrdersPage({super.key});
-
-  @override
-  State<OrdersPage> createState() => _OrdersPageState();
-}
-
-class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
 
   // Order status categories
   static const _statusCategories = [
@@ -24,48 +18,19 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     {'icon': Icons.assignment_return_outlined, 'label': 'Trả hàng', 'count': 0},
   ];
 
-  // Tab labels
-  static const _tabs = ['Đang xử lý', 'Lịch sử', 'Đánh giá', 'Đơn nháp'];
-
-  // Mock suggested stores
+  // Mock suggested stores (10 items for grid)
   static const _suggestedStores = [
-    {
-      'name': 'Hiên Coffee - 32 Hồ Văn Huê',
-      'rating': 4.7,
-      'distance': '0.3km',
-      'time': '15 phút',
-      'badge': 'Mã giảm 11%',
-      'icon': Icons.coffee,
-    },
-    {
-      'name': 'Trạm Cà Phê - 77 Nguyễn Diêu',
-      'rating': 5.0,
-      'distance': '0.3km',
-      'time': '22 phút',
-      'badge': 'Mã giảm 11%',
-      'icon': Icons.local_cafe,
-    },
-    {
-      'name': 'Cơm Tấm Sài Gòn - A Vũ',
-      'rating': 4.8,
-      'distance': '1.2km',
-      'time': '30 phút',
-      'badge': 'Mã giảm 15%',
-      'icon': Icons.rice_bowl,
-    },
+    {'name': 'Hiên Coffee', 'rating': 4.7, 'distance': '0.3km', 'time': '15 phút', 'badge': 'Giảm 11%', 'icon': Icons.coffee},
+    {'name': 'Trạm Cà Phê', 'rating': 5.0, 'distance': '0.3km', 'time': '22 phút', 'badge': 'Giảm 11%', 'icon': Icons.local_cafe},
+    {'name': 'Cơm Tấm A Vũ', 'rating': 4.8, 'distance': '1.2km', 'time': '30 phút', 'badge': 'Giảm 15%', 'icon': Icons.rice_bowl},
+    {'name': 'Phở Hà Nội', 'rating': 4.6, 'distance': '0.8km', 'time': '20 phút', 'badge': 'Giảm 10%', 'icon': Icons.ramen_dining},
+    {'name': 'Bánh Mì Khói', 'rating': 4.9, 'distance': '0.5km', 'time': '10 phút', 'badge': 'Giảm 20%', 'icon': Icons.lunch_dining},
+    {'name': 'Gà Rán KFC', 'rating': 4.5, 'distance': '1.5km', 'time': '25 phút', 'badge': 'Giảm 30%', 'icon': Icons.fastfood},
+    {'name': 'Bún Bò Huế', 'rating': 4.7, 'distance': '2.0km', 'time': '35 phút', 'badge': 'Giảm 12%', 'icon': Icons.soup_kitchen},
+    {'name': 'Trà Sữa ToCoToCo', 'rating': 4.4, 'distance': '0.6km', 'time': '12 phút', 'badge': 'Giảm 25%', 'icon': Icons.local_drink},
+    {'name': 'Pizza Company', 'rating': 4.3, 'distance': '1.8km', 'time': '30 phút', 'badge': 'Giảm 18%', 'icon': Icons.local_pizza},
+    {'name': 'Kem Bạch Đằng', 'rating': 4.6, 'distance': '0.9km', 'time': '15 phút', 'badge': 'Giảm 10%', 'icon': Icons.icecream},
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,27 +49,26 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             bottom: false,
             child: Column(
               children: [
-                _buildHeader(),
-                _buildStatusRow(),
+                _buildHeader(context),
+                _buildStatusRow(context),
                 const SizedBox(height: 16),
               ],
             ),
           ),
         ),
 
-        // ─── Tabs ────────────────────────────────────────────
-        _buildTabs(),
-
-        // ─── Tab Content ─────────────────────────────────────
+        // ─── Content ─────────────────────────────────────────
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildActiveOrders(),
-              _buildOrderHistory(),
-              _buildReviews(),
-              _buildDrafts(),
-            ],
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                // Suggested stores grid
+                _buildSuggestedStores(),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ],
@@ -112,24 +76,55 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
   // ─── Header ────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Expanded(
-            child: Text(
-              'Đơn hàng',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: AppColors.onPrimary,
-              ),
+          const Text(
+            'Đơn hàng',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.onPrimary,
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.search, color: AppColors.onPrimary, size: 24),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Đơn hàng của bạn',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onPrimary,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const OrderStatusPage(initialTabIndex: 0),
+                  ));
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Xem lịch sử',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(Icons.chevron_right, color: AppColors.onPrimary, size: 18),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -137,7 +132,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
   // ─── Status Icons Row ──────────────────────────────────────────────────
-  Widget _buildStatusRow() {
+  Widget _buildStatusRow(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -150,9 +145,11 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         children: List.generate(_statusCategories.length, (index) {
           final status = _statusCategories[index];
           return _buildStatusItem(
+            context: context,
             icon: status['icon'] as IconData,
             label: status['label'] as String,
             count: status['count'] as int,
+            tabIndex: index + 1, // +1 because tab 0 is "Tất cả"
           );
         }),
       ),
@@ -160,12 +157,18 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
   Widget _buildStatusItem({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required int count,
+    required int tabIndex,
   }) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => OrderStatusPage(initialTabIndex: tabIndex),
+        ));
+      },
       child: SizedBox(
         width: 60,
         child: Column(
@@ -223,76 +226,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     );
   }
 
-  // ─── Tabs ──────────────────────────────────────────────────────────────
-  Widget _buildTabs() {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        indicatorColor: AppColors.primary,
-        indicatorWeight: 2.5,
-        tabs: _tabs.map((t) => Tab(text: t)).toList(),
-      ),
-    );
-  }
-
-  // ─── Active Orders (Empty State) ───────────────────────────────────────
-  Widget _buildActiveOrders() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          const SizedBox(height: 40),
-          // Empty state illustration
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: AppColors.bgSoft,
-              borderRadius: BorderRadius.circular(60),
-            ),
-            child: const Icon(
-              Icons.receipt_long_outlined,
-              size: 56,
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Quên chưa đặt món rồi nè bạn ơi?',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Bạn sẽ nhìn thấy các món đang được chuẩn\nbị tại đây để kiểm tra đơn hàng nhanh hơn!',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          // Suggested stores
-          _buildSuggestedStores(),
-        ],
-      ),
-    );
-  }
-
-  // ─── Suggested Stores ──────────────────────────────────────────────────
+  // ─── Suggested Stores (Grid 2 per row) ──────────────────────────────────
   Widget _buildSuggestedStores() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,160 +234,110 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         const Text(
           'Có thể bạn cũng thích',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
-        ...List.generate(_suggestedStores.length, (index) {
-          final store = _suggestedStores[index];
-          return _buildSuggestedStoreItem(store);
-        }),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: List.generate(_suggestedStores.length, (index) {
+            final store = _suggestedStores[index];
+            return _buildStoreGridCard(store);
+          }),
+        ),
       ],
     );
   }
 
-  Widget _buildSuggestedStoreItem(Map<String, dynamic> store) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          // Store image
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
+  Widget _buildStoreGridCard(Map<String, dynamic> store) {
+    final screenWidth = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize.width /
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    final cardWidth = (screenWidth - 32 - 12) / 2; // 16 padding each side + 12 gap
+
+    return SizedBox(
+      width: cardWidth,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image area
+            Container(
+              width: double.infinity,
+              height: 100,
               color: AppColors.bgWarm,
-              borderRadius: BorderRadius.circular(8),
+              child: Icon(
+                store['icon'] as IconData,
+                size: 36,
+                color: AppColors.textTertiary,
+              ),
             ),
-            child: Icon(
-              store['icon'] as IconData,
-              size: 28,
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Store info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  store['name'] as String,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 14, color: AppColors.star),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${store['rating']}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${store['distance']}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${store['time']}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    store['badge'] as String,
+            // Info
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    store['name'] as String,
                     style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 12, color: AppColors.star),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${store['rating']}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${store['distance']}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '${store['time']}',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      store['badge'] as String,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Order History ─────────────────────────────────────────────────────
-  Widget _buildOrderHistory() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 56, color: AppColors.textTertiary),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có lịch sử đơn hàng',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Reviews ───────────────────────────────────────────────────────────
-  Widget _buildReviews() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.rate_review_outlined, size: 56, color: AppColors.textTertiary),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có đánh giá nào',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Drafts ────────────────────────────────────────────────────────────
-  Widget _buildDrafts() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.drafts_outlined, size: 56, color: AppColors.textTertiary),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có đơn nháp nào',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                ],
+              ),
             ),
           ],
         ),

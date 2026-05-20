@@ -210,49 +210,55 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
   // ─── Cart Bar ──────────────────────────────────────────────────────────
   Widget _buildCartBar() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => CheckoutPage(
-            storeName: widget.storeName,
-            itemCount: _cartItemCount,
-            distance: widget.distance,
-            icon: widget.icon,
-          ),
-        ));
-      },
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        decoration: const BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-          ),
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
-              const SizedBox(width: 10),
-              Text(
-                'Giỏ hàng - $_cartItemCount món',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onPrimary,
-                ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        boxShadow: [
+          BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
+        ],
+      ),
+      child: SafeArea(
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => CheckoutPage(
+                storeName: widget.storeName,
+                itemCount: _cartItemCount,
+                distance: widget.distance,
+                icon: widget.icon,
               ),
-              const Spacer(),
-              Text(
-                '${_formatCartPrice(_cartTotal)}đ',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.onPrimary,
+            ));
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  'Giỏ hàng - $_cartItemCount món',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onPrimary,
+                  ),
                 ),
-              ),
-            ],
+                const Spacer(),
+                Text(
+                  '${_formatCartPrice(_cartTotal)}đ',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.onPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

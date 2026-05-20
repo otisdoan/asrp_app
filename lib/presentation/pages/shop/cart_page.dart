@@ -110,10 +110,10 @@ class _CartPageState extends State<CartPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColors.onPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -121,7 +121,7 @@ class _CartPageState extends State<CartPage> {
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: AppColors.onPrimary,
           ),
         ),
         centerTitle: true,
@@ -138,7 +138,7 @@ class _CartPageState extends State<CartPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: _isManaging ? AppColors.primary : AppColors.textPrimary,
+                color: _isManaging ? AppColors.onPrimary.withValues(alpha: 0.7) : AppColors.onPrimary,
               ),
             ),
           ),
