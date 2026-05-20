@@ -1,0 +1,576 @@
+import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import 'add_to_cart_page.dart';
+
+/// Food Item Detail Page — shows food image, info, price, and reviews.
+/// Follows RULE: UI-only, uses AppColors, responsive.
+class FoodDetailPage extends StatelessWidget {
+  final String name;
+  final String price;
+  final String sold;
+  final int likes;
+  final IconData icon;
+
+  const FoodDetailPage({
+    super.key,
+    required this.name,
+    required this.price,
+    required this.sold,
+    required this.likes,
+    required this.icon,
+  });
+
+  // Mock description
+  String get _description {
+    switch (name) {
+      case 'Combo 1: Phần gà + khoai':
+        return 'Gà rán giòn rụm kèm khoai tây chiên. Phần ăn vừa đủ cho 1 người.';
+      case 'Set sum vầy (4 người)':
+        return 'Set gà rán đặc biệt cho 4 người, kèm khoai tây, nước uống và salad.';
+      case 'Phở bò tái chín':
+        return 'Nước dùng ninh 12 tiếng, thịt bò tái chín mềm ngọt. Kèm rau thơm và giá.';
+      default:
+        return 'Món ăn thơm ngon, được chế biến từ nguyên liệu tươi sạch mỗi ngày.';
+    }
+  }
+
+  // Mock reviews
+  static const _reviews = [
+    {
+      'user': '_nntruc17_',
+      'rating': 5,
+      'date': '19-05-2026 22:45',
+      'content': 'Bánh gà phô mai hơi nhỏ xo với tưởng tượng🥲',
+      'imageCount': 3,
+      'tags': ['BÁNH GÀ PHÔ MAI'],
+      'reply': 'C.ơn quý khách đã dùng cơm 🤗🤗🤗🤗',
+    },
+    {
+      'user': '47w_lslctd',
+      'rating': 5,
+      'date': '03-05-2026 19:32',
+      'content': 'Gà chiên giòn rụm, nước sốt đậm đà. Phần ăn to, giá hợp lý. Sẽ quay lại ủng hộ!',
+      'imageCount': 4,
+      'tags': ['GÀ RÁN'],
+      'reply': '',
+    },
+    {
+      'user': 'foodie_saigon',
+      'rating': 4,
+      'date': '01-05-2026 14:20',
+      'content': 'Đồ ăn ngon, giao hàng nhanh. Nhưng lần này thiếu nước chấm 😅',
+      'imageCount': 2,
+      'tags': ['GÀ SỐT CAY'],
+      'reply': 'Xin lỗi bạn vì sự thiếu sót. Lần sau mình sẽ kiểm tra kỹ hơn ạ! Mong bạn thông cảm 🙏',
+    },
+    {
+      'user': 'minh_an_99',
+      'rating': 5,
+      'date': '28-04-2026 20:15',
+      'content': 'Lần đầu order thử, không ngờ ngon quá! Gà giòn, cơm dẻo, nước sốt đậm đà. 10 điểm!',
+      'imageCount': 0,
+      'tags': [],
+      'reply': 'Cảm ơn bạn nhiều lắm ạ! Hẹn gặp lại bạn lần sau nha 💛',
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: CustomScrollView(
+        slivers: [
+          // ─── Image Header ───────────────────────────────────
+          _buildImageHeader(context),
+
+          // ─── Food Info ──────────────────────────────────────
+          SliverToBoxAdapter(child: _buildFoodInfo(context)),
+
+          // ─── Reviews Section ────────────────────────────────
+          SliverToBoxAdapter(child: _buildReviewsHeader()),
+
+          // ─── Review List ────────────────────────────────────
+          _reviews.isNotEmpty
+              ? SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildReviewCard(_reviews[index]),
+                    childCount: _reviews.length,
+                  ),
+                )
+              : SliverToBoxAdapter(child: _buildEmptyReviews()),
+
+          // Bottom spacing
+          const SliverToBoxAdapter(child: SizedBox(height: 80)),
+        ],
+      ),
+      // ─── Bottom Add to Cart Bar ─────────────────────────────
+      bottomNavigationBar: _buildBottomBar(context),
+    );
+  }
+
+  // ─── Image Header ──────────────────────────────────────────────────────
+  Widget _buildImageHeader(BuildContext context) {
+    return SliverAppBar(
+      expandedHeight: 260,
+      pinned: true,
+      backgroundColor: AppColors.primary,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: const BoxDecoration(
+            color: Colors.black26,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: const BoxDecoration(
+              color: Colors.black26,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
+          ),
+          onPressed: () {},
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          color: AppColors.bgWarm,
+          child: Icon(icon, size: 100, color: AppColors.textTertiary),
+        ),
+      ),
+    );
+  }
+
+  // ─── Food Info Section ─────────────────────────────────────────────────
+  Widget _buildFoodInfo(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Food name
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Description
+          Text(
+            _description,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Sold + Likes
+          Row(
+            children: [
+              Text(
+                '$sold đã bán',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(width: 1, height: 12, color: AppColors.outlineVariant),
+              const SizedBox(width: 12),
+              Text(
+                '$likes lượt thích',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Price row
+          Row(
+            children: [
+              Text(
+                price,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+              const Spacer(),
+              // Add button
+              GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => AddToCartPage(
+                      name: name,
+                      price: price,
+                      icon: icon,
+                    ),
+                  ));
+                  if (result != null && context.mounted) {
+                    Navigator.pop(context, result);
+                  }
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 22),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Divider
+          const Divider(height: 1, color: AppColors.outlineVariant),
+        ],
+      ),
+    );
+  }
+
+  // ─── Reviews Header ────────────────────────────────────────────────────
+  Widget _buildReviewsHeader() {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Text(
+        'Bình luận',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  // ─── Empty Reviews State ───────────────────────────────────────────────
+  Widget _buildEmptyReviews() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+      child: Column(
+        children: [
+          // Illustration
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.bgWarm,
+              borderRadius: BorderRadius.circular(40),
+            ),
+            child: const Icon(Icons.rate_review_outlined, size: 40, color: AppColors.accent),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Chưa có đánh giá',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Cùng chia sẻ trải nghiệm đặt hàng của bạn với mọi người nhé!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Review Card ───────────────────────────────────────────────────────
+  Widget _buildReviewCard(Map<String, dynamic> review) {
+    final hasReply = (review['reply'] as String).isNotEmpty;
+    final tags = List<String>.from(review['tags'] as List);
+    final imageCount = review['imageCount'] as int;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar (left)
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: AppColors.bgSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person, size: 18, color: AppColors.textTertiary),
+              ),
+              const SizedBox(width: 10),
+              // All content (right)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Username
+                    Text(
+                      review['user'] as String,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Stars
+                    Row(
+                      children: List.generate(
+                        5,
+                        (i) => Icon(
+                          i < (review['rating'] as int) ? Icons.star : Icons.star_border,
+                          size: 16,
+                          color: AppColors.star,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Review content
+                    Text(
+                      review['content'] as String,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                    // Review images
+                    if (imageCount > 0) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 80,
+                        child: Row(
+                          children: List.generate(
+                            imageCount > 3 ? 3 : imageCount,
+                            (i) {
+                              final isLast = i == 2 && imageCount > 3;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.bgWarm,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.image_outlined,
+                                        size: 28,
+                                        color: AppColors.textTertiary.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    if (isLast)
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black45,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Center(
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.photo_library, size: 14, color: Colors.white),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                '+${imageCount - 2}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                    // Tags
+                    if (tags.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Text(
+                            'Cũng được thích: ',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          ...tags.map((tag) => Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryContainer,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              )),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    // Date
+                    Text(
+                      review['date'] as String,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                    // Store reply
+                    if (hasReply) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgSoft,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.outlineVariant),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Phản hồi từ Quán:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              review['reply'] as String,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.outlineVariant),
+        ],
+      ),
+    );
+  }
+
+  // ─── Bottom Add to Cart Bar ────────────────────────────────────────────
+  Widget _buildBottomBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Price
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Giá',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  Text(
+                    price,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Add to cart button
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () async {
+                  final result = await Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => AddToCartPage(
+                      name: name,
+                      price: price,
+                      icon: icon,
+                    ),
+                  ));
+                  if (result != null && context.mounted) {
+                    Navigator.pop(context, result);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Thêm vào giỏ',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

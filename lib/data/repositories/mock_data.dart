@@ -1,0 +1,568 @@
+import '../models/menu_item_model.dart';
+import '../models/cart_item_model.dart';
+import '../models/product_detail_model.dart';
+
+class MockData {
+  MockData._();
+
+  // ===== PROMO BANNERS =====
+  static const List<Map<String, String>> promoBanners = [
+    {
+      'tag': 'HOT HÔM NAY',
+      'title': 'Giảm 20% Phở Đặc Biệt',
+      'desc': 'Áp dụng từ 11:00 – 14:00 hôm nay',
+      'time': 'Chỉ còn 2 giờ nữa',
+      'emoji': '🍜',
+    },
+    {
+      'tag': 'MÓN MỚI',
+      'title': 'Tặng kèm trà đá',
+      'desc': 'Khi gọi Combo Bún Bò Huế',
+      'time': 'Hôm nay',
+      'emoji': '🥣',
+    },
+    {
+      'tag': 'FREESHIP',
+      'title': 'Miễn phí giao hàng',
+      'desc': 'Cho đơn hàng trên 200k',
+      'time': 'Hôm nay',
+      'emoji': '🚚',
+    },
+  ];
+
+  // ===== CATEGORIES =====
+  static const List<Map<String, dynamic>> categories = [
+    {'icon': '🍜', 'name': 'Phở', 'count': 12},
+    {'icon': '🍲', 'name': 'Bún', 'count': 8},
+    {'icon': '🍚', 'name': 'Cơm', 'count': 10},
+    {'icon': '🥤', 'name': 'Đồ uống', 'count': 7},
+    {'icon': '🍡', 'name': 'Tráng miệng', 'count': 5},
+  ];
+
+  // ===== QUICK FILTERS =====
+  static const List<Map<String, String>> quickFilters = [
+    {'icon': '🔥', 'name': 'Đang hot'},
+    {'icon': '✨', 'name': 'Món mới'},
+    {'icon': '🏆', 'name': 'Best seller'},
+    {'icon': '🎁', 'name': 'Combo tiết kiệm'},
+  ];
+
+  // ===== AI SUGGESTIONS =====
+  static final List<MenuItemModel> aiSuggestions = [
+    const MenuItemModel(
+      emoji: '🍜',
+      name: 'Phở bò tái',
+      price: '85,000đ',
+      description: 'Bạn hay gọi',
+      badge: BadgeModel(label: 'Bạn hay gọi', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🥤',
+      name: 'Nước mía tươi',
+      price: '25,000đ',
+      description: 'Hay kết hợp',
+      badge: BadgeModel(label: 'Hay kết hợp', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🥐',
+      name: 'Bánh quẩy',
+      price: '10,000đ',
+      description: 'Phổ biến nhất',
+      badge: BadgeModel(label: 'Phổ biến nhất', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🍋',
+      name: 'Trà đá chanh',
+      price: '20,000đ',
+      description: 'Hay kết hợp',
+      badge: BadgeModel(label: 'Hay kết hợp', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🍜',
+      name: 'Phở bò tái',
+      price: '85,000đ',
+      description: 'Bạn hay gọi',
+      badge: BadgeModel(label: 'Bạn hay gọi', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🥤',
+      name: 'Nước mía tươi',
+      price: '25,000đ',
+      description: 'Hay kết hợp',
+      badge: BadgeModel(label: 'Hay kết hợp', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🥐',
+      name: 'Bánh quẩy',
+      price: '10,000đ',
+      description: 'Phổ biến nhất',
+      badge: BadgeModel(label: 'Phổ biến nhất', type: BadgeType.sale),
+    ),
+    const MenuItemModel(
+      emoji: '🍋',
+      name: 'Trà đá chanh',
+      price: '20,000đ',
+      description: 'Hay kết hợp',
+      badge: BadgeModel(label: 'Hay kết hợp', type: BadgeType.sale),
+    ),
+  ];
+
+  // ===== HOT ITEMS =====
+  static final List<MenuItemModel> hotItems = [
+    const MenuItemModel(
+      emoji: '🍜',
+      name: 'Phở bò đặc biệt',
+      price: '95,000đ',
+      description: 'Nước dùng ninh 12 tiếng',
+      badge: BadgeModel(label: '🔥 HOT', type: BadgeType.hot),
+      rating: 5,
+    ),
+    const MenuItemModel(
+      emoji: '🥣',
+      name: 'Bún bò Huế',
+      price: '80,000đ',
+      description: 'Sả huế, thịt bò đến từ Huế',
+      badge: BadgeModel(label: '🔥 HOT', type: BadgeType.hot),
+      rating: 4,
+    ),
+    const MenuItemModel(
+      emoji: '🍚',
+      name: 'Cơm gà Hải Nam',
+      price: '75,000đ',
+      description: 'Cơm dầu gà, thịt gà hầm mềm',
+      rating: 4,
+    ),
+    const MenuItemModel(
+      emoji: '🥤',
+      name: 'Sinh tố bơ',
+      price: '45,000đ',
+      description: 'Bơ sáp, sữa đặc, đá xay mịn',
+      rating: 5,
+    ),
+  ];
+
+  // ===== COMBOS =====
+  static const List<Map<String, dynamic>> combos = [
+    {
+      'emojis': ['🍜', '🥤', '🥐'],
+      'name': 'Combo Phở Đồng Quê',
+      'description': 'Phở bò + Nước mía + Bánh quẩy',
+      'price': 115000,
+      'originalPrice': 130000,
+      'saving': 'Tiết kiệm 15k',
+      'badge': 'COMBO',
+    },
+    {
+      'emojis': ['🥣', '🥤', '🍡'],
+      'name': 'Combo Bún Huế Đặc Biệt',
+      'description': 'Bún bò Huế + Trà đá + Chè đậu',
+      'price': 105000,
+      'originalPrice': 120000,
+      'saving': 'Tiết kiệm 15k',
+      'badge': 'BEST',
+    },
+  ];
+
+  // ===== NEW ITEMS =====
+  static final List<MenuItemModel> newItems = [
+    const MenuItemModel(
+      emoji: '🍝',
+      name: 'Mì Ý sốt bò băm',
+      price: '95,000đ',
+      description: 'Thịt bò băm, sốt cà chua, phô mai',
+      badge: BadgeModel(label: 'MỚI', type: BadgeType.newItem),
+    ),
+    const MenuItemModel(
+      emoji: '🥗',
+      name: 'Salad ức gà',
+      price: '65,000đ',
+      description: 'Ục gà áp chảo, rau xà lách tươi',
+      badge: BadgeModel(label: 'MỚI', type: BadgeType.newItem),
+    ),
+    const MenuItemModel(
+      emoji: '🥟',
+      name: 'Há cảo tôm',
+      price: '45,000đ',
+      description: 'Nhân tôm tươi, vỏ mỏng trong',
+      badge: BadgeModel(label: 'MỚI', type: BadgeType.newItem),
+    ),
+    const MenuItemModel(
+      emoji: '🍤',
+      name: 'Tôm chiên xù',
+      price: '95,000đ',
+      description: 'Tôm sú tươi chiên giòn',
+      badge: BadgeModel(label: 'MỚI', type: BadgeType.newItem),
+    ),
+  ];
+
+  // ===== BEST SELLERS =====
+  static const List<Map<String, dynamic>> bestSellers = [
+    {'rank': 1, 'emoji': '🍜', 'name': 'Phở bò đặc biệt', 'price': '95,000đ', 'sold': 1240},
+    {'rank': 2, 'emoji': '🥣', 'name': 'Bún bò Huế', 'price': '80,000đ', 'sold': 985},
+    {'rank': 3, 'emoji': '🍚', 'name': 'Cơm gà Hải Nam', 'price': '75,000đ', 'sold': 763},
+  ];
+
+  // ===== MINI PROMOS =====
+  static const List<Map<String, dynamic>> miniPromos = [
+    {
+      'icon': '🌟',
+      'title': 'Tích điểm thành viên',
+      'desc': 'Mọi đơn hàng đều được tích điểm',
+      'bgColor': 0xFFFAEEDA,
+      'textColor': 0xFF854F0B,
+    },
+    {
+      'icon': '🎂',
+      'title': 'Ưu đãi sinh nhật',
+      'desc': 'Giảm 15% trong ngày sinh nhật',
+      'bgColor': 0xFFFAECE7,
+      'textColor': 0xFF993C1D,
+    },
+  ];
+
+  // ===== FULL MENU =====
+  static final List<MenuItemModel> fullMenu = [
+    const MenuItemModel(
+      emoji: '🍜',
+      name: 'Phở bò tái chín',
+      description: 'Nước dùng trong, thịt bò tái + chín',
+      price: '90,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🥩',
+      name: 'Phở bò gầu',
+      description: 'Gầu giòn, béo ngậy, nước dùng đậm',
+      price: '90,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🐓',
+      name: 'Phở gà ta',
+      description: 'Gà ta thả vườn, nước trong thanh ngọt',
+      price: '75,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🥤',
+      name: 'Sinh tố bơ',
+      description: 'Bơ sáp, sữa đặc, đá xay mịn',
+      price: '45,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🧋',
+      name: 'Trà sữa trân châu',
+      description: 'Trân châu đen, trà Ô Long đậm',
+      price: '40,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍲',
+      name: 'Bún riêu cua',
+      description: 'Cua đồng, cà chua tươi, đậu hủ',
+      price: '65,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍚',
+      name: 'Cơm gà Hải Nam',
+      description: 'Cơm dầu gà, thịt gà hầm mềm',
+      price: '75,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🥐',
+      name: 'Bánh quẩy',
+      description: 'Giòn rụm, ăn kèm phở hoặc súp',
+      price: '10,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🧇',
+      name: 'Bánh cuốn nhân thịt',
+      description: 'Bánh mỏng mịn, nhân thịt băm hành',
+      price: '55,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '☕',
+      name: 'Cà phê sữa đá',
+      description: 'Phin pha thủ công, sữa đặc đậm',
+      price: '30,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍋',
+      name: 'Trà chanh mật ong',
+      description: 'Thanh mát, giàu vitamin C',
+      price: '25,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍮',
+      name: 'Chè đậu đỏ',
+      description: 'Đậu đỏ hầm mềm, nước cốt dừa',
+      price: '25,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍔',
+      name: 'Burger bò phô mai',
+      description: 'Thịt bò Úc, phô mai Cheddar',
+      price: '85,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍕',
+      name: 'Pizza hải sản',
+      description: 'Tôm, mực, thanh cua, phô mai',
+      price: '155,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍝',
+      name: 'Mì Ý sốt bò băm',
+      description: 'Thịt bò băm, sốt cà chua, phô mai',
+      price: '95,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🥗',
+      name: 'Salad ức gà',
+      description: 'Ục gà áp chảo, rau xà lách tươi',
+      price: '65,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍣',
+      name: 'Sashimi cá hồi',
+      description: 'Cá hồi Na Uy tươi sống',
+      price: '125,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🥟',
+      name: 'Há cảo tôm',
+      description: 'Nhân tôm tươi, vỏ mỏng trong',
+      price: '45,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍱',
+      name: 'Bento lươn Nhật',
+      description: 'Lươn nướng sốt Kabayaki',
+      price: '185,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍤',
+      name: 'Tôm chiên xù',
+      description: 'Tôm sú tươi chiên giòn',
+      price: '95,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🌶',
+      name: 'Xiên que nướng',
+      description: 'Thịt xiên nướng kiểu Thái',
+      price: '35,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🌟',
+      name: 'Khoai tây chiên',
+      description: 'Khoai tây cắt sợi chiên giòn',
+      price: '30,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🧇',
+      name: 'Bánh táo nướng',
+      description: 'Nhân táo quế thơm lừng',
+      price: '45,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍦',
+      name: 'Kem vani',
+      description: 'Kem tươi vani Madagascar',
+      price: '25,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍰',
+      name: 'Bánh kem dâu',
+      description: 'Cốt bánh bông lan, dâu tươi',
+      price: '55,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍩',
+      name: 'Bánh donut',
+      description: 'Phủ socola và cốm màu',
+      price: '20,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🥤',
+      name: 'Nước cam ép',
+      description: 'Cam sành tươi ép nguyên chất',
+      price: '35,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍋',
+      name: 'Nước chanh đá',
+      description: 'Chanh tươi, đường phèn',
+      price: '20,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍍',
+      name: 'Nước ép dứa',
+      description: 'Dứa mật ngọt thanh',
+      price: '35,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍉',
+      name: 'Nước ép dưa hấu',
+      description: 'Dưa hấu đỏ ngọt lịm',
+      price: '35,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍇',
+      name: 'Nước ép nho',
+      description: 'Nho đen không hạt ép lạnh',
+      price: '45,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍎',
+      name: 'Nước ép táo',
+      description: 'Táo Mỹ ép nguyên quả',
+      price: '40,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍑',
+      name: 'Trà đào sả',
+      description: 'Miếng đào giòn, hương sả thơm',
+      price: '45,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '🍵',
+      name: 'Trà xanh lài',
+      description: 'Trà xanh ướp hoa lài thơm ngát',
+      price: '30,000đ',
+    ),
+    const MenuItemModel(
+      emoji: '☕',
+      name: 'Cà phê đen đá',
+      description: 'Cà phê Robusta đậm đà',
+      price: '25,000đ',
+    ),
+  ];
+
+  // ===== MOCK CART ITEMS =====
+  static List<CartItemModel> get initialCartItems => [
+        CartItemModel(
+          id: '1',
+          emoji: '🍜',
+          name: 'Phở bò đặc biệt',
+          priceAmount: 95000,
+          priceDisplay: '95,000đ',
+          quantity: 1,
+        ),
+        CartItemModel(
+          id: '2',
+          emoji: '🥤',
+          name: 'Nước mía tươi',
+          priceAmount: 25000,
+          priceDisplay: '25,000đ',
+          quantity: 1,
+        ),
+        CartItemModel(
+          id: '3',
+          emoji: '🥐',
+          name: 'Bánh quẩy',
+          priceAmount: 10000,
+          priceDisplay: '10,000đ',
+          quantity: 2,
+        ),
+      ];
+
+  // ===== MOCK PRODUCT DETAIL =====
+  static ProductDetailModel getProductDetail(String slug) {
+    return ProductDetailModel(
+      slug: slug,
+      emoji: '🍜',
+      name: 'Phở bò đặc biệt',
+      category: 'Phở · Món chính',
+      price: 95000,
+      originalPrice: 120000,
+      rating: 4.7,
+      reviewCount: 128,
+      soldCount: 1240,
+      isAvailable: true,
+      badges: const [
+        ProductBadgeModel(label: '🔥 HOT', colorBg: '#FAECE7', colorText: '#993C1D'),
+        ProductBadgeModel(label: '−20%', colorBg: '#FFF4F0', colorText: '#2E7D32'),
+      ],
+      gallery: const ['🍜', '🥩', '🍲', '🥬'],
+      shortDescription:
+          'Nước dùng ninh 12 tiếng, thịt bò tươi thượng hạng, bánh phở dai ngon đặc trưng.',
+      fullDescription:
+          'Món Phở bò đặc biệt của chúng tôi được chế biến theo công thức gia truyền hơn 30 năm. '
+          'Nước dùng được ninh từ xương bò và các loại thảo mộc tự nhiên trong suốt 12 giờ, tạo nên '
+          'hương vị đậm đà, ngọt thanh. Thịt bò được chọn lọc kỹ càng, thái mỏng và chần vừa tới '
+          'để giữ độ mềm ngọt.',
+      origin: 'Thịt bò nhập từ Úc, bánh phở tươi mỗi sáng',
+      sizes: const [
+        ProductSizeModel(label: 'Nhỏ', description: 'Tô nhỡ', price: 80000),
+        ProductSizeModel(label: 'Vừa', description: 'Tô lớn', price: 95000),
+        ProductSizeModel(label: 'Lớn', description: 'Tô đặc biệt', price: 120000),
+      ],
+      toppings: const [
+        ProductToppingModel(label: 'Thêm thịt bò', price: 25000),
+        ProductToppingModel(label: 'Thêm gầu bò', price: 20000),
+        ProductToppingModel(label: 'Thêm trứng chần', price: 10000),
+        ProductToppingModel(label: 'Thêm bánh quẩy', price: 8000),
+      ],
+      customizations: const [
+        ProductCustomizationModel(
+          label: 'Độ cay',
+          choices: ['Không cay', 'Ít cay', 'Vừa', 'Nhiều cay'],
+          defaultIndex: 2,
+        ),
+        ProductCustomizationModel(
+          label: 'Nước dùng',
+          choices: ['Ít nước', 'Vừa nước', 'Nhiều nước'],
+          defaultIndex: 1,
+        ),
+        ProductCustomizationModel(
+          label: 'Độ béo',
+          choices: ['Không béo', 'Vừa béo', 'Nước béo'],
+          defaultIndex: 1,
+        ),
+      ],
+      nutrition: const [
+        NutritionItemModel(label: 'Năng lượng', value: 520, unit: 'kcal'),
+        NutritionItemModel(label: 'Protein', value: 28, unit: 'gram'),
+        NutritionItemModel(label: 'Tinh bột (Carbs)', value: 65, unit: 'gram'),
+        NutritionItemModel(label: 'Chất béo (Fat)', value: 12, unit: 'gram'),
+        NutritionItemModel(label: 'Natri', value: 980, unit: 'mg'),
+        NutritionItemModel(label: 'Chất xơ', value: 3, unit: 'gram'),
+      ],
+      dietTags: const ['🌿 Phù hợp Low-carb'],
+      allergenContains: const [
+        AllergenModel(emoji: '🐟', name: 'Hải sản (nước mắm)'),
+        AllergenModel(emoji: '🌾', name: 'Gluten (bánh phở)'),
+      ],
+      allergenDoesNotContain: const ['Sữa', 'Trứng', 'Đậu nành', 'Đậu phộng'],
+      reviewDistribution: const [
+        ReviewDistributionModel(star: 5, percent: 72),
+        ReviewDistributionModel(star: 4, percent: 18),
+        ReviewDistributionModel(star: 3, percent: 7),
+        ReviewDistributionModel(star: 2, percent: 2),
+        ReviewDistributionModel(star: 1, percent: 1),
+      ],
+      reviews: const [
+        ReviewModel(
+          name: 'N.T.H',
+          membership: 'Thành viên Gold',
+          rating: 5,
+          date: '3 ngày trước',
+          content:
+              'Nước dùng rất ngon, ngọt thanh tự nhiên. Thịt bò tươi và mềm. Sẽ quay lại ủng hộ thường xuyên!',
+          helpful: 12,
+          reply: 'Cảm ơn bạn đã ủng hộ nhà hàng. Rất mong được phục vụ bạn lần sau!',
+        ),
+        ReviewModel(
+          name: 'Trần Văn B.',
+          rating: 4,
+          date: '1 tuần trước',
+          content:
+              'Phở ngon nhưng hơi đông nên phục vụ hơi lâu chút. Bù lại đồ ăn chất lượng.',
+          helpful: 5,
+        ),
+      ],
+      pairings: const [
+        PairingItemModel(emoji: '🥤', name: 'Nước mía tươi', price: '25,000đ'),
+        PairingItemModel(emoji: '🥐', name: 'Bánh quẩy', price: '10,000đ', isInCart: true),
+        PairingItemModel(emoji: '🍮', name: 'Chè bưởi', price: '35,000đ'),
+      ],
+      similarSlugs: const ['pho-bo-tai', 'bun-bo-hue', 'pho-ga-ta'],
+    );
+  }
+}

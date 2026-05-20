@@ -1,0 +1,36 @@
+class AppConstants {
+  AppConstants._();
+
+  // Routes
+  static const String routeLogin = '/login';
+  static const String routeRegister = '/register';
+  static const String routeForgotPassword = '/forgot-password';
+  static const String routeResetPassword = '/reset-password';
+  static const String routeHome = '/';
+  static const String routeProfile = '/profile';
+
+  // Storage keys
+  static const String storageKeyAccessToken = 'access_token';
+  static const String storageKeyUser = 'asrp_user';
+
+  // App info
+  static const String appName = 'BMC Phở Express';
+  static const String appTagline = 'Nền tảng nhà hàng thông minh';
+
+  // Branches
+  static const List<String> branches = [
+    'Chi nhánh Quận 1 · Tầng 1',
+    'Chi nhánh Quận 3 · Tầng Trệt',
+    'Chi nhánh Phú Nhuận · Tầng 2',
+  ];
+
+  // Cart
+  static const int maxQuantity = 20;
+  static const int minQuantity = 1;
+
+  // OTP
+  static const int otpLength = 6;
+  static const int otpCooldownSeconds = 60;
+  static const int otpExpirySeconds = 300;
+  static const String mockOtp = '123456'; // Remove in production
+}
