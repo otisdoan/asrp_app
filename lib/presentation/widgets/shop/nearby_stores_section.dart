@@ -66,7 +66,7 @@ class NearbyStoresSection extends StatelessWidget {
               GestureDetector(
                 onTap: () {},
                 child: const Text(
-                  'Xem tất cả',
+                  'Xem thêm',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

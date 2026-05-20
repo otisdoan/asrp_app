@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import 'food_detail_page.dart';
+import 'checkout_page.dart';
 
 /// Store Detail Page — shows store info, promos, popular items, and full menu.
 /// Follows RULE: UI-only, uses AppColors, responsive.
@@ -182,6 +183,9 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
           // ─── Popular Items ──────────────────────────────────
           SliverToBoxAdapter(child: _buildPopularItems()),
 
+          // Spacing
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
           // ─── Category Tabs ──────────────────────────────────
           SliverPersistentHeader(
             pinned: true,
@@ -206,38 +210,50 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
   // ─── Cart Bar ──────────────────────────────────────────────────────────
   Widget _buildCartBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => CheckoutPage(
+            storeName: widget.storeName,
+            itemCount: _cartItemCount,
+            distance: widget.distance,
+            icon: widget.icon,
+          ),
+        ));
+      },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: const BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
-            const SizedBox(width: 10),
-            Text(
-              'Giỏ hàng - $_cartItemCount món',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.onPrimary,
+        child: SafeArea(
+          child: Row(
+            children: [
+              const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Giỏ hàng - $_cartItemCount món',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onPrimary,
+                ),
               ),
-            ),
-            const Spacer(),
-            Text(
-              '${_formatCartPrice(_cartTotal)}đ',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.onPrimary,
+              const Spacer(),
+              Text(
+                '${_formatCartPrice(_cartTotal)}đ',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onPrimary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

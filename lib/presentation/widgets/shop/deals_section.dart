@@ -72,9 +72,9 @@ class DealsSection extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // LEFT — Large vertical card
+                // LEFT — Large vertical card (narrower)
                 Expanded(
-                  flex: 5,
+                  flex: 4,
                   child: _LargeCard(
                     discount: '-30%',
                     shopName: 'Bánh Mì Khói - 120...',
@@ -86,9 +86,9 @@ class DealsSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: gap),
-                // RIGHT — Two horizontal cards stacked
+                // RIGHT — Two horizontal cards stacked (wider for clear content)
                 Expanded(
-                  flex: 6,
+                  flex: 7,
                   child: Column(
                     children: [
                       Expanded(

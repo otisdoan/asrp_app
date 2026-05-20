@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import 'checkout_page.dart';
 
 /// Cart Page — shows list of stores with cart items.
 /// Normal mode: view cart items per store.
@@ -160,7 +161,18 @@ class _CartPageState extends State<CartPage> {
     final isClosed = store['closed'] as bool;
     final isSelected = _selectedItems.contains(index);
 
-    return Padding(
+    return GestureDetector(
+      onTap: _isManaging ? null : () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => CheckoutPage(
+            storeName: store['name'] as String,
+            itemCount: store['items'] as int,
+            distance: store['distance'] as String,
+            icon: store['icon'] as IconData,
+          ),
+        ));
+      },
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,6 +292,7 @@ class _CartPageState extends State<CartPage> {
           ),
         ],
       ),
+    ),
     );
   }
 

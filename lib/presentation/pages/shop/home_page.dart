@@ -8,10 +8,12 @@ import '../../widgets/shop/top_stores_section.dart';
 import '../../widgets/shop/nearby_stores_section.dart';
 import '../../widgets/shop/all_stores_section.dart';
 import '../../widgets/shop/categories_section.dart';
-import '../../widgets/product/product_detail_sheet.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/shop_provider.dart';
 import 'cart_page.dart';
+import 'payment_page.dart';
+import 'orders_page.dart';
+import 'store_detail_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -30,11 +32,19 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openProductDetail(String name) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ProductDetailSheet(productName: name),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StoreDetailPage(
+          storeName: name,
+          category: 'Quán ăn',
+          rating: 4.8,
+          reviews: 1240,
+          deliveryTime: '25 phút',
+          distance: '3.2 km',
+          icon: Icons.restaurant,
+        ),
+      ),
     );
   }
 
@@ -53,7 +63,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             _buildNavItem(0, Icons.home_rounded, 'Trang chủ'),
             _buildNavItem(
                 1, Icons.account_balance_wallet_outlined, 'Thanh toán'),
-            _buildNavItem(2, Icons.receipt_long_outlined, 'Hoạt động'),
+            _buildNavItem(2, Icons.receipt_long_outlined, 'Đơn hàng'),
             _buildNavItem(3, Icons.chat_bubble_outline_rounded, 'Tin nhắn',
                 badgeCount: 2),
           ],
@@ -132,6 +142,58 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Widget _buildBody(dynamic cart) {
+    switch (_currentTabIndex) {
+      case 1:
+        return const PaymentPage();
+      case 2:
+        return const OrdersPage();
+      case 3:
+        // Placeholder for other tabs
+        return const Center(
+          child: Text(
+            'Đang phát triển...',
+            style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+          ),
+        );
+      default:
+        return Column(children: [
+          Expanded(
+              child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Promo Banner
+              Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+                  child: const PromoBannerSection()),
+              const SizedBox(height: 20),
+              // Categories
+              const CategoriesSection(),
+              const SizedBox(height: 20),
+              // Deals / Promotions
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: DealsSection(onItemTap: _openProductDetail),
+              ),
+              const SizedBox(height: 20),
+              // Top Stores
+              const TopStoresSection(),
+              const SizedBox(height: 20),
+              // Nearby Stores
+              const NearbyStoresSection(),
+              const SizedBox(height: 20),
+              // All Stores
+              Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: const AllStoresSection()),
+              const SizedBox(height: 100),
+            ]),
+          )),
+        ]);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
@@ -146,49 +208,17 @@ class _HomePageState extends ConsumerState<HomePage> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: ShopAppBar(
-          searchController: _searchController,
-          onSearchChanged: (query) {
-            ref.read(searchQueryProvider.notifier).state = query;
-            ref.read(menuCurrentPageProvider.notifier).state = 1;
-          },
-        ),
-        body: Column(children: [
-          // Main scrollable content
-          Expanded(
-              child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Promo Banner
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
-                  child: const PromoBannerSection()),
-              const SizedBox(height: 20),
-              // Categories
-              const CategoriesSection(),
-              const SizedBox(height: 20),
-              // Deals / Promotions (Inspired by design reference)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DealsSection(onItemTap: _openProductDetail),
-              ),
-              const SizedBox(height: 20),
-              // Top Stores (rating > 4.5)
-              const TopStoresSection(),
-              const SizedBox(height: 20),
-              // Nearby Stores
-              const NearbyStoresSection(),
-              const SizedBox(height: 20),
-              // All Stores
-              Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: const AllStoresSection()),
-              const SizedBox(height: 100),
-            ]),
-          )),
-        ]),
-        floatingActionButton: !cart.isEmpty
+        appBar: _currentTabIndex == 0
+            ? ShopAppBar(
+                searchController: _searchController,
+                onSearchChanged: (query) {
+                  ref.read(searchQueryProvider.notifier).state = query;
+                  ref.read(menuCurrentPageProvider.notifier).state = 1;
+                },
+              )
+            : null,
+        body: _buildBody(cart),
+        floatingActionButton: _currentTabIndex == 0 && !cart.isEmpty
             ? FloatingActionButton(
                 onPressed: () => Navigator.push(
                   context,

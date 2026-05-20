@@ -78,17 +78,12 @@ class TopStoresSection extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {},
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.outlineVariant),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward,
-                    size: 16,
-                    color: AppColors.textPrimary,
+                child: const Text(
+                  'Xem thêm',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
