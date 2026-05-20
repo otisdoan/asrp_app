@@ -1,56 +1,64 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 
-/// Reset Password Page — clean, professional design.
-/// User enters new password after receiving reset code.
+/// Change Password Page — 3 fields: old password, new password, confirm new password.
 /// Follows RULE: UI-only widgets, AppColors 100%, responsive.
-class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+class ChangePasswordPage extends StatefulWidget {
+  const ChangePasswordPage({super.key});
 
   @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  State<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
-  bool _passwordVisible = false;
+class _ChangePasswordPageState extends State<ChangePasswordPage> {
+  final _oldPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _oldVisible = false;
+  bool _newVisible = false;
   bool _confirmVisible = false;
   bool _loading = false;
   bool _success = false;
-  String? _error;
+  String? _oldError;
+  String? _newError;
+  String? _confirmError;
 
   @override
   void dispose() {
-    _passwordController.dispose();
-    _confirmController.dispose();
+    _oldPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _resetPassword() async {
-    final pw = _passwordController.text;
-    if (pw.length < 8) {
-      setState(() => _error = 'Mật khẩu tối thiểu 8 ký tự');
-      return;
-    }
-    if (!RegExp(r'[a-zA-Z]').hasMatch(pw)) {
-      setState(() => _error = 'Mật khẩu phải bao gồm chữ cái');
-      return;
-    }
-    if (!RegExp(r'[0-9]').hasMatch(pw)) {
-      setState(() => _error = 'Mật khẩu phải bao gồm số');
-      return;
-    }
-    if (_confirmController.text != pw) {
-      setState(() => _error = 'Mật khẩu xác nhận không khớp');
-      return;
-    }
+  void _validate() {
     setState(() {
-      _loading = true;
-      _error = null;
+      _oldError = null;
+      _newError = null;
+      _confirmError = null;
     });
+    if (_oldPasswordController.text.isEmpty) {
+      setState(() => _oldError = 'Vui lòng nhập mật khẩu cũ');
+    }
+    final pw = _newPasswordController.text;
+    if (pw.length < 8) {
+      setState(() => _newError = 'Mật khẩu mới tối thiểu 8 ký tự');
+    } else if (!RegExp(r'[a-zA-Z]').hasMatch(pw)) {
+      setState(() => _newError = 'Mật khẩu mới phải bao gồm chữ cái');
+    } else if (!RegExp(r'[0-9]').hasMatch(pw)) {
+      setState(() => _newError = 'Mật khẩu mới phải bao gồm số');
+    } else if (_oldPasswordController.text == pw) {
+      setState(() => _newError = 'Mật khẩu mới phải khác mật khẩu cũ');
+    }
+    if (_confirmPasswordController.text != pw) {
+      setState(() => _confirmError = 'Mật khẩu xác nhận không khớp');
+    }
+  }
+
+  Future<void> _changePassword() async {
+    _validate();
+    if (_oldError != null || _newError != null || _confirmError != null) return;
+    setState(() => _loading = true);
     await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) {
       setState(() {
@@ -73,7 +81,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               const SizedBox(height: 16),
               // Back button
               GestureDetector(
-                onTap: () => context.pop(),
+                onTap: () => Navigator.pop(context),
                 child: Container(
                   width: 40,
                   height: 40,
@@ -84,13 +92,42 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              // Brand logo
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primary, AppColors.secondary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.restaurant_menu, color: AppColors.onPrimary, size: 28),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'BMC Phở Express',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               if (!_success) ...[
-                _buildResetForm(),
+                _buildChangeForm(),
               ] else ...[
                 _buildSuccessState(),
               ],
-              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -98,54 +135,53 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-  Widget _buildResetForm() {
+  Widget _buildChangeForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Brand logo
-        Center(
-          child: Column(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.restaurant_menu, color: AppColors.onPrimary, size: 28),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'BMC Phở Express',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
+        const Center(
+          child: Text(
+            'Đổi mật khẩu',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'Đặt lại mật khẩu',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+        const SizedBox(height: 6),
+        const Center(
+          child: Text(
+            'Nhập mật khẩu cũ và tạo mật khẩu mới',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Tạo mật khẩu mới cho tài khoản của bạn.',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 28),
+        // Old password
+        const Text(
+          'Mật khẩu cũ',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _oldPasswordController,
+          obscureText: !_oldVisible,
+          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          decoration: _inputDecoration(
+            hint: 'Nhập mật khẩu hiện tại',
+            prefixIcon: Icons.lock_outline,
+            errorText: _oldError,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _oldVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                size: 20,
+                color: AppColors.textTertiary,
+              ),
+              onPressed: () => setState(() => _oldVisible = !_oldVisible),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         // New password
         const Text(
           'Mật khẩu mới',
@@ -153,36 +189,38 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          controller: _passwordController,
-          obscureText: !_passwordVisible,
+          controller: _newPasswordController,
+          obscureText: !_newVisible,
           style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
           decoration: _inputDecoration(
             hint: 'Ít nhất 8 ký tự, có chữ và số',
             prefixIcon: Icons.lock_outline,
+            errorText: _newError,
             suffixIcon: IconButton(
               icon: Icon(
-                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _newVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
-              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+              onPressed: () => setState(() => _newVisible = !_newVisible),
             ),
           ),
         ),
         const SizedBox(height: 16),
-        // Confirm password
+        // Confirm new password
         const Text(
           'Xác nhận mật khẩu mới',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
         TextFormField(
-          controller: _confirmController,
+          controller: _confirmPasswordController,
           obscureText: !_confirmVisible,
           style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
           decoration: _inputDecoration(
             hint: 'Nhập lại mật khẩu mới',
             prefixIcon: Icons.lock_outline,
+            errorText: _confirmError,
             suffixIcon: IconButton(
               icon: Icon(
                 _confirmVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -193,15 +231,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             ),
           ),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.error)),
-        ],
         const SizedBox(height: 28),
+        // Change button
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _loading ? null : _resetPassword,
+            onPressed: _loading ? null : _changePassword,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
@@ -216,18 +251,18 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
                   )
                 : const Text(
-                    'Đặt lại mật khẩu',
+                    'Đổi mật khẩu',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
           ),
         ),
+        const SizedBox(height: 40),
       ],
     );
   }
 
   Widget _buildSuccessState() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const SizedBox(height: 40),
         Container(
@@ -241,7 +276,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         ),
         const SizedBox(height: 24),
         const Text(
-          'Đặt lại thành công!',
+          'Đổi mật khẩu thành công!',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
@@ -251,11 +286,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Mật khẩu đã được cập nhật.\nBạn có thể đăng nhập với mật khẩu mới.',
+          'Mật khẩu của bạn đã được cập nhật.',
           style: TextStyle(
             fontSize: 14,
             color: AppColors.textSecondary,
-            height: 1.5,
           ),
           textAlign: TextAlign.center,
         ),
@@ -263,7 +297,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () => context.go(AppConstants.routeLogin),
+            onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
@@ -272,7 +306,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               elevation: 0,
             ),
             child: const Text(
-              'Đăng nhập ngay',
+              'Quay lại',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
@@ -285,12 +319,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     required String hint,
     required IconData prefixIcon,
     Widget? suffixIcon,
+    String? errorText,
   }) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: AppColors.textPlaceholder),
       prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.textTertiary),
       suffixIcon: suffixIcon,
+      errorText: errorText,
       filled: true,
       fillColor: AppColors.surfaceContainerLowest,
       border: OutlineInputBorder(

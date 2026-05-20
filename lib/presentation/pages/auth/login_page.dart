@@ -2,128 +2,64 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:async';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 
+/// Login Page — professional, clean design.
+/// Two tabs: Khách hàng (phone + password) and Nhân viên (phone + password).
+/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends ConsumerState<LoginPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  // Customer flow
-  int _customerStep = 1;
-  final _nameController = TextEditingController();
+class _LoginPageState extends ConsumerState<LoginPage> {
+  // Shared controllers
   final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
-  int _otpCooldown = 0;
-  int _otpExpiry = AppConstants.otpExpirySeconds;
-  Timer? _cooldownTimer;
-  Timer? _expiryTimer;
-  bool _customerLoading = false;
-  String? _customerError;
-
-  // Staff flow
-  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _staffPasswordVisible = false;
-  bool _staffLoading = false;
-  String? _staffError;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
+  bool _passwordVisible = false;
+  bool _loading = false;
+  String? _phoneError;
+  String? _passwordError;
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _nameController.dispose();
     _phoneController.dispose();
-    _otpController.dispose();
-    _usernameController.dispose();
     _passwordController.dispose();
-    _cooldownTimer?.cancel();
-    _expiryTimer?.cancel();
     super.dispose();
   }
 
-  void _startCooldown() {
-    setState(() => _otpCooldown = AppConstants.otpCooldownSeconds);
-    _cooldownTimer?.cancel();
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      setState(() {
-        if (_otpCooldown > 0) _otpCooldown--;
-        else t.cancel();
-      });
+  void _validate() {
+    setState(() {
+      _phoneError = null;
+      _passwordError = null;
     });
-  }
-
-  void _startExpiry() {
-    setState(() => _otpExpiry = AppConstants.otpExpirySeconds);
-    _expiryTimer?.cancel();
-    _expiryTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      setState(() {
-        if (_otpExpiry > 0) _otpExpiry--;
-        else t.cancel();
-      });
-    });
-  }
-
-  String _formatCountdown(int s) {
-    final m = s ~/ 60;
-    final sec = s % 60;
-    return '${m}:${sec.toString().padLeft(2,'0')}';
-  }
-
-  Future<void> _sendOtp() async {
-    if (_nameController.text.trim().length < 2) {
-      setState(() => _customerError = 'Ten phai co it nhat 2 ky tu');
-      return;
-    }
     final phone = _phoneController.text.trim();
-    if (!RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
-      setState(() => _customerError = 'So dien thoai phai co dung 10 chu so');
-      return;
-    }
-    setState(() { _customerLoading = true; _customerError = null; });
-    await Future.delayed(const Duration(milliseconds: 800));
-    setState(() { _customerLoading = false; _customerStep = 2; });
-    _startCooldown();
-    _startExpiry();
-  }
-
-  Future<void> _verifyOtp() async {
-    if (_otpController.text.length != 6) {
-      setState(() => _customerError = 'Vui long nhap du 6 so OTP');
-      return;
-    }
-    if (_otpController.text != AppConstants.mockOtp) {
-      setState(() => _customerError = 'Ma OTP khong dung');
-      return;
-    }
-    setState(() { _customerLoading = true; _customerError = null; });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) context.go(AppConstants.routeHome);
-  }
-
-  Future<void> _staffLogin() async {
-    if (_usernameController.text.trim().length < 3) {
-      setState(() => _staffError = 'Ten dang nhap toi thieu 3 ky tu');
-      return;
+    if (phone.isEmpty || !RegExp(r'^0[0-9]{8,9}$').hasMatch(phone)) {
+      setState(() => _phoneError = 'Số điện thoại không hợp lệ');
     }
     if (_passwordController.text.length < 8) {
-      setState(() => _staffError = 'Mat khau toi thieu 8 ky tu');
-      return;
+      setState(() => _passwordError = 'Mật khẩu tối thiểu 8 ký tự');
     }
-    setState(() { _staffLoading = true; _staffError = null; });
+  }
+
+  Future<void> _login() async {
+    _validate();
+    if (_phoneError != null || _passwordError != null) return;
+    setState(() => _loading = true);
     await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) context.go(AppConstants.routeHome);
+    if (!mounted) return;
+
+    // Check if user has completed onboarding
+    const storage = FlutterSecureStorage();
+    final hasOnboarded = await storage.read(key: 'onboarding_completed');
+    if (hasOnboarded == 'true') {
+      if (mounted) context.go(AppConstants.routeHome);
+    } else {
+      if (mounted) context.go(AppConstants.routeOnboarding);
+    }
   }
 
   @override
@@ -132,215 +68,242 @@ class _LoginPageState extends ConsumerState<LoginPage> with SingleTickerProvider
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 48),
-                // Logo
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
-                  ),
-                  child: const Center(child: Text('🍜', style: TextStyle(fontSize: 32))),
-                ),
-                const SizedBox(height: 16),
-                Text('BMC Phở Express', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: AppColors.primary)),
-                const SizedBox(height: 4),
-                Text('Nền tảng nhà hàng thông minh', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-                const SizedBox(height: 32),
-                // Tab bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 48),
+              // Logo / Brand
+              Center(child: _buildBrandHeader()),
+              const SizedBox(height: 36),
+              // Form fields
+              _buildPhoneField(),
+              const SizedBox(height: 16),
+              _buildPasswordField(),
+              const SizedBox(height: 8),
+              // Forgot password
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => context.push(AppConstants.routeForgotPassword),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  child: const Text(
+                    'Quên mật khẩu?',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
                     ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: AppColors.textSecondary,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                    dividerColor: Colors.transparent,
-                    tabs: const [Tab(text: 'Khách hàng'), Tab(text: 'Nhân viên')],
-                    onTap: (_) => setState(() { _customerError = null; _staffError = null; }),
                   ),
                 ),
-                const SizedBox(height: 24),
-                // Tab content
-                SizedBox(
-                  height: 420,
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [_buildCustomerTab(), _buildStaffTab()],
-                  ),
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+              // Login button
+              _buildLoginButton(),
+              const SizedBox(height: 24),
+              // Register link
+              _buildRegisterLink(),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCustomerTab() {
-    if (_customerStep == 1) return _buildCustomerStep1();
-    return _buildCustomerStep2();
+  // ─── Brand Header ──────────────────────────────────────────────────────
+  Widget _buildBrandHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.secondary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.restaurant_menu, color: AppColors.onPrimary, size: 28),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'BMC Phở Express',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Chào mừng trở lại!',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Đăng nhập để tiếp tục đặt món yêu thích',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 
-  Widget _buildCustomerStep1() {
+  // ─── Phone Field ───────────────────────────────────────────────────────
+  Widget _buildPhoneField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Đăng nhập / Đăng ký', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
-        Text('Nhập tên và số điện thoại để nhận mã OTP', style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 20),
-        _buildLabel('Họ tên'),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _nameController,
-          decoration: const InputDecoration(hintText: 'Nguyễn Văn A', prefixIcon: Icon(Icons.person_outline)),
-          textInputAction: TextInputAction.next,
+        const Text(
+          'Số điện thoại',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
         ),
-        const SizedBox(height: 14),
-        _buildLabel('Số điện thoại'),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         TextFormField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-          decoration: const InputDecoration(hintText: '0901234567', prefixIcon: Icon(Icons.phone_outlined)),
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _sendOtp(),
-        ),
-        if (_customerError != null) ...[const SizedBox(height: 8), Text(_customerError!, style: const TextStyle(color: AppColors.error, fontSize: 12))],
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _customerLoading ? null : _sendOtp,
-            child: _customerLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Gửi mã OTP'),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ],
+          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: '0901234567',
+            hintStyle: const TextStyle(color: AppColors.textPlaceholder),
+            prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.textTertiary),
+            filled: true,
+            fillColor: AppColors.surfaceContainerLowest,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            ),
+            errorText: _phoneError,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
-        const SizedBox(height: 16),
-        Center(child: TextButton(onPressed: () => context.go(AppConstants.routeHome), child: const Text('Bỏ qua, vào xem menu'))),
       ],
     );
   }
 
-  Widget _buildCustomerStep2() {
+  // ─── Password Field ────────────────────────────────────────────────────
+  Widget _buildPasswordField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          GestureDetector(onTap: () => setState(() { _customerStep = 1; _customerError = null; }), child: const Icon(Icons.arrow_back_ios, size: 18, color: AppColors.primary)),
-          const SizedBox(width: 8),
-          Text('Nhập mã OTP', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-        ]),
-        const SizedBox(height: 4),
-        Text('Mã đã gửi đến ${_phoneController.text}', style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 20),
-        _buildLabel('Mã OTP (6 số)'),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _otpController,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
-          decoration: const InputDecoration(hintText: '• • • • • •', prefixIcon: Icon(Icons.lock_outline)),
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 8),
-          onChanged: (v) { if (v.length == 6) _verifyOtp(); },
+        const Text(
+          'Mật khẩu',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Hết hạn sau: ${_formatCountdown(_otpExpiry)}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-          TextButton(
-            onPressed: _otpCooldown > 0 ? null : _sendOtp,
-            child: Text(_otpCooldown > 0 ? 'Gửi lại (${_otpCooldown}s)' : 'Gửi lại OTP', style: TextStyle(fontSize: 12, color: _otpCooldown > 0 ? AppColors.textSecondary : AppColors.primary)),
-          ),
-        ]),
-        if (_customerError != null) ...[const SizedBox(height: 8), Text(_customerError!, style: const TextStyle(color: AppColors.error, fontSize: 12))],
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.circular(8)),
-          child: Row(children: [
-            const Icon(Icons.info_outline, size: 14, color: AppColors.textSecondary),
-            const SizedBox(width: 6),
-            Text('Mã thử nghiệm: ${AppConstants.mockOtp}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-          ]),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _customerLoading ? null : _verifyOtp,
-          child: _customerLoading
-            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : const Text('Xác nhận OTP'),
-        )),
-      ],
-    );
-  }
-
-  Widget _buildStaffTab() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Đăng nhập nhân viên', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
-        Text('Dùng tài khoản nội bộ', style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 20),
-        _buildLabel('Tên đăng nhập'),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _usernameController,
-          decoration: const InputDecoration(hintText: 'username', prefixIcon: Icon(Icons.person_outline)),
-          textInputAction: TextInputAction.next,
-        ),
-        const SizedBox(height: 14),
-        _buildLabel('Mật khẩu'),
-        const SizedBox(height: 6),
         TextFormField(
           controller: _passwordController,
-          obscureText: !_staffPasswordVisible,
+          obscureText: !_passwordVisible,
+          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
           decoration: InputDecoration(
-            hintText: '••••••••',
-            prefixIcon: const Icon(Icons.lock_outline),
-            suffixIcon: IconButton(icon: Icon(_staffPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20), onPressed: () => setState(() => _staffPasswordVisible = !_staffPasswordVisible)),
+            hintText: 'Nhập mật khẩu',
+            hintStyle: const TextStyle(color: AppColors.textPlaceholder),
+            prefixIcon: const Icon(Icons.lock_outline, size: 20, color: AppColors.textTertiary),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                size: 20,
+                color: AppColors.textTertiary,
+              ),
+              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+            ),
+            filled: true,
+            fillColor: AppColors.surfaceContainerLowest,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            ),
+            errorText: _passwordError,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _staffLogin(),
         ),
-        if (_staffError != null) ...[const SizedBox(height: 8), Text(_staffError!, style: const TextStyle(color: AppColors.error, fontSize: 12))],
-        const SizedBox(height: 8),
-        Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () => context.push(AppConstants.routeForgotPassword), child: const Text('Quên mật khẩu?', style: TextStyle(fontSize: 12)))),
-        const SizedBox(height: 16),
-        SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _staffLoading ? null : _staffLogin,
-          child: _staffLoading
-            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : const Text('Đăng nhập'),
-        )),
-        const SizedBox(height: 16),
-        Center(child: TextButton(
-          onPressed: () => context.push(AppConstants.routeRegister),
-          child: const Text('Chưa có tài khoản? Đăng ký', style: TextStyle(fontSize: 13)),
-        )),
       ],
     );
   }
 
-  Widget _buildLabel(String text) => Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary));
+  // ─── Login Button ──────────────────────────────────────────────────────
+  Widget _buildLoginButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _loading ? null : _login,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+        ),
+        child: _loading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: AppColors.onPrimary,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                'Đăng nhập',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+      ),
+    );
+  }
+
+  // ─── Register Link ─────────────────────────────────────────────────────
+  Widget _buildRegisterLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Chưa có tài khoản? ',
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        GestureDetector(
+          onTap: () => context.push(AppConstants.routeRegister),
+          child: const Text(
+            'Đăng ký ngay',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

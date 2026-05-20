@@ -6,6 +6,7 @@ import '../presentation/pages/auth/login_page.dart';
 import '../presentation/pages/auth/register_page.dart';
 import '../presentation/pages/auth/forgot_password_page.dart';
 import '../presentation/pages/auth/reset_password_page.dart';
+import '../presentation/pages/auth/onboarding_survey_page.dart';
 import '../presentation/pages/shop/home_page.dart';
 import '../core/constants/app_constants.dart';
 
@@ -36,6 +37,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppConstants.routeResetPassword,
         builder: (context, state) => const ResetPasswordPage(),
+      ),
+      GoRoute(
+        path: AppConstants.routeOnboarding,
+        builder: (context, state) => const OnboardingSurveyPage(),
       ),
       // ===== Shop Routes =====
       GoRoute(
