@@ -1,6 +1,11 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/models/user_model.dart';
 import '../data/models/auth_response_model.dart';
+import '../data/repositories/auth_repository.dart';
+import '../core/network/dio_client.dart';
+import '../core/constants/app_constants.dart';
 
 // ===== Auth State =====
 class AuthState {
@@ -29,9 +34,46 @@ class AuthState {
 
 // ===== Auth Notifier =====
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState());
+  final _secureStorage = const FlutterSecureStorage();
 
-  void setCredentials(AuthResponseModel response) {
+  AuthNotifier() : super(const AuthState()) {
+    _loadSavedSession();
+  }
+
+  /// Tự động nạp lại phiên đăng nhập cũ từ Secure Storage khi khởi động app
+  Future<void> _loadSavedSession() async {
+    try {
+      final token = await _secureStorage.read(key: AppConstants.storageKeyAccessToken);
+      final userJson = await _secureStorage.read(key: AppConstants.storageKeyUser);
+      if (token != null && userJson != null) {
+        final userMap = jsonDecode(userJson) as Map<String, dynamic>;
+        final user = UserModel.fromJson(userMap);
+        
+        DioClient().setAccessToken(token);
+        
+        state = AuthState(
+          user: user,
+          accessToken: token,
+          isAuthenticated: true,
+        );
+      }
+    } catch (_) {
+      logout();
+    }
+  }
+
+  /// Thiết lập thông tin xác thực sau khi đăng nhập/đăng ký thành công
+  Future<void> setCredentials(AuthResponseModel response) async {
+    DioClient().setAccessToken(response.accessToken);
+    await _secureStorage.write(
+      key: AppConstants.storageKeyAccessToken,
+      value: response.accessToken,
+    );
+    await _secureStorage.write(
+      key: AppConstants.storageKeyUser,
+      value: jsonEncode(response.user.toJson()),
+    );
+
     state = AuthState(
       user: response.user,
       accessToken: response.accessToken,
@@ -39,20 +81,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  void setUser(UserModel user) {
+  /// Cập nhật thông tin chi tiết của user hiện tại
+  Future<void> setUser(UserModel user) async {
+    await _secureStorage.write(
+      key: AppConstants.storageKeyUser,
+      value: jsonEncode(user.toJson()),
+    );
     state = state.copyWith(user: user);
   }
 
-  void updateAccessToken(String token) {
+  /// Cập nhật Access Token mới (ví dụ khi được Refresh thành công)
+  Future<void> updateAccessToken(String token) async {
+    DioClient().setAccessToken(token);
+    await _secureStorage.write(
+      key: AppConstants.storageKeyAccessToken,
+      value: token,
+    );
     state = state.copyWith(accessToken: token);
   }
 
-  void logout() {
+  /// Đăng xuất - Xóa sạch mọi phiên lưu trữ và credentials
+  Future<void> logout() async {
+    await DioClient().clearAuth();
+    await _secureStorage.delete(key: AppConstants.storageKeyAccessToken);
+    await _secureStorage.delete(key: AppConstants.storageKeyUser);
     state = const AuthState();
   }
 }
 
-// ===== Provider =====
+// ===== Providers =====
+final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
+
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
   (ref) => AuthNotifier(),
 );

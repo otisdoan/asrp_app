@@ -70,5 +70,7 @@
 	<string>Ứng dụng cần truy cập vị trí để tìm cửa hàng gần bạn.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Ứng dụng cần truy cập vị trí để tìm cửa hàng gần bạn.</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 </dict>
 </plist>

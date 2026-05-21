@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../providers/auth_provider.dart';
 
 /// Register Page — professional, clean design.
 /// Two tabs: Khách hàng (phone + password + confirm → OTP) and Nhân viên (phone + password + confirm → done).
@@ -56,22 +61,118 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
   }
 
+  bool _isFirebaseAvailable() {
+    try {
+      Firebase.app();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _register() async {
+    if (_loading) return;
     _validate();
     if (_phoneError != null || _passwordError != null || _confirmError != null) return;
     setState(() => _loading = true);
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    final phone = _phoneController.text.trim();
 
-    if (!mounted) return;
+    // Check if Firebase is available and it's not a development test phone number
+    if (!_isFirebaseAvailable() || phone == '0000000000') {
+      // Mock Mode: Navigate to OTP directly
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _navigateToOtp('mock_verification_id');
+      return;
+    }
 
-    // Go to OTP verification
-    setState(() => _loading = false);
+    // Real Firebase Phone Auth
+    final formattedPhone = '+84${phone.substring(1)}';
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: formattedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Instant verification on Android
+          try {
+            final authResult = await FirebaseAuth.instance.signInWithCredential(credential);
+            final user = authResult.user;
+            if (user != null) {
+              final idToken = await user.getIdToken();
+              if (idToken != null) {
+                print('[Firebase ID Token (Auto)]: $idToken');
+                // Call backend API to register directly
+                final repository = ref.read(authRepositoryProvider);
+                final response = await repository.register(
+                  idToken: idToken,
+                  displayName: '',
+                  password: _passwordController.text,
+                );
+                await ref.read(authProvider.notifier).setCredentials(response);
+                
+                const storage = FlutterSecureStorage();
+                await storage.write(key: 'user_role', value: response.user.role);
+
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  if (response.user.role == 'customer') {
+                    final hasOnboarded = await storage.read(key: 'onboarding_completed');
+                    if (!mounted) return;
+                    if (hasOnboarded == 'true') {
+                      context.go(AppConstants.routeHome);
+                    } else {
+                      context.go(AppConstants.routeOnboarding);
+                    }
+                  } else if (response.user.role == 'staff') {
+                    context.go(AppConstants.routeStaffHome);
+                  } else {
+                    context.go(AppConstants.routeCashier);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            if (e is DioException) {
+              print('[Backend Register Error (Auto)] Status: ${e.response?.statusCode}');
+              print('[Backend Register Error (Auto)] Data: ${e.response?.data}');
+            } else {
+              print('[Auto Verify Error]: $e');
+            }
+            setState(() {
+              _loading = false;
+              _phoneError = 'Đăng ký tự động thất bại: $e';
+            });
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() {
+            _loading = false;
+            _phoneError = e.message ?? 'Xác thực số điện thoại thất bại';
+          });
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() => _loading = false);
+          _navigateToOtp(verificationId);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _phoneError = 'Lỗi gửi mã OTP: $e';
+      });
+    }
+  }
+
+  void _navigateToOtp(String verificationId) {
     Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => OtpVerificationPage(
           phone: _phoneController.text.trim(),
+          password: _passwordController.text,
+          verificationId: verificationId,
         ),
         transitionsBuilder: (_, animation, __, child) {
           return SlideTransition(
@@ -365,15 +466,23 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 // OTP Verification Page — shown only for customer registration.
 // ═══════════════════════════════════════════════════════════════════════════
 
-class OtpVerificationPage extends StatefulWidget {
+class OtpVerificationPage extends ConsumerStatefulWidget {
   final String phone;
-  const OtpVerificationPage({super.key, required this.phone});
+  final String password;
+  final String verificationId;
+
+  const OtpVerificationPage({
+    super.key,
+    required this.phone,
+    required this.password,
+    required this.verificationId,
+  });
 
   @override
-  State<OtpVerificationPage> createState() => _OtpVerificationPageState();
+  ConsumerState<OtpVerificationPage> createState() => _OtpVerificationPageState();
 }
 
-class _OtpVerificationPageState extends State<OtpVerificationPage> {
+class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
   final List<TextEditingController> _otpControllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
@@ -419,6 +528,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   String get _otpValue => _otpControllers.map((c) => c.text).join();
 
   Future<void> _verifyOtp() async {
+    if (_loading) return;
     if (_otpValue.length < 6) {
       setState(() => _error = 'Vui lòng nhập đủ 6 số OTP');
       return;
@@ -427,20 +537,125 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
 
-    // Mock: accept any 6-digit OTP
-    if (_otpValue == '123456' || _otpValue.length == 6) {
-      // Success → go to home
+    try {
+      String idToken = 'mock_firebase_id_token';
+
+      if (widget.verificationId != 'mock_verification_id') {
+        // Real Firebase Auth verification
+        final credential = PhoneAuthProvider.credential(
+          verificationId: widget.verificationId,
+          smsCode: _otpValue,
+        );
+
+        final authResult = await FirebaseAuth.instance.signInWithCredential(credential);
+        final firebaseUser = authResult.user;
+        if (firebaseUser == null) {
+          throw Exception('Không thể đăng nhập Firebase');
+        }
+        final token = await firebaseUser.getIdToken();
+        if (token == null) {
+          throw Exception('Không lấy được ID Token từ Firebase');
+        }
+        idToken = token;
+        print('[Firebase ID Token]: $idToken');
+      } else {
+        // Mock Mode
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (_otpValue != '123456') {
+          throw Exception('Mã OTP không đúng (Chế độ thử nghiệm: 123456)');
+        }
+      }
+
+      // Call API Đăng ký ở Backend
+      final repository = ref.read(authRepositoryProvider);
+      final response = await repository.register(
+        idToken: idToken,
+        displayName: '', // Gửi rỗng như backend mong đợi
+        password: widget.password,
+      );
+
+      // Lưu trữ credentials và JWT token mới
+      await ref.read(authProvider.notifier).setCredentials(response);
+
+      if (!mounted) return;
+
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'user_role', value: response.user.role);
+      
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
-        GoRouter.of(context).go(AppConstants.routeHome);
+        if (response.user.role == 'customer') {
+          final hasOnboarded = await storage.read(key: 'onboarding_completed');
+          if (!mounted) return;
+          if (hasOnboarded == 'true') {
+            GoRouter.of(context).go(AppConstants.routeHome);
+          } else {
+            GoRouter.of(context).go(AppConstants.routeOnboarding);
+          }
+        } else if (response.user.role == 'staff') {
+          GoRouter.of(context).go(AppConstants.routeStaffHome);
+        } else {
+          GoRouter.of(context).go(AppConstants.routeCashier);
+        }
       }
-    } else {
+    } catch (e) {
+      if (e is DioException) {
+        print('[Backend Register Error] Status: ${e.response?.statusCode}');
+        print('[Backend Register Error] Headers: ${e.response?.headers}');
+        print('[Backend Register Error] Data: ${e.response?.data}');
+      } else {
+        print('[Verify OTP Error]: $e');
+      }
       setState(() {
         _loading = false;
-        _error = 'Mã OTP không đúng';
+        _error = e is DioException 
+            ? (e.response?.data['message'] ?? 'Đăng ký thất bại từ máy chủ')
+            : e.toString().replaceAll('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _resendOtp() async {
+    if (!_canResend) return;
+    setState(() {
+      _error = null;
+    });
+
+    if (widget.verificationId == 'mock_verification_id') {
+      _startCooldown();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã gửi lại mã OTP (Chế độ thử nghiệm: 123456)')),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+    final formattedPhone = '+84${widget.phone.substring(1)}';
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: formattedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) {},
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() {
+            _loading = false;
+            _error = e.message ?? 'Gửi lại OTP thất bại';
+          });
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() => _loading = false);
+          _startCooldown();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mã OTP mới đã được gửi')),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = 'Lỗi gửi lại OTP: $e';
       });
     }
   }
@@ -573,7 +788,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         GestureDetector(
-          onTap: _canResend ? _startCooldown : null,
+          onTap: _canResend ? _resendOtp : null,
           child: Text(
             _canResend ? 'Gửi lại' : 'Gửi lại (${_resendCooldown}s)',
             style: TextStyle(

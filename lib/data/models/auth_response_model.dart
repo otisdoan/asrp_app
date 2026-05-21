@@ -9,11 +9,12 @@ class AuthResponseModel {
     required this.accessToken,
   });
 
-  factory AuthResponseModel.fromJson(Map<String, dynamic> json) =>
-      AuthResponseModel(
-        user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
-        accessToken: json['accessToken'] as String,
-      );
+  factory AuthResponseModel.fromJson(Map<String, dynamic> json) {
+    return AuthResponseModel(
+      user: UserModel.fromJson(json['user'] as Map<String, dynamic>? ?? <String, dynamic>{}),
+      accessToken: json['accessToken']?.toString() ?? '',
+    );
+  }
 }
 
 class ApiResponse<T> {

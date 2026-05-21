@@ -23,18 +23,20 @@ class UserModel {
     required this.updatedAt,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-        id: json['id'] as String,
-        username: json['username'] as String,
-        email: json['email'] as String?,
-        phone: json['phone'] as String?,
-        fullName: json['fullName'] as String?,
-        avatar: json['avatar'] as String?,
-        role: json['role'] as String,
-        isActive: json['isActive'] as bool,
-        createdAt: json['createdAt'] as String,
-        updatedAt: json['updatedAt'] as String,
-      );
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: (json['id'] ?? json['_id'])?.toString() ?? '',
+      username: json['username']?.toString() ?? '',
+      email: json['email']?.toString(),
+      phone: json['phone']?.toString(),
+      fullName: json['fullName']?.toString(),
+      avatar: json['avatar']?.toString(),
+      role: json['role']?.toString() ?? 'customer',
+      isActive: json['isActive'] is bool ? json['isActive'] as bool : (json['isActive']?.toString() == 'true'),
+      createdAt: json['createdAt']?.toString() ?? '',
+      updatedAt: json['updatedAt']?.toString() ?? '',
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
