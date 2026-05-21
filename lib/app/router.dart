@@ -13,6 +13,7 @@ import '../presentation/pages/staff/staff_home_page.dart';
 import '../presentation/pages/staff/cashier_page.dart';
 import '../presentation/pages/shop/home_page.dart';
 import '../presentation/pages/shop/search_page.dart';
+import '../presentation/pages/shop/favorite_shops_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -74,6 +75,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppConstants.routeEditProfile,
         builder: (context, state) => const EditProfilePage(),
+      ),
+      GoRoute(
+        path: AppConstants.routeFavoriteShops,
+        builder: (context, state) => const FavoriteShopsPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

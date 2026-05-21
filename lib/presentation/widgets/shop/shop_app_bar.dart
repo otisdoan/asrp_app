@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/favorite_shops_provider.dart';
 
 class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final TextEditingController? searchController;
@@ -22,6 +23,7 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoggedIn = ref.watch(isAuthenticatedProvider);
     final user = ref.watch(currentUserProvider);
+    final favoriteCount = ref.watch(favoriteShopsProvider).length;
     final initials = user != null && user.displayName.isNotEmpty
         ? user.displayName.trim().substring(0, 1).toUpperCase()
         : 'U';
@@ -38,7 +40,7 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -78,35 +80,58 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: 8),
 
-          // 3. Golden Star BMC Rewards Button
+          // 3. Red Heart Favorite Shops Button
           GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Chức năng tích điểm BMC Rewards đang được phát triển!'),
-                  duration: Duration(seconds: 1),
+            onTap: () => context.push(AppConstants.routeFavoriteShops),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFE24B4A), Color(0xFFFF2A55)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
                 ),
-              );
-            },
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFF3B844), AppColors.accent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.star_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
+                if (favoriteCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$favoriteCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 8),

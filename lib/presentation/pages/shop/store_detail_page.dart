@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/favorite_shops_provider.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
 
@@ -531,7 +533,33 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               });
             },
           ),
-        IconButton(icon: const Icon(Icons.favorite_border, color: Colors.white), onPressed: () {}),
+        Consumer(
+          builder: (context, ref, child) {
+            final favorites = ref.watch(favoriteShopsProvider);
+            final isFav = favorites.contains(widget.storeName);
+            return IconButton(
+              icon: Icon(
+                isFav ? Icons.favorite : Icons.favorite_border,
+                color: isFav ? const Color(0xFFFF2A55) : Colors.white,
+              ),
+              onPressed: () {
+                ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isFav
+                          ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
+                          : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
+                    ),
+                    duration: const Duration(seconds: 1),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              },
+            );
+          },
+        ),
         IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -620,7 +648,33 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               ),
               const SizedBox(width: 12),
               // Favorite
-              const Icon(Icons.favorite_border, size: 20, color: AppColors.textSecondary),
+              Consumer(
+                builder: (context, ref, child) {
+                  final isFav = ref.watch(favoriteShopsProvider).contains(widget.storeName);
+                  return GestureDetector(
+                    onTap: () {
+                      ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isFav
+                                ? 'Đã xóa "${widget.storeName}" khỏi yêu thích'
+                                : 'Đã thêm "${widget.storeName}" vào yêu thích',
+                          ),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    },
+                    child: Icon(
+                      isFav ? Icons.favorite : Icons.favorite_border,
+                      size: 20,
+                      color: isFav ? const Color(0xFFFF2A55) : AppColors.textSecondary,
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ],

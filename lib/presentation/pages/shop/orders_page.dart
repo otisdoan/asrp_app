@@ -11,11 +11,11 @@ class OrdersPage extends StatelessWidget {
 
   // Order status categories
   static const _statusCategories = [
-    {'icon': Icons.payment, 'label': 'Chờ thanh\ntoán', 'count': 0},
-    {'icon': Icons.check_circle_outline, 'label': 'Chờ xác\nnhận', 'count': 1},
-    {'icon': Icons.store_mall_directory_outlined, 'label': 'Chờ nhận\nđơn', 'count': 0},
-    {'icon': Icons.star_border, 'label': 'Chờ đánh\ngiá', 'count': 2},
-    {'icon': Icons.assignment_return_outlined, 'label': 'Trả hàng', 'count': 0},
+    {'icon': Icons.account_balance_wallet_outlined, 'label': 'Chờ thanh\ntoán', 'count': 0},
+    {'icon': Icons.hourglass_top_rounded, 'label': 'Chờ xác\nnhận', 'count': 1},
+    {'icon': Icons.takeout_dining_outlined, 'label': 'Chờ nhận\nđơn', 'count': 0},
+    {'icon': Icons.rate_review_outlined, 'label': 'Chờ đánh\ngiá', 'count': 2},
+    {'icon': Icons.replay_rounded, 'label': 'Trả hàng', 'count': 0},
   ];
 
   // Mock suggested stores (10 items for grid)
