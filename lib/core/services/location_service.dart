@@ -1,16 +1,15 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:flutter/foundation.dart';
 
-/// Location Service — handles GPS permission, coordinates, and reverse geocoding.
+/// Location Service — GPS coordinates + distance calculation.
+/// Business: lấy vị trí user → tính khoảng cách đến chi nhánh.
+/// Follows RULE: không cần API key, không cần geocoding.
 class LocationService {
-  /// Request location permission and get current address.
-  /// Returns the address string or null if denied.
-  static Future<String?> getCurrentAddress() async {
+  /// Get current GPS position. Returns Position or null if denied.
+  static Future<Position?> getCurrentPosition() async {
     // Check if location services are enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      debugPrint('[LocationService] Location services are disabled.');
+      print('[LocationService] Location services are disabled.');
       return null;
     }
 
@@ -19,13 +18,13 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        debugPrint('[LocationService] Location permission denied.');
+        print('[LocationService] Location permission denied.');
         return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      debugPrint('[LocationService] Location permission permanently denied.');
+      print('[LocationService] Location permission permanently denied.');
       return null;
     }
 
@@ -36,33 +35,24 @@ class LocationService {
       ),
     );
 
-    debugPrint('[LocationService] GPS: ${position.latitude}, ${position.longitude}');
+    print('[LocationService] GPS: ${position.latitude}, ${position.longitude}');
+    return position;
+  }
 
-    // Reverse geocode to get address
-    try {
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+  /// Calculate distance (meters) between user and a branch.
+  static double distanceTo(
+    double userLat, double userLng,
+    double branchLat, double branchLng,
+  ) {
+    return Geolocator.distanceBetween(userLat, userLng, branchLat, branchLng);
+  }
 
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        final address = [
-          place.street,
-          place.subLocality,
-          place.locality,
-          place.subAdministrativeArea,
-          place.administrativeArea,
-          place.country,
-        ].where((e) => e != null && e.isNotEmpty).join(', ');
-
-        debugPrint('[LocationService] Địa chỉ hiện tại: $address');
-        return address;
-      }
-    } catch (e) {
-      debugPrint('[LocationService] Reverse geocoding error: $e');
+  /// Format distance for display: "1.2 km" or "350 m"
+  static String formatDistance(double meters) {
+    if (meters >= 1000) {
+      return '${(meters / 1000).toStringAsFixed(1)} km';
     }
-
-    return null;
+    return '${meters.toInt()} m';
   }
 }
+
