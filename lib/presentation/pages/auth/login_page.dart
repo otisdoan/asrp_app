@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../providers/auth_provider.dart';
 
 /// Login Page — professional, clean design.
 /// Two tabs: Khách hàng (phone + password) and Nhân viên (phone + password).
@@ -23,6 +25,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _loading = false;
   String? _phoneError;
   String? _passwordError;
+  String? _loginError;
 
   @override
   void dispose() {
@@ -46,36 +49,59 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _login() async {
+    if (_loading) return;
     _validate();
     if (_phoneError != null || _passwordError != null) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _loginError = null;
+    });
 
     final phone = _phoneController.text.trim();
-    const storage = FlutterSecureStorage();
+    final password = _passwordController.text;
 
-    // Mock role check:
-    // '01...' → Staff, '02...' → Cashier, others → Customer
-    // In production: backend returns role after authentication
-    final isStaff = phone.startsWith('01');
-    final isCashier = phone.startsWith('02');
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final response = await repository.login(
+        phone: phone,
+        password: password,
+      );
 
-    if (isStaff) {
-      await storage.write(key: 'user_role', value: 'staff');
-      if (mounted) context.go(AppConstants.routeStaffHome);
-    } else if (isCashier) {
-      await storage.write(key: 'user_role', value: 'cashier');
-      if (mounted) context.go(AppConstants.routeCashier);
-    } else {
-      // Customer → check onboarding
-      await storage.write(key: 'user_role', value: 'customer');
-      final hasOnboarded = await storage.read(key: 'onboarding_completed');
-      if (hasOnboarded == 'true') {
-        if (mounted) context.go(AppConstants.routeHome);
-      } else {
-        if (mounted) context.go(AppConstants.routeOnboarding);
+      // Save credentials and JWT
+      await ref.read(authProvider.notifier).setCredentials(response);
+
+      if (!mounted) return;
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'user_role', value: response.user.role);
+
+      if (mounted) {
+        if (response.user.role == 'customer') {
+          final hasOnboarded = await storage.read(key: 'onboarding_completed');
+          if (!mounted) return;
+          if (hasOnboarded == 'true') {
+            context.go(AppConstants.routeHome);
+          } else {
+            context.go(AppConstants.routeOnboarding);
+          }
+        } else if (response.user.role == 'staff') {
+          context.go(AppConstants.routeStaffHome);
+        } else {
+          context.go(AppConstants.routeCashier);
+        }
       }
+    } catch (e) {
+      if (e is DioException) {
+        print('[Backend Login Error] Status: ${e.response?.statusCode}');
+        print('[Backend Login Error] Data: ${e.response?.data}');
+      } else {
+        print('[Login Error]: $e');
+      }
+      setState(() {
+        _loading = false;
+        _loginError = e is DioException
+            ? (e.response?.data['message'] ?? 'Đăng nhập thất bại từ máy chủ')
+            : e.toString().replaceAll('Exception: ', '');
+      });
     }
   }
 
@@ -114,6 +140,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 ),
               ),
+              if (_loginError != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _loginError!,
+                  style: const TextStyle(fontSize: 13, color: AppColors.error),
+                ),
+              ],
               const SizedBox(height: 20),
               // Login button
               _buildLoginButton(),

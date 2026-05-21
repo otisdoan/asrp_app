@@ -7,6 +7,8 @@ import '../presentation/pages/auth/register_page.dart';
 import '../presentation/pages/auth/forgot_password_page.dart';
 import '../presentation/pages/auth/reset_password_page.dart';
 import '../presentation/pages/auth/onboarding_survey_page.dart';
+import '../presentation/pages/auth/profile_page.dart';
+import '../presentation/pages/auth/edit_profile_page.dart';
 import '../presentation/pages/staff/staff_home_page.dart';
 import '../presentation/pages/staff/cashier_page.dart';
 import '../presentation/pages/shop/home_page.dart';
@@ -64,6 +66,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           final category = state.uri.queryParameters['category'];
           return SearchPage(initialCategory: category);
         },
+      ),
+      GoRoute(
+        path: AppConstants.routeProfile,
+        builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: AppConstants.routeEditProfile,
+        builder: (context, state) => const EditProfilePage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/auth_provider.dart';
 
 class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final TextEditingController? searchController;
@@ -19,6 +20,12 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isLoggedIn = ref.watch(isAuthenticatedProvider);
+    final user = ref.watch(currentUserProvider);
+    final initials = user != null && user.displayName.isNotEmpty
+        ? user.displayName.trim().substring(0, 1).toUpperCase()
+        : 'U';
+
     return AppBar(
       backgroundColor: AppColors.primary, // Brand Primary Color (Cam đỏ trầm)
       elevation: 0,
@@ -106,7 +113,9 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
           // 4. Profile Avatar (Far Right)
           GestureDetector(
-            onTap: () => context.push(AppConstants.routeLogin),
+            onTap: () => context.push(
+              isLoggedIn ? AppConstants.routeProfile : AppConstants.routeLogin,
+            ),
             child: Container(
               width: 34,
               height: 34,
@@ -114,12 +123,23 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 color: AppColors.secondary, // Brand secondary color
                 shape: BoxShape.circle,
               ),
-              child: const ClipOval(
-                child: Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 26,
-                ),
+              child: ClipOval(
+                child: isLoggedIn
+                    ? Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 26,
+                      ),
               ),
             ),
           ),

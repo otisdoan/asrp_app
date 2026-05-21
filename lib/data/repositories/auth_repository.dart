@@ -41,10 +41,17 @@ class AuthRepository {
     required String phone,
     required String password,
   }) async {
+    String formattedPhone = phone;
+    if (phone.startsWith('0')) {
+      formattedPhone = '+84${phone.substring(1)}';
+    }
+    
+    print('[AuthRepository] Requesting login to ${ApiConstants.login}');
+    print('[AuthRepository] Payload: { phoneNumber: "$formattedPhone", password: "$password" }');
     final response = await _dioClient.dio.post(
       ApiConstants.login,
       data: {
-        'phone': phone,
+        'phoneNumber': formattedPhone,
         'password': password,
       },
     );
