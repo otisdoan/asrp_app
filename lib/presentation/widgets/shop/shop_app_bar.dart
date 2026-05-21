@@ -51,38 +51,21 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.search,
-                    color: Colors.grey[600],
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: TextField(
-                      controller: searchController,
-                      onChanged: onSearchChanged,
-                      onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                      style: const TextStyle(fontSize: 13, color: Colors.black),
-                      decoration: InputDecoration(
-                        hintText: 'Tìm kiếm món ăn...',
-                        hintStyle: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
+              child: GestureDetector(
+                onTap: () => context.push('/search'),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search,
+                      color: Colors.grey[600],
+                      size: 18,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    const Expanded(
+                      child: _AnimatedSearchPlaceholder(),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -141,6 +124,92 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Animated Search Placeholder ─────────────────────────────────────────
+class _AnimatedSearchPlaceholder extends StatefulWidget {
+  const _AnimatedSearchPlaceholder();
+
+  @override
+  State<_AnimatedSearchPlaceholder> createState() => _AnimatedSearchPlaceholderState();
+}
+
+class _AnimatedSearchPlaceholderState extends State<_AnimatedSearchPlaceholder>
+    with SingleTickerProviderStateMixin {
+  static const _hints = [
+    'Phở bò tái nạm',
+    'Cơm sườn nướng',
+    'Trà sữa trân châu',
+    'Bún bò Huế',
+    'Gà rán giòn',
+  ];
+
+  int _currentIndex = 0;
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    _controller.forward();
+    _startCycling();
+  }
+
+  void _startCycling() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      _controller.reverse().then((_) {
+        if (!mounted) return;
+        setState(() {
+          _currentIndex = (_currentIndex + 1) % _hints.length;
+        });
+        _controller.forward();
+        _startCycling();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: Text(
+            _hints[_currentIndex],
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.primary,
+              fontWeight: FontWeight.w200,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ),
     );
   }

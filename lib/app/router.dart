@@ -10,6 +10,7 @@ import '../presentation/pages/auth/onboarding_survey_page.dart';
 import '../presentation/pages/staff/staff_home_page.dart';
 import '../presentation/pages/staff/cashier_page.dart';
 import '../presentation/pages/shop/home_page.dart';
+import '../presentation/pages/shop/search_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -56,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppConstants.routeHome,
         builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
