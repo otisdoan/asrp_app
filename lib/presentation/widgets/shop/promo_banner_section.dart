@@ -19,7 +19,7 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
     return Column(children: [
       CarouselSlider(
         options: CarouselOptions(
-          height: 130,
+          height: 160,
           viewportFraction: 1.0,
           autoPlay: true,
           autoPlayInterval: const Duration(seconds: 4),
@@ -40,49 +40,57 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryHover], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(children: [
-        // Background decorative circles
-        Positioned(right: -20, top: -20, child: Container(width: 100, height: 100, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle))),
-        Positioned(right: 60, bottom: -30, child: Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), shape: BoxShape.circle))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(children: [
-            // Text content
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(4)),
-                child: Text(b['tag'] ?? '', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white)),
-              ),
-              const SizedBox(height: 4),
-              Text(b['title'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2)),
-              const SizedBox(height: 2),
-              Text(b['desc'] ?? '', style: const TextStyle(fontSize: 10, color: Color(0xE6FFFFFF))),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-                child: const Text('Xem ngay →', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
-              ),
-            ])),
-            const SizedBox(width: 12),
-            // Actual image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                b['image'] ?? 'assets/images/pho.jpg',
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Full background image
+          Image.asset(
+            b['image'] ?? 'assets/images/pho.jpg',
+            fit: BoxFit.cover,
+          ),
+          // Dark gradient overlay for text readability
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.black.withValues(alpha: 0.6),
+                  Colors.black.withValues(alpha: 0.2),
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
             ),
-          ]),
-        ),
-      ]),
+          ),
+          // Text content
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(4)),
+                  child: Text(b['tag'] ?? '', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
+                const SizedBox(height: 6),
+                Text(b['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
+                const SizedBox(height: 4),
+                Text(b['desc'] ?? '', style: const TextStyle(fontSize: 12, color: Color(0xDDFFFFFF))),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+                  child: const Text('Xem ngay →', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
