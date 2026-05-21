@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
+import 'store_detail_page.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
@@ -667,13 +668,28 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Left: Store image only
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              store.image,
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
+          GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => StoreDetailPage(
+                  storeName: store.name,
+                  category: 'Đồ ăn · Đồ uống',
+                  rating: store.rating,
+                  reviews: 150,
+                  deliveryTime: store.time,
+                  distance: store.distance,
+                  icon: Icons.store,
+                ),
+              ));
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                store.image,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -682,54 +698,75 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Store name with verified badge
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.verified, color: AppColors.success, size: 16),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        store.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                          height: 1.3,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => StoreDetailPage(
+                        storeName: store.name,
+                        category: 'Đồ ăn · Đồ uống',
+                        rating: store.rating,
+                        reviews: 150,
+                        deliveryTime: store.time,
+                        distance: store.distance,
+                        icon: Icons.store,
+                      ),
+                    ));
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Store name with verified badge
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.verified, color: AppColors.success, size: 16),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              store.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Rating | Distance | Time
+                      Row(
+                        children: [
+                          const Icon(Icons.star, size: 14, color: Color(0xFFFFC107)),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${store.rating}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                          ),
+                          _buildInfoDivider(),
+                          Text(store.distance, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          _buildInfoDivider(),
+                          Text(store.time, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Discount badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.primary),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          store.discount,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // Rating | Distance | Time
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 14, color: Color(0xFFFFC107)),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${store.rating}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                    ),
-                    _buildInfoDivider(),
-                    Text(store.distance, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    _buildInfoDivider(),
-                    Text(store.time, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Discount badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.primary),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    store.discount,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -741,34 +778,50 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     itemCount: store.foods.length,
                     itemBuilder: (_, index) {
                       final food = store.foods[index];
-                      return Container(
-                        width: 105,
-                        margin: const EdgeInsets.only(right: 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                food.image,
-                                width: 105,
-                                height: 85,
-                                fit: BoxFit.cover,
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => StoreDetailPage(
+                              storeName: store.name,
+                              category: 'Đồ ăn · Đồ uống',
+                              rating: store.rating,
+                              reviews: 150,
+                              deliveryTime: store.time,
+                              distance: store.distance,
+                              icon: Icons.store,
+                              highlightFoodName: food.name,
+                            ),
+                          ));
+                        },
+                        child: Container(
+                          width: 105,
+                          margin: const EdgeInsets.only(right: 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  food.image,
+                                  width: 105,
+                                  height: 85,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              food.name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 11, color: AppColors.textPrimary, height: 1.2),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${food.price}đ',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                food.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11, color: AppColors.textPrimary, height: 1.2),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${food.price}đ',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

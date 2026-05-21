@@ -13,6 +13,7 @@ class StoreDetailPage extends StatefulWidget {
   final String deliveryTime;
   final String distance;
   final IconData icon;
+  final String? highlightFoodName;
 
   const StoreDetailPage({
     super.key,
@@ -23,6 +24,7 @@ class StoreDetailPage extends StatefulWidget {
     required this.deliveryTime,
     required this.distance,
     required this.icon,
+    this.highlightFoodName,
   });
 
   @override
@@ -40,18 +42,122 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   int _cartItemCount = 0;
   int _cartTotal = 0;
 
+  // Search state
+  late TextEditingController _searchController;
+  String _searchQuery = '';
+  bool _isSearchActive = false;
+
+  // Highlight key for auto-scrolling
+  final GlobalKey _highlightedItemKey = GlobalKey();
+  String? _firstMatchingFoodName;
+
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _sectionKeys = List.generate(6, (_) => GlobalKey());
+
+    // Search initialization
+    _searchController = TextEditingController(text: widget.highlightFoodName ?? '');
+    _searchQuery = widget.highlightFoodName ?? '';
+    _isSearchActive = widget.highlightFoodName != null && widget.highlightFoodName!.isNotEmpty;
+
+    _findFirstMatchingFood();
+
+    if (_searchQuery.isNotEmpty) {
+      _activateTabForHighlightedItem();
+    }
+
+    // Auto-scroll to highlighted item
+    if (_firstMatchingFoodName != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 450), () {
+          if (mounted) {
+            _scrollToHighlightedItem();
+          }
+        });
+      });
+    }
+  }
+
+  void _findFirstMatchingFood() {
+    if (_searchQuery.isEmpty) {
+      _firstMatchingFoodName = null;
+      return;
+    }
+    for (int i = 0; i < _menuItems.length; i++) {
+      final items = _menuItems[i];
+      for (final item in items) {
+        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
+          _firstMatchingFoodName = item['name'] as String;
+          return;
+        }
+      }
+    }
+    _firstMatchingFoodName = null;
+  }
+
+  void _scrollToHighlightedItem() {
+    if (_searchQuery.isEmpty || _firstMatchingFoodName == null) return;
+
+    // 1. Find which category contains the matching product
+    int targetCategoryIndex = -1;
+    for (int i = 0; i < _menuItems.length; i++) {
+      final items = _menuItems[i];
+      for (final item in items) {
+        if (item['name'].toString() == _firstMatchingFoodName) {
+          targetCategoryIndex = i;
+          break;
+        }
+      }
+      if (targetCategoryIndex != -1) break;
+    }
+
+    if (targetCategoryIndex == -1) return;
+
+    // 2. Set the active tab state
+    setState(() {
+      _selectedCategoryIndex = targetCategoryIndex;
+    });
+
+    // 3. Scroll to the category header first
+    final categoryKey = _sectionKeys[targetCategoryIndex];
+    if (categoryKey.currentContext != null) {
+      _isTabTapping = true;
+      Scrollable.ensureVisible(
+        categoryKey.currentContext!,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      ).then((_) {
+        _isTabTapping = false;
+        _scrollItemIntoView();
+      });
+    } else {
+      _scrollItemIntoView();
+    }
+  }
+
+  void _scrollItemIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && _highlightedItemKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _highlightedItemKey.currentContext!,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.fastOutSlowIn,
+            alignment: 0.12,
+          );
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -79,6 +185,21 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
           setState(() => _selectedCategoryIndex = i);
         }
         return;
+      }
+    }
+  }
+
+  void _activateTabForHighlightedItem() {
+    if (_searchQuery.isEmpty) return;
+    for (int i = 0; i < _menuItems.length; i++) {
+      final items = _menuItems[i];
+      for (final item in items) {
+        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
+          setState(() {
+            _selectedCategoryIndex = i;
+          });
+          return;
+        }
       }
     }
   }
@@ -284,6 +405,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   // ─── Build all menu sections (category title + items) ───────────────────
   List<Widget> _buildAllMenuSections() {
     final List<Widget> slivers = [];
+
     for (int i = 0; i < _menuCategories.length; i++) {
       final category = _menuCategories[i];
       final items = _menuItems[i];
@@ -316,6 +438,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
         ),
       );
     }
+
     return slivers;
   }
 
@@ -329,35 +452,85 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: _isCollapsed
+      title: (_isCollapsed || _isSearchActive)
           ? Container(
               height: 36,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  SizedBox(width: 12),
-                  Icon(Icons.search, size: 18, color: Colors.white70),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.search, size: 18, color: Colors.white70),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      'Tìm món trong quán',
-                      style: TextStyle(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value.trim();
+                          _isSearchActive = _searchQuery.isNotEmpty;
+                          _findFirstMatchingFood();
+                        });
+                        if (_isSearchActive) {
+                          _activateTabForHighlightedItem();
+                          _scrollToHighlightedItem();
+                        }
+                      },
+                      onSubmitted: (value) {
+                        _scrollToHighlightedItem();
+                      },
+                      style: const TextStyle(
                         fontSize: 13,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                      ),
+                      cursorColor: Colors.white,
+                      decoration: const InputDecoration(
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        hintText: 'Tìm món trong quán',
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
                   ),
+                  if (_searchController.text.isNotEmpty) ...[
+                    GestureDetector(
+                      onTap: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _isSearchActive = false;
+                          _firstMatchingFoodName = null;
+                        });
+                      },
+                      child: const Icon(Icons.close, size: 18, color: Colors.white70),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                 ],
               ),
             )
           : null,
       actions: [
-        if (!_isCollapsed)
-          IconButton(icon: const Icon(Icons.search, color: Colors.white), onPressed: () {}),
+        if (!_isCollapsed && !_isSearchActive)
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _isSearchActive = true;
+              });
+            },
+          ),
         IconButton(icon: const Icon(Icons.favorite_border, color: Colors.white), onPressed: () {}),
         IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
       ],
@@ -696,6 +869,9 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
   // ─── Menu Item Card ─────────────────────────────────────────────────────
   Widget _buildMenuItem(Map<String, dynamic> item) {
+    final isHighlighted = _firstMatchingFoodName != null &&
+        item['name'].toString().toLowerCase() == _firstMatchingFoodName!.toLowerCase();
+
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
@@ -709,8 +885,16 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
         ));
         _handleCartResult(result);
       },
-      child: Padding(
+      child: Container(
+        key: isHighlighted ? _highlightedItemKey : null,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isHighlighted ? AppColors.bgSoft : Colors.transparent,
+          border: isHighlighted
+              ? Border.all(color: AppColors.secondary.withValues(alpha: 0.5), width: 1.5)
+              : null,
+          borderRadius: isHighlighted ? BorderRadius.circular(12) : null,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

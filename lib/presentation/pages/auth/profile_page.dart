@@ -15,25 +15,25 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late ScrollController _scrollController;
-  double _scrollOffset = 0.0;
+  late ValueNotifier<double> _scrollOffsetNotifier;
 
   @override
   void initState() {
     super.initState();
+    _scrollOffsetNotifier = ValueNotifier<double>(0.0);
     _scrollController = ScrollController()..addListener(_onScroll);
   }
 
   void _onScroll() {
     if (_scrollController.hasClients) {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
+      _scrollOffsetNotifier.value = _scrollController.offset;
     }
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _scrollOffsetNotifier.dispose();
     super.dispose();
   }
 
@@ -98,43 +98,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
 
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    final double scrollThresholdStart = 40.0;
-    final double scrollThresholdEnd = 120.0;
-    double opacity = 0.0;
-    if (_scrollOffset > scrollThresholdStart) {
-      opacity = ((_scrollOffset - scrollThresholdStart) / (scrollThresholdEnd - scrollThresholdStart)).clamp(0.0, 1.0);
-    }
-    
     final Color iconColor = Colors.white;
-    
-    Widget titleWidget;
-    if (opacity < 0.5) {
-      final double textOpacity = (1.0 - (opacity * 2)).clamp(0.0, 1.0);
-      titleWidget = Opacity(
-        opacity: textOpacity,
-        child: const Text(
-          'Hồ sơ của tôi',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    } else {
-      final double textOpacity = ((opacity - 0.5) * 2).clamp(0.0, 1.0);
-      titleWidget = Opacity(
-        opacity: textOpacity,
-        child: Text(
-          user.displayName,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
@@ -321,36 +285,77 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             top: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: statusBarHeight + 56,
-              padding: EdgeInsets.only(top: statusBarHeight),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(opacity),
-                boxShadow: opacity > 0.1
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15 * opacity),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        )
-                      ]
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 20),
-                    onPressed: () => context.pop(),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: titleWidget,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollOffsetNotifier,
+              builder: (context, scrollOffset, child) {
+                final double scrollThresholdStart = 40.0;
+                final double scrollThresholdEnd = 120.0;
+                double opacity = 0.0;
+                if (scrollOffset > scrollThresholdStart) {
+                  opacity = ((scrollOffset - scrollThresholdStart) / (scrollThresholdEnd - scrollThresholdStart)).clamp(0.0, 1.0);
+                }
+
+                Widget titleWidget;
+                if (opacity < 0.5) {
+                  final double textOpacity = (1.0 - (opacity * 2)).clamp(0.0, 1.0);
+                  titleWidget = Opacity(
+                    opacity: textOpacity,
+                    child: const Text(
+                      'Hồ sơ của tôi',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  );
+                } else {
+                  final double textOpacity = ((opacity - 0.5) * 2).clamp(0.0, 1.0);
+                  titleWidget = Opacity(
+                    opacity: textOpacity,
+                    child: Text(
+                      user.displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }
+
+                return Container(
+                  height: statusBarHeight + 56,
+                  padding: EdgeInsets.only(top: statusBarHeight),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: opacity),
+                    boxShadow: opacity > 0.1
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15 * opacity),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        : null,
                   ),
-                  const SizedBox(width: 48),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 20),
+                        onPressed: () => context.pop(),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: titleWidget,
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],
