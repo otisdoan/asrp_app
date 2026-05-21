@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase / Environment secrets
+.env
+firebase_config.json
