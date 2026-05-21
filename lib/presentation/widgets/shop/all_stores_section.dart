@@ -120,7 +120,7 @@ class _AllStoresSectionState extends State<AllStoresSection> {
               distance: store['distance'] as String,
               time: store['time'] as String,
               promo: store['promo'] as String,
-              icon: store['icon'] as IconData,
+              icon: Icons.restaurant,
             );
           },
         ),
