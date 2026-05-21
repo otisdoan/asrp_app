@@ -8,10 +8,15 @@ import 'app/app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase (skip if not configured)
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('[Firebase] ✅ Initialized');
+  } catch (e) {
+    print('[Firebase] ⚠️ Skipped: $e');
+  }
 
   // Lock to portrait mode
   await SystemChrome.setPreferredOrientations([

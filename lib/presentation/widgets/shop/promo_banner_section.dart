@@ -43,12 +43,15 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
         gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryHover], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(12),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(children: [
-        Positioned(right: -20, top: -20, child: Container(width: 100, height: 100, decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle))),
-        Positioned(right: 60, bottom: -30, child: Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle))),
+        // Background decorative circles
+        Positioned(right: -20, top: -20, child: Container(width: 100, height: 100, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle))),
+        Positioned(right: 60, bottom: -30, child: Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), shape: BoxShape.circle))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(children: [
+            // Text content
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -67,7 +70,16 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
               ),
             ])),
             const SizedBox(width: 12),
-            Text(b['emoji'] ?? '🍜', style: const TextStyle(fontSize: 52)),
+            // Actual image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                b['image'] ?? 'assets/images/pho.jpg',
+                width: 90,
+                height: 90,
+                fit: BoxFit.cover,
+              ),
+            ),
           ]),
         ),
       ]),
