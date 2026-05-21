@@ -35,11 +35,11 @@ class MockData {
 
   // ===== CATEGORIES =====
   static const List<Map<String, dynamic>> categories = [
-    {'icon': '🍜', 'name': 'Phở', 'count': 12},
-    {'icon': '🍲', 'name': 'Bún', 'count': 8},
-    {'icon': '🍚', 'name': 'Cơm', 'count': 10},
-    {'icon': '🥤', 'name': 'Đồ uống', 'count': 7},
-    {'icon': '🍡', 'name': 'Tráng miệng', 'count': 5},
+    {'icon': '🍜', 'name': 'Phở', 'count': 12, 'image': 'assets/images/pho.jpg'},
+    {'icon': '🍲', 'name': 'Bún', 'count': 8, 'image': 'assets/images/pho_bo.png'},
+    {'icon': '🍚', 'name': 'Cơm', 'count': 10, 'image': 'assets/images/com.webp'},
+    {'icon': '🥤', 'name': 'Đồ uống', 'count': 7, 'image': 'assets/images/tra_sua.jpg'},
+    {'icon': '🍡', 'name': 'Tráng miệng', 'count': 5, 'image': 'assets/images/tra_sua.jpg'},
   ];
 
   // ===== QUICK FILTERS =====

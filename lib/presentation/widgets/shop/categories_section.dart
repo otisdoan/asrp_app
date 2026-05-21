@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
 import '../../../providers/shop_provider.dart';
@@ -46,13 +47,12 @@ class CategoriesSection extends ConsumerWidget {
             itemBuilder: (context, index) {
               final cat = MockData.categories[index];
               final name = cat['name'] as String;
-              final icon = cat['icon'] as String;
+              final image = cat['image'] as String;
               final isSelected = selectedCategory == name;
 
               return GestureDetector(
                 onTap: () {
-                  ref.read(selectedCategoryProvider.notifier).state = name;
-                  ref.read(menuCurrentPageProvider.notifier).state = 1;
+                  context.push('/search?category=$name');
                 },
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -61,7 +61,6 @@ class CategoriesSection extends ConsumerWidget {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isSelected
@@ -77,10 +76,12 @@ class CategoriesSection extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          icon,
-                          style: const TextStyle(fontSize: 24),
+                      child: ClipOval(
+                        child: Image.asset(
+                          image,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),

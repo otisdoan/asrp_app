@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/mock_data.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
 /// 2. Submitted: search results with filters + store/food cards
 /// Follows RULE: UI-only widgets, AppColors 100%, responsive.
 class SearchPage extends ConsumerStatefulWidget {
-  const SearchPage({super.key});
+  final String? initialCategory;
+  const SearchPage({super.key, this.initialCategory});
   @override
   ConsumerState<SearchPage> createState() => _SearchPageState();
 }
@@ -18,6 +20,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   String _query = '';
   bool _submitted = false;
   String _selectedFilter = 'Đúng nhất';
+  String? _selectedCategory;
 
   // Mock autocomplete data
   static const _allSuggestions = [
@@ -28,6 +31,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     'Bánh canh', 'Bánh canh cua', 'Bánh canh cá lóc', 'Bánh canh ghẹ',
     'Bánh mì', 'Gà rán', 'Lẩu', 'Pizza',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCategory != null) {
+      _selectedCategory = widget.initialCategory;
+      _query = widget.initialCategory!;
+      _searchController.text = widget.initialCategory!;
+      _submitted = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -435,6 +449,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _buildResultsView() {
     return Column(
       children: [
+        if (_selectedCategory != null) _buildCategoryRow(),
         _buildFilterChips(),
         Expanded(
           child: ListView.separated(
@@ -445,6 +460,91 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCategoryRow() {
+    final categories = MockData.categories;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.divider, width: 0.5)),
+      ),
+      child: SizedBox(
+        height: 80,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 16),
+          itemBuilder: (_, index) {
+            final cat = categories[index];
+            final name = cat['name'] as String;
+            final image = cat['image'] as String;
+            final isSelected = _selectedCategory == name;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = name;
+                  _query = name;
+                  _searchController.text = name;
+                });
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? AppColors.primary : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            image,
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check, size: 12, color: Colors.white),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -920,14 +1020,14 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
 
   Widget _buildCuisineGrid() {
     final cuisines = [
-      {'icon': '🍜', 'name': 'Phở'},
-      {'icon': '🍲', 'name': 'Bún'},
-      {'icon': '🍚', 'name': 'Cơm'},
-      {'icon': '🥤', 'name': 'Đồ uống'},
-      {'icon': '🍡', 'name': 'Tráng miệng'},
-      {'icon': '🍝', 'name': 'Mì'},
-      {'icon': '🥗', 'name': 'Chay'},
-      {'icon': '🍕', 'name': 'Đồ ăn vặt'},
+      {'name': 'Phở', 'image': 'assets/images/pho.jpg'},
+      {'name': 'Bún', 'image': 'assets/images/pho_bo.png'},
+      {'name': 'Cơm', 'image': 'assets/images/com.webp'},
+      {'name': 'Đồ uống', 'image': 'assets/images/tra_sua.jpg'},
+      {'name': 'Tráng miệng', 'image': 'assets/images/tra_sua.jpg'},
+      {'name': 'Mì', 'image': 'assets/images/pho.jpg'},
+      {'name': 'Chay', 'image': 'assets/images/com.webp'},
+      {'name': 'Đồ ăn vặt', 'image': 'assets/images/pho_bo.png'},
     ];
 
     return Wrap(
@@ -940,12 +1040,17 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
             Container(
               width: 56,
               height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.bgSoft,
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
               ),
-              alignment: Alignment.center,
-              child: Text(c['icon']!, style: const TextStyle(fontSize: 28)),
+              child: ClipOval(
+                child: Image.asset(
+                  c['image']!,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const SizedBox(height: 6),
             Text(

@@ -60,7 +60,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/search',
-        builder: (context, state) => const SearchPage(),
+        builder: (context, state) {
+          final category = state.uri.queryParameters['category'];
+          return SearchPage(initialCategory: category);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
