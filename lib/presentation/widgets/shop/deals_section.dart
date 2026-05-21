@@ -81,7 +81,7 @@ class DealsSection extends StatelessWidget {
                     productName: 'BÁNH MÌ ỐP LA',
                     price: '17.500đ',
                     oldPrice: '25.000đ',
-                    icon: Icons.lunch_dining,
+                    imagePath: 'assets/images/com.webp',
                     onTap: () => onItemTap('BÁNH MÌ ỐP LA'),
                   ),
                 ),
@@ -98,7 +98,7 @@ class DealsSection extends StatelessWidget {
                           productName: 'BÚN MẮM NÊM\nDEALNGON',
                           price: '32.900đ',
                           oldPrice: '47.000đ',
-                          icon: Icons.ramen_dining,
+                          imagePath: 'assets/images/pho_bo.png',
                           onTap: () => onItemTap('BÚN MẮM NÊM DEALNGON'),
                         ),
                       ),
@@ -110,7 +110,7 @@ class DealsSection extends StatelessWidget {
                           productName: 'BÁNH CUỐN CHẢ\nHÀ NỘI + NƯỚC ĐẬ...',
                           price: '38.500đ',
                           oldPrice: '55.000đ',
-                          icon: Icons.set_meal,
+                          imagePath: 'assets/images/pho.jpg',
                           onTap: () => onItemTap('BÁNH CUỐN CHẢ HÀ NỘI'),
                         ),
                       ),
@@ -133,7 +133,7 @@ class _LargeCard extends StatelessWidget {
   final String productName;
   final String price;
   final String oldPrice;
-  final IconData icon;
+  final String imagePath;
   final VoidCallback onTap;
 
   const _LargeCard({
@@ -142,7 +142,7 @@ class _LargeCard extends StatelessWidget {
     required this.productName,
     required this.price,
     required this.oldPrice,
-    required this.icon,
+    required this.imagePath,
     required this.onTap,
   });
 
@@ -173,7 +173,7 @@ class _LargeCard extends StatelessWidget {
                 children: [
                   Container(
                     color: AppColors.bgWarm,
-                    child: Icon(icon, size: 48, color: AppColors.textTertiary),
+                    child: Image.asset(imagePath, fit: BoxFit.cover),
                   ),
                   Positioned(
                     top: 8,
@@ -254,7 +254,7 @@ class _SmallCard extends StatelessWidget {
   final String productName;
   final String price;
   final String oldPrice;
-  final IconData icon;
+  final String imagePath;
   final VoidCallback onTap;
 
   const _SmallCard({
@@ -263,7 +263,7 @@ class _SmallCard extends StatelessWidget {
     required this.productName,
     required this.price,
     required this.oldPrice,
-    required this.icon,
+    required this.imagePath,
     required this.onTap,
   });
 
@@ -295,7 +295,7 @@ class _SmallCard extends StatelessWidget {
                 children: [
                   Container(
                     color: AppColors.bgWarm,
-                    child: Icon(icon, size: 32, color: AppColors.textTertiary),
+                    child: Image.asset(imagePath, fit: BoxFit.cover),
                   ),
                   Positioned(
                     top: 6,
