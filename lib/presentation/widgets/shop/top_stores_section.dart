@@ -16,7 +16,7 @@ class TopStoresSection extends StatelessWidget {
       'time': '30 phút',
       'promo': 'Giảm 10.000đ · Giảm 8...',
       'discount': '56K',
-      'icon': Icons.local_cafe,
+      'image': 'assets/images/tra_sua.jpg',
       'adLabel': 'Quảng cáo',
     },
     {
@@ -27,7 +27,7 @@ class TopStoresSection extends StatelessWidget {
       'time': '34 phút trở lên',
       'promo': 'Giảm 10.000đ · Giảm 1...',
       'discount': '',
-      'icon': Icons.fastfood,
+      'image': 'assets/images/com.webp',
       'adLabel': '',
     },
     {
@@ -38,7 +38,7 @@ class TopStoresSection extends StatelessWidget {
       'time': '27 phút',
       'promo': 'Giảm 11.000đ',
       'discount': '56K',
-      'icon': Icons.local_drink,
+      'image': 'assets/images/tra_sua.jpg',
       'adLabel': 'Quảng cáo',
     },
     {
@@ -49,7 +49,7 @@ class TopStoresSection extends StatelessWidget {
       'time': '20 phút',
       'promo': 'Giảm 15.000đ · Freeship',
       'discount': '30K',
-      'icon': Icons.ramen_dining,
+      'image': 'assets/images/pho.jpg',
       'adLabel': '',
     },
   ];
@@ -109,7 +109,7 @@ class TopStoresSection extends StatelessWidget {
                 time: store['time'] as String,
                 promo: store['promo'] as String,
                 discount: store['discount'] as String,
-                icon: store['icon'] as IconData,
+                image: store['image'] as String,
                 adLabel: store['adLabel'] as String,
               );
             },
@@ -128,7 +128,7 @@ class _StoreCard extends StatelessWidget {
   final String time;
   final String promo;
   final String discount;
-  final IconData icon;
+  final String image;
   final String adLabel;
 
   const _StoreCard({
@@ -139,7 +139,7 @@ class _StoreCard extends StatelessWidget {
     required this.time,
     required this.promo,
     required this.discount,
-    required this.icon,
+    required this.image,
     required this.adLabel,
   });
 
@@ -155,7 +155,7 @@ class _StoreCard extends StatelessWidget {
             reviews: 100,
             deliveryTime: time,
             distance: distance,
-            icon: icon,
+            icon: Icons.store,
           ),
         ));
       },
@@ -183,7 +183,7 @@ class _StoreCard extends StatelessWidget {
                 height: 110,
                 width: double.infinity,
                 color: AppColors.bgWarm,
-                child: Icon(icon, size: 44, color: AppColors.textTertiary),
+                child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 110),
               ),
               // Tag badge (top-left)
               if (tag.isNotEmpty)

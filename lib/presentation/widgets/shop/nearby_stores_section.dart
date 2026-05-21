@@ -13,7 +13,7 @@ class NearbyStoresSection extends StatelessWidget {
       'distance': '0.3 km',
       'time': '15 phút',
       'promo': 'Freeship',
-      'icon': Icons.rice_bowl,
+      'image': 'assets/images/com.webp',
     },
     {
       'name': 'Bún Đậu Mắm Tôm Hà Nội',
@@ -21,7 +21,7 @@ class NearbyStoresSection extends StatelessWidget {
       'distance': '0.5 km',
       'time': '18 phút',
       'promo': 'Giảm 20%',
-      'icon': Icons.set_meal,
+      'image': 'assets/images/pho_bo.png',
     },
     {
       'name': 'Trà Sữa ToCoToCo',
@@ -29,7 +29,7 @@ class NearbyStoresSection extends StatelessWidget {
       'distance': '0.7 km',
       'time': '20 phút',
       'promo': 'Mua 1 tặng 1',
-      'icon': Icons.local_drink,
+      'image': 'assets/images/tra_sua.jpg',
     },
     {
       'name': 'Pizza Hut - Nguyễn Trãi',
@@ -37,7 +37,7 @@ class NearbyStoresSection extends StatelessWidget {
       'distance': '1.0 km',
       'time': '25 phút',
       'promo': 'Giảm 50K',
-      'icon': Icons.local_pizza,
+      'image': 'assets/images/pho.jpg',
     },
   ];
 
@@ -94,7 +94,7 @@ class NearbyStoresSection extends StatelessWidget {
                 distance: store['distance'] as String,
                 time: store['time'] as String,
                 promo: store['promo'] as String,
-                icon: store['icon'] as IconData,
+                image: store['image'] as String,
               );
             },
           ),
@@ -110,7 +110,7 @@ class _NearbyStoreCard extends StatelessWidget {
   final String distance;
   final String time;
   final String promo;
-  final IconData icon;
+  final String image;
 
   const _NearbyStoreCard({
     required this.name,
@@ -118,7 +118,7 @@ class _NearbyStoreCard extends StatelessWidget {
     required this.distance,
     required this.time,
     required this.promo,
-    required this.icon,
+    required this.image,
   });
 
   @override
@@ -133,7 +133,7 @@ class _NearbyStoreCard extends StatelessWidget {
             reviews: 100,
             deliveryTime: time,
             distance: distance,
-            icon: icon,
+            icon: Icons.store,
           ),
         ));
       },
@@ -159,7 +159,7 @@ class _NearbyStoreCard extends StatelessWidget {
             height: 95,
             width: double.infinity,
             color: AppColors.bgSoft,
-            child: Icon(icon, size: 40, color: AppColors.textTertiary),
+            child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 95),
           ),
           // Info area
           Expanded(
