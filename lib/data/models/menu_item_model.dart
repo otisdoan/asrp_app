@@ -9,7 +9,7 @@ class BadgeModel {
 
 class MenuItemModel {
   final String? slug;
-  final String emoji;
+  final String imageUrl;
   final String name;
   final String? description;
   final String price;
@@ -18,7 +18,7 @@ class MenuItemModel {
 
   const MenuItemModel({
     this.slug,
-    required this.emoji,
+    this.imageUrl = '',
     required this.name,
     this.description,
     required this.price,

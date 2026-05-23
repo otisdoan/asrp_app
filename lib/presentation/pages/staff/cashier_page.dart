@@ -26,8 +26,8 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
       id: '#001',
       table: 5,
       items: [
-        _OrderItem(menuItem: _MenuItem(name: 'Phở bò tái', price: 45000, emoji: '🍲'), quantity: 2),
-        _OrderItem(menuItem: _MenuItem(name: 'Cà phê sữa đá', price: 25000, emoji: '☕'), quantity: 1),
+        _OrderItem(menuItem: _MenuItem(name: 'Phở bò tái', price: 45000, imageUrl: 'assets/images/pho.jpg'), quantity: 2),
+        _OrderItem(menuItem: _MenuItem(name: 'Cà phê sữa đá', price: 25000, imageUrl: 'assets/images/tra_sua.jpg'), quantity: 1),
       ],
       time: '2 phút trước',
       isNew: true,
@@ -36,8 +36,8 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
       id: '#002',
       table: 2,
       items: [
-        _OrderItem(menuItem: _MenuItem(name: 'Cơm sườn nướng', price: 55000, emoji: '🥩'), quantity: 1),
-        _OrderItem(menuItem: _MenuItem(name: 'Trà đào cam sả', price: 29000, emoji: '🍑'), quantity: 2),
+        _OrderItem(menuItem: _MenuItem(name: 'Cơm sườn nướng', price: 55000, imageUrl: 'assets/images/com.webp'), quantity: 1),
+        _OrderItem(menuItem: _MenuItem(name: 'Trà đào cam sả', price: 29000, imageUrl: 'assets/images/tra_sua.jpg'), quantity: 2),
       ],
       time: '5 phút trước',
       isNew: false,
@@ -46,7 +46,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
       id: '#003',
       table: 8,
       items: [
-        _OrderItem(menuItem: _MenuItem(name: 'Bún bò Huế', price: 50000, emoji: '🌶️'), quantity: 3),
+        _OrderItem(menuItem: _MenuItem(name: 'Bún bò Huế', price: 50000, imageUrl: 'assets/images/pho_bo.png'), quantity: 3),
       ],
       time: '8 phút trước',
       isNew: false,
@@ -55,27 +55,27 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 
   // Menu for takeaway
   static const _categories = [
-    {'name': 'Tất cả', 'icon': '🍽️'},
-    {'name': 'Phở', 'icon': '🍲'},
-    {'name': 'Cơm', 'icon': '🍚'},
-    {'name': 'Bún', 'icon': '🍜'},
-    {'name': 'Nước', 'icon': '🧋'},
-    {'name': 'Tráng miệng', 'icon': '🍰'},
+    {'name': 'Tất cả', 'imageUrl': ''},
+    {'name': 'Phở', 'imageUrl': 'assets/images/pho.jpg'},
+    {'name': 'Cơm', 'imageUrl': 'assets/images/com.webp'},
+    {'name': 'Bún', 'imageUrl': 'assets/images/pho_bo.png'},
+    {'name': 'Nước', 'imageUrl': 'assets/images/tra_sua.jpg'},
+    {'name': 'Tráng miệng', 'imageUrl': 'assets/images/tra_sua.jpg'},
   ];
 
   static final _menuItems = [
-    _MenuItem(name: 'Phở bò tái', price: 45000, emoji: '🍲', category: 'Phở'),
-    _MenuItem(name: 'Phở bò viên', price: 45000, emoji: '🍲', category: 'Phở'),
-    _MenuItem(name: 'Phở đặc biệt', price: 60000, emoji: '⭐', category: 'Phở'),
-    _MenuItem(name: 'Cơm sườn nướng', price: 55000, emoji: '🥩', category: 'Cơm'),
-    _MenuItem(name: 'Cơm gà xối mỡ', price: 50000, emoji: '🍗', category: 'Cơm'),
-    _MenuItem(name: 'Cơm tấm bì chả', price: 45000, emoji: '🍚', category: 'Cơm'),
-    _MenuItem(name: 'Bún bò Huế', price: 50000, emoji: '🌶️', category: 'Bún'),
-    _MenuItem(name: 'Bún chả Hà Nội', price: 48000, emoji: '🥢', category: 'Bún'),
-    _MenuItem(name: 'Trà đào cam sả', price: 29000, emoji: '🍑', category: 'Nước'),
-    _MenuItem(name: 'Cà phê sữa đá', price: 25000, emoji: '☕', category: 'Nước'),
-    _MenuItem(name: 'Sinh tố bơ', price: 35000, emoji: '🥑', category: 'Nước'),
-    _MenuItem(name: 'Chè khúc bạch', price: 25000, emoji: '🍮', category: 'Tráng miệng'),
+    _MenuItem(name: 'Phở bò tái', price: 45000, imageUrl: 'assets/images/pho.jpg', category: 'Phở'),
+    _MenuItem(name: 'Phở bò viên', price: 45000, imageUrl: 'assets/images/pho.jpg', category: 'Phở'),
+    _MenuItem(name: 'Phở đặc biệt', price: 60000, imageUrl: 'assets/images/pho.jpg', category: 'Phở'),
+    _MenuItem(name: 'Cơm sườn nướng', price: 55000, imageUrl: 'assets/images/com.webp', category: 'Cơm'),
+    _MenuItem(name: 'Cơm gà xối mỡ', price: 50000, imageUrl: 'assets/images/com.webp', category: 'Cơm'),
+    _MenuItem(name: 'Cơm tấm bì chả', price: 45000, imageUrl: 'assets/images/com.webp', category: 'Cơm'),
+    _MenuItem(name: 'Bún bò Huế', price: 50000, imageUrl: 'assets/images/pho_bo.png', category: 'Bún'),
+    _MenuItem(name: 'Bún chả Hà Nội', price: 48000, imageUrl: 'assets/images/pho_bo.png', category: 'Bún'),
+    _MenuItem(name: 'Trà đào cam sả', price: 29000, imageUrl: 'assets/images/tra_sua.jpg', category: 'Nước'),
+    _MenuItem(name: 'Cà phê sữa đá', price: 25000, imageUrl: 'assets/images/tra_sua.jpg', category: 'Nước'),
+    _MenuItem(name: 'Sinh tố bơ', price: 35000, imageUrl: 'assets/images/tra_sua.jpg', category: 'Nước'),
+    _MenuItem(name: 'Chè khúc bạch', price: 25000, imageUrl: 'assets/images/tra_sua.jpg', category: 'Tráng miệng'),
   ];
 
   List<_MenuItem> get _filteredItems {
@@ -335,7 +335,14 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(
               children: [
-                Text(item.menuItem.emoji, style: const TextStyle(fontSize: 14)),
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const BoxDecoration(shape: BoxShape.circle),
+                  child: ClipOval(
+                    child: Image.asset(item.menuItem.imageUrl, fit: BoxFit.cover),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -479,7 +486,20 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(cat['icon'] as String, style: const TextStyle(fontSize: 14)),
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(shape: BoxShape.circle),
+                          child: ClipOval(
+                            child: (cat['imageUrl'] as String).isNotEmpty
+                                ? Image.asset(cat['imageUrl'] as String, fit: BoxFit.cover)
+                                : Icon(
+                                    Icons.restaurant_menu_rounded,
+                                    size: 12,
+                                    color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                                  ),
+                          ),
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           cat['name'] as String,
@@ -520,7 +540,10 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(color: AppColors.bgSoft, borderRadius: BorderRadius.circular(10)),
-                      child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 22))),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(item.imageUrl, fit: BoxFit.cover, width: 44, height: 44),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -657,10 +680,10 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 class _MenuItem {
   final String name;
   final int price;
-  final String emoji;
+  final String imageUrl;
   final String category;
 
-  _MenuItem({required this.name, required this.price, required this.emoji, this.category = ''});
+  _MenuItem({required this.name, required this.price, required this.imageUrl, this.category = ''});
 }
 
 class _OrderItem {

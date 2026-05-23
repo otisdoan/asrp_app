@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
 import '../../../providers/shop_provider.dart';
+import '../../../providers/category_provider.dart';
+import '../../../data/models/category_model.dart';
 
 class CategoriesSection extends ConsumerWidget {
   const CategoriesSection({super.key});
@@ -11,6 +13,7 @@ class CategoriesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedCategory = ref.watch(selectedCategoryProvider);
+    final categoriesAsync = ref.watch(categoriesFutureProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,74 +40,94 @@ class CategoriesSection extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 90,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: MockData.categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final cat = MockData.categories[index];
-              final name = cat['name'] as String;
-              final image = cat['image'] as String;
-              final isSelected = selectedCategory == name;
-
-              return GestureDetector(
-                onTap: () {
-                  context.push('/search?category=$name');
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.primary
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          image,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+        categoriesAsync.when(
+          data: (categories) => _buildList(context, ref, categories, selectedCategory),
+          loading: () => _buildList(context, ref, MockData.categories, selectedCategory), // smooth loading fallback
+          error: (err, stack) => _buildList(context, ref, MockData.categories, selectedCategory), // robust error fallback
         ),
       ],
+    );
+  }
+
+  Widget _buildList(BuildContext context, WidgetRef ref, List<CategoryModel> categories, String selectedCategory) {
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          final cat = categories[index];
+          final name = cat.name;
+          final imageUrl = cat.imageUrl;
+          final isSelected = selectedCategory == name;
+
+          return GestureDetector(
+            onTap: () {
+              ref.read(selectedCategoryProvider.notifier).state = name;
+              ref.read(menuCurrentPageProvider.notifier).state = 1;
+              context.push('/search?category=$name');
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: imageUrl.startsWith('http')
+                        ? Image.network(
+                            imageUrl,
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.restaurant_menu_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        : Image.asset(
+                            imageUrl,
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.restaurant_menu_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

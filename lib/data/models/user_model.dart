@@ -5,8 +5,13 @@ class UserModel {
   final String? phone;
   final String? fullName;
   final String? avatar;
+  final String? gender;
+  final String? birthday;
   final String role; // 'admin' | 'staff' | 'customer'
   final bool isActive;
+  final int points;
+  final String? tier;
+  final String? address;
   final String createdAt;
   final String updatedAt;
 
@@ -17,8 +22,13 @@ class UserModel {
     this.phone,
     this.fullName,
     this.avatar,
+    this.gender,
+    this.birthday,
     required this.role,
     required this.isActive,
+    this.points = 0,
+    this.tier,
+    this.address,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -31,8 +41,15 @@ class UserModel {
       phone: json['phone']?.toString(),
       fullName: json['fullName']?.toString(),
       avatar: json['avatar']?.toString(),
+      gender: json['gender']?.toString(),
+      birthday: json['birthday']?.toString(),
       role: json['role']?.toString() ?? 'customer',
       isActive: json['isActive'] is bool ? json['isActive'] as bool : (json['isActive']?.toString() == 'true'),
+      points: json['points'] is int
+          ? json['points'] as int
+          : int.tryParse(json['points']?.toString() ?? '') ?? 0,
+      tier: json['tier']?.toString(),
+      address: json['address']?.toString(),
       createdAt: json['createdAt']?.toString() ?? '',
       updatedAt: json['updatedAt']?.toString() ?? '',
     );
@@ -45,8 +62,13 @@ class UserModel {
         'phone': phone,
         'fullName': fullName,
         'avatar': avatar,
+        'gender': gender,
+        'birthday': birthday,
         'role': role,
         'isActive': isActive,
+        'points': points,
+        'tier': tier,
+        'address': address,
         'createdAt': createdAt,
         'updatedAt': updatedAt,
       };

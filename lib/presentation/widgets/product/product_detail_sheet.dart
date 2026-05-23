@@ -56,7 +56,7 @@ class _ProductDetailSheetState extends ConsumerState<ProductDetailSheet> {
   void _addToCart() {
     final item = CartItemModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      emoji: _product.emoji,
+      imageUrl: _product.imageUrl,
       name: _product.name,
       priceAmount: _totalPrice ~/ _quantity,
       priceDisplay: '${_fmt(_totalPrice ~/ _quantity)}d',
@@ -155,7 +155,7 @@ class _ProductDetailSheetState extends ConsumerState<ProductDetailSheet> {
             height: 220,
             width: double.infinity,
             color: AppColors.surfaceContainerHigh,
-            child: Center(child: Text(gallery[_selectedGallery], style: const TextStyle(fontSize: 80))),
+            child: Image.asset(gallery[_selectedGallery], fit: BoxFit.cover),
           ),
           Positioned(top: 12, right: 12, child: GestureDetector(
             onTap: () => setState(() => _isFavorite = !_isFavorite),
@@ -200,7 +200,10 @@ class _ProductDetailSheetState extends ConsumerState<ProductDetailSheet> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isSelected ? AppColors.primary : AppColors.outlineVariant, width: isSelected ? 2 : 1),
                 ),
-                child: Center(child: Text(e.value, style: const TextStyle(fontSize: 26))),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(e.value, fit: BoxFit.cover),
+                ),
               ),
             );
           }).toList()),

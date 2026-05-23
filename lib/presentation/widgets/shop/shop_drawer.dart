@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
 import '../../../providers/shop_provider.dart';
+import '../../../providers/category_provider.dart';
 
 class ShopDrawer extends ConsumerWidget {
   const ShopDrawer({super.key});
@@ -11,6 +12,7 @@ class ShopDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final branch = ref.watch(selectedBranchProvider);
+    final categoriesAsync = ref.watch(categoriesFutureProvider);
 
     return Drawer(
       child: SafeArea(
@@ -20,7 +22,21 @@ class ShopDrawer extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             color: AppColors.primary,
             child: Row(children: [
-              Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)), child: const Center(child: Text('🍜', style: TextStyle(fontSize: 22)))),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/images/pho.jpg',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
               const SizedBox(width: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('BMC Phở Express', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
@@ -45,15 +61,18 @@ class ShopDrawer extends ConsumerWidget {
             child: Text('DANH MỤC', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.textSecondary.withOpacity(0.6))),
           ),
           // All
-          _buildCategoryTile(context, ref, '🍽️', 'Tất cả', null, selectedCategory),
-          ...MockData.categories.map((c) => _buildCategoryTile(context, ref, c['icon'] as String, c['name'] as String, (c['count'] as int), selectedCategory)),
+          _buildCategoryTile(context, ref, null, 'Tất cả', null, selectedCategory),
+          ...categoriesAsync.maybeWhen(
+            data: (categories) => categories.map((c) => _buildCategoryTile(context, ref, c.imageUrl, c.name, c.count, selectedCategory)),
+            orElse: () => MockData.categories.map((c) => _buildCategoryTile(context, ref, c.imageUrl, c.name, c.count, selectedCategory)),
+          ),
           const Divider(height: 24),
           // Quick filters label
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text('LỌC NHANH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.textSecondary.withOpacity(0.6))),
           ),
-          ...MockData.quickFilters.map((f) => _buildFilterTile(context, f['icon'] as String, f['name'] as String)),
+          ...MockData.quickFilters.map((f) => _buildFilterTile(context, f['imageUrl'] as String, f['name'] as String)),
           const Spacer(),
           // Branch selector
           Padding(
@@ -79,7 +98,7 @@ class ShopDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildCategoryTile(BuildContext context, WidgetRef ref, String icon, String name, int? count, String selected) {
+  Widget _buildCategoryTile(BuildContext context, WidgetRef ref, String? imageUrl, String name, int? count, String selected) {
     final isActive = selected == name;
     return InkWell(
       onTap: () {
@@ -93,7 +112,41 @@ class ShopDrawer extends ConsumerWidget {
           border: isActive ? const Border(left: BorderSide(color: AppColors.primary, width: 3)) : null,
         ),
         child: Row(children: [
-          Text(icon, style: const TextStyle(fontSize: 18)),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive ? AppColors.primary.withOpacity(0.15) : AppColors.surfaceContainerHigh,
+            ),
+            child: ClipOval(
+              child: imageUrl != null
+                  ? (imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.restaurant_menu_rounded,
+                            size: 16,
+                            color: isActive ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                        )
+                      : Image.asset(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.restaurant_menu_rounded,
+                            size: 16,
+                            color: isActive ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                        ))
+                  : Icon(
+                      Icons.restaurant_menu_rounded,
+                      size: 16,
+                      color: isActive ? AppColors.primary : AppColors.textSecondary,
+                    ),
+            ),
+          ),
           const SizedBox(width: 10),
           Expanded(child: Text(name, style: TextStyle(fontSize: 13, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: isActive ? AppColors.primary : AppColors.textPrimary))),
           if (count != null) Container(
@@ -106,13 +159,23 @@ class ShopDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildFilterTile(BuildContext context, String icon, String name) {
+  Widget _buildFilterTile(BuildContext context, String imageUrl, String name) {
     return InkWell(
       onTap: () => Navigator.pop(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(children: [
-          Text(icon, style: const TextStyle(fontSize: 18)),
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(imageUrl, fit: BoxFit.cover),
+            ),
+          ),
           const SizedBox(width: 10),
           Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
         ]),

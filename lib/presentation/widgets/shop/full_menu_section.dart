@@ -43,15 +43,17 @@ class FullMenuSection extends ConsumerWidget {
         return nameLower.contains('trà') || 
                nameLower.contains('nước') || 
                nameLower.contains('sinh tố') || 
-               nameLower.contains('cà phê') || 
-               ['🥤', '🧋', '☕', '🍋', '🍵', '🍎', '🍇', '🍉', '🍍', '🍑'].contains(item.emoji);
+               nameLower.contains('cà phê') ||
+               nameLower.contains('ép');
       }
       
       if (selectedCategory == 'Tráng miệng') {
         return nameLower.contains('chè') || 
                nameLower.contains('bánh') || 
-               nameLower.contains('kem') || 
-               ['🍮', '🍰', '🍩', '🍦', '🧇', '🍡'].contains(item.emoji);
+               nameLower.contains('kem') ||
+               nameLower.contains('quẩy') ||
+               nameLower.contains('flan') ||
+               nameLower.contains('donut');
       }
       
       return true;

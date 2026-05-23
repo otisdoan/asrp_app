@@ -30,35 +30,35 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
 
   // Mock categories with icons
   static const _categories = [
-    {'name': 'Tất cả', 'icon': '🍽️'},
-    {'name': 'Phở', 'icon': '🍲'},
-    {'name': 'Cơm', 'icon': '🍚'},
-    {'name': 'Bún', 'icon': '🍜'},
-    {'name': 'Nước', 'icon': '🧋'},
-    {'name': 'Tráng miệng', 'icon': '🍰'},
+    {'name': 'Tất cả', 'imageUrl': ''},
+    {'name': 'Phở', 'imageUrl': 'assets/images/pho.jpg'},
+    {'name': 'Cơm', 'imageUrl': 'assets/images/com.webp'},
+    {'name': 'Bún', 'imageUrl': 'assets/images/pho_bo.png'},
+    {'name': 'Nước', 'imageUrl': 'assets/images/tra_sua.jpg'},
+    {'name': 'Tráng miệng', 'imageUrl': 'assets/images/tra_sua.jpg'},
   ];
 
   // Mock menu items
   static final _menuItems = [
-    _MenuItem(name: 'Phở bò tái', price: 45000, category: 'Phở', emoji: '🍲'),
-    _MenuItem(name: 'Phở bò viên', price: 45000, category: 'Phở', emoji: '🍲'),
-    _MenuItem(name: 'Phở bò tái nạm', price: 50000, category: 'Phở', emoji: '🍲'),
-    _MenuItem(name: 'Phở gà', price: 45000, category: 'Phở', emoji: '🐔'),
-    _MenuItem(name: 'Phở đặc biệt', price: 60000, category: 'Phở', emoji: '⭐'),
-    _MenuItem(name: 'Cơm sườn nướng', price: 55000, category: 'Cơm', emoji: '🥩'),
-    _MenuItem(name: 'Cơm gà xối mỡ', price: 50000, category: 'Cơm', emoji: '🍗'),
-    _MenuItem(name: 'Cơm tấm bì chả', price: 45000, category: 'Cơm', emoji: '🍚'),
-    _MenuItem(name: 'Cơm chiên dương châu', price: 50000, category: 'Cơm', emoji: '🍳'),
-    _MenuItem(name: 'Bún bò Huế', price: 50000, category: 'Bún', emoji: '🌶️'),
-    _MenuItem(name: 'Bún chả Hà Nội', price: 48000, category: 'Bún', emoji: '🥢'),
-    _MenuItem(name: 'Bún riêu cua', price: 45000, category: 'Bún', emoji: '🦀'),
-    _MenuItem(name: 'Trà đào cam sả', price: 29000, category: 'Nước', emoji: '🍑'),
-    _MenuItem(name: 'Cà phê sữa đá', price: 25000, category: 'Nước', emoji: '☕'),
-    _MenuItem(name: 'Nước ép cam', price: 30000, category: 'Nước', emoji: '🍊'),
-    _MenuItem(name: 'Sinh tố bơ', price: 35000, category: 'Nước', emoji: '🥑'),
-    _MenuItem(name: 'Trà sữa trân châu', price: 35000, category: 'Nước', emoji: '🧋'),
-    _MenuItem(name: 'Chè khúc bạch', price: 25000, category: 'Tráng miệng', emoji: '🍮'),
-    _MenuItem(name: 'Bánh flan', price: 20000, category: 'Tráng miệng', emoji: '🍮'),
+    _MenuItem(name: 'Phở bò tái', price: 45000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(name: 'Phở bò viên', price: 45000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(name: 'Phở bò tái nạm', price: 50000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(name: 'Phở gà', price: 45000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(name: 'Phở đặc biệt', price: 60000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(name: 'Cơm sườn nướng', price: 55000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
+    _MenuItem(name: 'Cơm gà xối mỡ', price: 50000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
+    _MenuItem(name: 'Cơm tấm bì chả', price: 45000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
+    _MenuItem(name: 'Cơm chiên dương châu', price: 50000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
+    _MenuItem(name: 'Bún bò Huế', price: 50000, category: 'Bún', imageUrl: 'assets/images/pho_bo.png'),
+    _MenuItem(name: 'Bún chả Hà Nội', price: 48000, category: 'Bún', imageUrl: 'assets/images/pho_bo.png'),
+    _MenuItem(name: 'Bún riêu cua', price: 45000, category: 'Bún', imageUrl: 'assets/images/pho_bo.png'),
+    _MenuItem(name: 'Trà đào cam sả', price: 29000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(name: 'Cà phê sữa đá', price: 25000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(name: 'Nước ép cam', price: 30000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(name: 'Sinh tố bơ', price: 35000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(name: 'Trà sữa trân châu', price: 35000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(name: 'Chè khúc bạch', price: 25000, category: 'Tráng miệng', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(name: 'Bánh flan', price: 20000, category: 'Tráng miệng', imageUrl: 'assets/images/tra_sua.jpg'),
   ];
 
   List<_MenuItem> get _filteredItems {
@@ -422,7 +422,20 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(cat['icon'] as String, style: const TextStyle(fontSize: 14)),
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(shape: BoxShape.circle),
+                      child: ClipOval(
+                        child: (cat['imageUrl'] as String).isNotEmpty
+                            ? Image.asset(cat['imageUrl'] as String, fit: BoxFit.cover)
+                            : Icon(
+                                Icons.restaurant_menu_rounded,
+                                size: 12,
+                                color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                              ),
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       cat['name'] as String,
@@ -483,7 +496,7 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
       ),
       child: Row(
         children: [
-          // Food image placeholder with emoji
+          // Food image
           Container(
             width: 52,
             height: 52,
@@ -491,8 +504,9 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
               color: AppColors.bgSoft,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(
-              child: Text(item.emoji, style: const TextStyle(fontSize: 26)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(item.imageUrl, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(width: 12),
@@ -926,9 +940,9 @@ class _MenuItem {
   final String name;
   final int price;
   final String category;
-  final String emoji;
+  final String imageUrl;
 
-  _MenuItem({required this.name, required this.price, required this.category, required this.emoji});
+  _MenuItem({required this.name, required this.price, required this.category, required this.imageUrl});
 }
 
 class _OrderItem {

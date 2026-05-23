@@ -46,7 +46,16 @@ class MenuItemCard extends StatelessWidget {
               Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.vertical(top: Radius.circular(8))),
-                child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 32))),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  child: Image.asset(
+                    item.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(Icons.fastfood_rounded, size: 32, color: AppColors.textTertiary),
+                    ),
+                  ),
+                ),
               ),
               if (item.badge != null)
                 Positioned(top: 6, left: 6, child: Container(

@@ -56,8 +56,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           phone: finalPhone.isEmpty ? null : finalPhone,
           fullName: _nameController.text.trim(),
           avatar: user.avatar,
+          gender: _selectedGender,
+          birthday: user.birthday,
           role: user.role,
           isActive: user.isActive,
+          points: user.points,
+          tier: user.tier,
+          address: user.address,
           createdAt: user.createdAt,
           updatedAt: DateTime.now().toIso8601String(),
         );

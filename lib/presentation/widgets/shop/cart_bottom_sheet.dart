@@ -102,7 +102,10 @@ class _CartBottomSheetState extends ConsumerState<CartBottomSheet> {
       Container(
         width: 44, height: 44,
         decoration: BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.circular(8)),
-        child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 22))),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(item.imageUrl, fit: BoxFit.cover, width: 44, height: 44),
+        ),
       ),
       const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

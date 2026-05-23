@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
 import 'store_detail_page.dart';
+import '../../../providers/shop_provider.dart';
+import '../../../providers/category_provider.dart';
+import '../../../data/models/category_model.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
@@ -41,6 +44,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _query = widget.initialCategory!;
       _searchController.text = widget.initialCategory!;
       _submitted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(selectedCategoryProvider.notifier).state = widget.initialCategory!;
+      });
     }
   }
 
@@ -70,15 +76,24 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildSearchHeader(),
-          Expanded(
-            child: _submitted ? _buildResultsView() : _buildTypingView(),
-          ),
-        ],
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          ref.read(selectedCategoryProvider.notifier).state = 'Tất cả';
+          ref.read(menuCurrentPageProvider.notifier).state = 1;
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            _buildSearchHeader(),
+            Expanded(
+              child: _submitted ? _buildResultsView() : _buildTypingView(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -465,7 +480,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildCategoryRow() {
-    final categories = MockData.categories;
+    final categoriesAsync = ref.watch(categoriesFutureProvider);
+    return categoriesAsync.when(
+      data: (categories) => _buildCategoryList(categories),
+      loading: () => _buildCategoryList(MockData.categories),
+      error: (err, stack) => _buildCategoryList(MockData.categories),
+    );
+  }
+
+  Widget _buildCategoryList(List<CategoryModel> categories) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: const BoxDecoration(
@@ -480,8 +503,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           separatorBuilder: (_, __) => const SizedBox(width: 16),
           itemBuilder: (_, index) {
             final cat = categories[index];
-            final name = cat['name'] as String;
-            final image = cat['image'] as String;
+            final name = cat.name;
+            final image = cat.imageUrl;
             final isSelected = _selectedCategory == name;
             return GestureDetector(
               onTap: () {
@@ -490,6 +513,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   _query = name;
                   _searchController.text = name;
                 });
+                ref.read(selectedCategoryProvider.notifier).state = name;
               },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -507,12 +531,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           ),
                         ),
                         child: ClipOval(
-                          child: Image.asset(
-                            image,
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                          ),
+                          child: image.startsWith('http')
+                              ? Image.network(
+                                  image,
+                                  width: 52,
+                                  height: 52,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.restaurant_menu_rounded,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )
+                              : Image.asset(
+                                  image,
+                                  width: 52,
+                                  height: 52,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.restaurant_menu_rounded,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
                         ),
                       ),
                       if (isSelected)

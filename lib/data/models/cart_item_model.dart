@@ -1,6 +1,6 @@
 class CartItemModel {
   final String id;
-  final String emoji;
+  final String imageUrl;
   final String name;
   final int priceAmount; // In VND, e.g. 95000
   final String priceDisplay; // e.g. "95,000đ"
@@ -9,7 +9,7 @@ class CartItemModel {
 
   CartItemModel({
     required this.id,
-    required this.emoji,
+    required this.imageUrl,
     required this.name,
     required this.priceAmount,
     required this.priceDisplay,
@@ -21,7 +21,7 @@ class CartItemModel {
 
   CartItemModel copyWith({
     String? id,
-    String? emoji,
+    String? imageUrl,
     String? name,
     int? priceAmount,
     String? priceDisplay,
@@ -30,7 +30,7 @@ class CartItemModel {
   }) {
     return CartItemModel(
       id: id ?? this.id,
-      emoji: emoji ?? this.emoji,
+      imageUrl: imageUrl ?? this.imageUrl,
       name: name ?? this.name,
       priceAmount: priceAmount ?? this.priceAmount,
       priceDisplay: priceDisplay ?? this.priceDisplay,

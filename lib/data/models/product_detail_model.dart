@@ -42,10 +42,10 @@ class NutritionItemModel {
 }
 
 class AllergenModel {
-  final String emoji;
+  final String icon;
   final String name;
 
-  const AllergenModel({required this.emoji, required this.name});
+  const AllergenModel({required this.icon, required this.name});
 }
 
 class ReviewDistributionModel {
@@ -76,13 +76,13 @@ class ReviewModel {
 }
 
 class PairingItemModel {
-  final String emoji;
+  final String imageUrl;
   final String name;
   final String price;
   final bool isInCart;
 
   const PairingItemModel({
-    required this.emoji,
+    required this.imageUrl,
     required this.name,
     required this.price,
     this.isInCart = false,
@@ -103,7 +103,7 @@ class ProductBadgeModel {
 
 class ProductDetailModel {
   final String slug;
-  final String emoji;
+  final String imageUrl;
   final String name;
   final String category;
   final int price;
@@ -131,7 +131,7 @@ class ProductDetailModel {
 
   const ProductDetailModel({
     required this.slug,
-    required this.emoji,
+    required this.imageUrl,
     required this.name,
     required this.category,
     required this.price,

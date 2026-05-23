@@ -26,7 +26,7 @@ class ComboSection extends StatelessWidget {
   }
 
   Widget _buildComboCard(BuildContext context, Map<String, dynamic> c) {
-    final emojis = c['emojis'] as List;
+    final imageUrls = c['imageUrls'] as List;
     final price = c['price'] as int;
     final originalPrice = c['originalPrice'] as int;
     return Container(
@@ -39,17 +39,20 @@ class ComboSection extends StatelessWidget {
         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 2))],
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        // Emoji stack
+        // Image stack
         SizedBox(
           width: 80,
           height: 50,
           child: Stack(
-            children: List.generate(emojis.length, (i) => Positioned(
+            children: List.generate(imageUrls.length, (i) => Positioned(
               left: i * 22.0,
               child: Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white, width: 2)),
-                child: Center(child: Text(emojis[i], style: const TextStyle(fontSize: 20))),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(imageUrls[i] as String, fit: BoxFit.cover, width: 44, height: 44),
+                ),
               ),
             )),
           ),

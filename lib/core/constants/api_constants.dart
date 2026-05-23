@@ -20,4 +20,7 @@ class ApiConstants {
   static const String profile = '/users/profile';
   static const String userList = '/users';
   static String userDetail(String id) => '/users/$id';
+
+  // Categories
+  static const String categories = '/categories';
 }
