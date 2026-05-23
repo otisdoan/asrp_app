@@ -1,3 +1,4 @@
+import 'package:fe_asrp_app/presentation/widgets/shop/categories_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,7 +8,7 @@ import '../../widgets/shop/deals_section.dart';
 import '../../widgets/shop/top_stores_section.dart';
 import '../../widgets/shop/nearby_stores_section.dart';
 import '../../widgets/shop/all_stores_section.dart';
-import '../../widgets/shop/categories_section.dart';
+
 import '../../../providers/cart_provider.dart';
 import '../../../providers/shop_provider.dart';
 import 'cart_page.dart';
@@ -91,7 +92,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.location_on_rounded, size: 22, color: AppColors.onPrimary),
+                  child: const Icon(Icons.location_on_rounded,
+                      size: 22, color: AppColors.onPrimary),
                 ),
               ),
               const SizedBox(height: 20),
@@ -127,9 +129,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                     await storage.write(key: 'location_asked', value: 'true');
                     print('[Location] Đang lấy vị trí...');
                     try {
-                      final position = await LocationService.getCurrentPosition();
+                      final position =
+                          await LocationService.getCurrentPosition();
                       if (position != null) {
-                        print('[Location] ✅ Tọa độ: ${position.latitude}, ${position.longitude}');
+                        print(
+                            '[Location] ✅ Tọa độ: ${position.latitude}, ${position.longitude}');
                       } else {
                         print('[Location] ⚠️ Không lấy được vị trí');
                       }
@@ -141,7 +145,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: const Text(
@@ -163,7 +168,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   },
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
                     'Để sau',
@@ -324,7 +330,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               Padding(
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
                   child: const PromoBannerSection()),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               // Categories
               const CategoriesSection(),
               const SizedBox(height: 20),

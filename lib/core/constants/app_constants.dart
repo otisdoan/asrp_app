@@ -9,13 +9,15 @@ class AppConstants {
   static const String routeOnboarding = '/onboarding';
   static const String routeStaffHome = '/staff';
   static const String routeCashier = '/cashier';
-  static const String routeHome = '/';
+  static const String routeSplash = '/';
+  static const String routeHome = '/home';
   static const String routeProfile = '/profile';
   static const String routeEditProfile = '/profile/edit';
   static const String routeFavoriteShops = '/shops/favorite';
 
   // Storage keys
   static const String storageKeyAccessToken = 'access_token';
+  static const String storageKeyRefreshToken = 'refresh_token';
   static const String storageKeyUser = 'asrp_user';
 
   // App info

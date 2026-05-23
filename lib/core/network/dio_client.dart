@@ -37,18 +37,49 @@ class DioClient {
   Future<void> clearAuth() async {
     _accessToken = null;
     await _secureStorage.delete(key: AppConstants.storageKeyAccessToken);
+    await _secureStorage.delete(key: AppConstants.storageKeyRefreshToken);
   }
 
   Future<String?> _handleRefresh() async {
     try {
-      final response = await Dio(BaseOptions(baseUrl: ApiConstants.baseUrl))
-          .post(ApiConstants.refresh);
-      final newToken = response.data['data']['accessToken'] as String;
+      final refreshToken = await _secureStorage.read(key: AppConstants.storageKeyRefreshToken);
+      if (refreshToken == null) {
+        await clearAuth();
+        return null;
+      }
+
+      final response = await Dio(BaseOptions(
+        baseUrl: ApiConstants.baseUrl,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $refreshToken',
+        },
+      )).post(
+        ApiConstants.refresh,
+        data: {
+          'refreshToken': refreshToken,
+        },
+      );
+
+      // Support dynamic api envelope structures (either wrapped in data or directly returned)
+      final data = response.data['data'] ?? response.data;
+      final newToken = data['accessToken'] as String;
+      
       _accessToken = newToken;
       await _secureStorage.write(
         key: AppConstants.storageKeyAccessToken,
         value: newToken,
       );
+
+      // Save new refresh token if backend implements token rotation
+      final newRefreshToken = data['refreshToken'] as String?;
+      if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+        await _secureStorage.write(
+          key: AppConstants.storageKeyRefreshToken,
+          value: newRefreshToken,
+        );
+      }
+
       return newToken;
     } catch (_) {
       await clearAuth();

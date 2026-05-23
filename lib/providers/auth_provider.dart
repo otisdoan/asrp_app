@@ -43,14 +43,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Tự động nạp lại phiên đăng nhập cũ từ Secure Storage khi khởi động app
   Future<void> _loadSavedSession() async {
     try {
-      final token = await _secureStorage.read(key: AppConstants.storageKeyAccessToken);
-      final userJson = await _secureStorage.read(key: AppConstants.storageKeyUser);
+      final token =
+          await _secureStorage.read(key: AppConstants.storageKeyAccessToken);
+      final userJson =
+          await _secureStorage.read(key: AppConstants.storageKeyUser);
       if (token != null && userJson != null) {
         final userMap = jsonDecode(userJson) as Map<String, dynamic>;
         final user = UserModel.fromJson(userMap);
-        
+
         DioClient().setAccessToken(token);
-        
+
         state = AuthState(
           user: user,
           accessToken: token,
@@ -68,6 +70,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _secureStorage.write(
       key: AppConstants.storageKeyAccessToken,
       value: response.accessToken,
+    );
+    await _secureStorage.write(
+      key: AppConstants.storageKeyRefreshToken,
+      value: response.refreshToken,
     );
     await _secureStorage.write(
       key: AppConstants.storageKeyUser,
@@ -110,7 +116,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 }
 
 // ===== Providers =====
-final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
+final authRepositoryProvider =
+    Provider<AuthRepository>((ref) => AuthRepository());
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
   (ref) => AuthNotifier(),

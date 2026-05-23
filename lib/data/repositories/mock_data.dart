@@ -36,11 +36,22 @@ class MockData {
 
   // ===== CATEGORIES =====
   static const List<CategoryModel> categories = [
-    CategoryModel(id: 'pho', name: 'Phở', count: 12, imageUrl: 'assets/images/pho.jpg'),
-    CategoryModel(id: 'bun', name: 'Bún', count: 8, imageUrl: 'assets/images/pho_bo.png'),
-    CategoryModel(id: 'com', name: 'Cơm', count: 10, imageUrl: 'assets/images/com.webp'),
-    CategoryModel(id: 'drinks', name: 'Đồ uống', count: 7, imageUrl: 'assets/images/tra_sua.jpg'),
-    CategoryModel(id: 'dessert', name: 'Tráng miệng', count: 5, imageUrl: 'assets/images/tra_sua.jpg'),
+    CategoryModel(
+        id: 'pho', name: 'Phở', count: 12, imageUrl: 'assets/images/pho.jpg'),
+    CategoryModel(
+        id: 'bun', name: 'Bún', count: 8, imageUrl: 'assets/images/pho_bo.png'),
+    CategoryModel(
+        id: 'com', name: 'Cơm', count: 10, imageUrl: 'assets/images/com.webp'),
+    CategoryModel(
+        id: 'drinks',
+        name: 'Đồ uống',
+        count: 7,
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    CategoryModel(
+        id: 'dessert',
+        name: 'Tráng miệng',
+        count: 5,
+        imageUrl: 'assets/images/tra_sua.jpg'),
   ];
 
   // ===== QUICK FILTERS =====
@@ -148,7 +159,11 @@ class MockData {
   // ===== COMBOS =====
   static const List<Map<String, dynamic>> combos = [
     {
-      'imageUrls': ['assets/images/pho.jpg', 'assets/images/tra_sua.jpg', 'assets/images/com.webp'],
+      'imageUrls': [
+        'assets/images/pho.jpg',
+        'assets/images/tra_sua.jpg',
+        'assets/images/com.webp'
+      ],
       'name': 'Combo Phở Đồng Quê',
       'description': 'Phở bò + Nước mía + Bánh quẩy',
       'price': 115000,
@@ -157,7 +172,11 @@ class MockData {
       'badge': 'COMBO',
     },
     {
-      'imageUrls': ['assets/images/pho_bo.png', 'assets/images/tra_sua.jpg', 'assets/images/com.webp'],
+      'imageUrls': [
+        'assets/images/pho_bo.png',
+        'assets/images/tra_sua.jpg',
+        'assets/images/com.webp'
+      ],
       'name': 'Combo Bún Huế Đặc Biệt',
       'description': 'Bún bò Huế + Trà đá + Chè đậu',
       'price': 105000,
@@ -201,9 +220,27 @@ class MockData {
 
   // ===== BEST SELLERS =====
   static const List<Map<String, dynamic>> bestSellers = [
-    {'rank': 1, 'imageUrl': 'assets/images/pho.jpg', 'name': 'Phở bò đặc biệt', 'price': '95,000đ', 'sold': 1240},
-    {'rank': 2, 'imageUrl': 'assets/images/pho_bo.png', 'name': 'Bún bò Huế', 'price': '80,000đ', 'sold': 985},
-    {'rank': 3, 'imageUrl': 'assets/images/com.webp', 'name': 'Cơm gà Hải Nam', 'price': '75,000đ', 'sold': 763},
+    {
+      'rank': 1,
+      'imageUrl': 'assets/images/pho.jpg',
+      'name': 'Phở bò đặc biệt',
+      'price': '95,000đ',
+      'sold': 1240
+    },
+    {
+      'rank': 2,
+      'imageUrl': 'assets/images/pho_bo.png',
+      'name': 'Bún bò Huế',
+      'price': '80,000đ',
+      'sold': 985
+    },
+    {
+      'rank': 3,
+      'imageUrl': 'assets/images/com.webp',
+      'name': 'Cơm gà Hải Nam',
+      'price': '75,000đ',
+      'sold': 763
+    },
   ];
 
   // ===== MINI PROMOS =====
@@ -467,106 +504,51 @@ class MockData {
       ];
 
   // ===== MOCK PRODUCT DETAIL =====
+  // ===== MOCK PRODUCT DETAIL =====
   static ProductDetailModel getProductDetail(String slug) {
     return ProductDetailModel(
       slug: slug,
       imageUrl: 'assets/images/pho.jpg',
       name: 'Phở bò đặc biệt',
-      category: 'Phở · Món chính',
-      price: 95000,
-      originalPrice: 120000,
-      rating: 4.7,
-      reviewCount: 128,
-      soldCount: 1240,
-      isAvailable: true,
-      badges: const [
-        ProductBadgeModel(label: '🔥 HOT', colorBg: '#FAECE7', colorText: '#993C1D'),
-        ProductBadgeModel(label: '−20%', colorBg: '#FFF4F0', colorText: '#2E7D32'),
-      ],
-      gallery: const ['assets/images/pho.jpg', 'assets/images/pho_bo.png', 'assets/images/com.webp', 'assets/images/tra_sua.jpg'],
-      shortDescription:
+      priceDisplay: '95.000đ',
+      priceAmount: 95000,
+      description:
           'Nước dùng ninh 12 tiếng, thịt bò tươi thượng hạng, bánh phở dai ngon đặc trưng.',
-      fullDescription:
-          'Món Phở bò đặc biệt của chúng tôi được chế biến theo công thức gia truyền hơn 30 năm. '
-          'Nước dùng được ninh từ xương bò và các loại thảo mộc tự nhiên trong suốt 12 giờ, tạo nên '
-          'hương vị đậm đà, ngọt thanh. Thịt bò được chọn lọc kỹ càng, thái mỏng và chần vừa tới '
-          'để giữ độ mềm ngọt.',
-      origin: 'Thịt bò nhập từ Úc, bánh phở tươi mỗi sáng',
+      soldCount: '1240',
+      likesCount: 128,
       sizes: const [
-        ProductSizeModel(label: 'Nhỏ', description: 'Tô nhỡ', price: 80000),
-        ProductSizeModel(label: 'Vừa', description: 'Tô lớn', price: 95000),
-        ProductSizeModel(label: 'Lớn', description: 'Tô đặc biệt', price: 120000),
+        ProductSizeModel(name: 'Nhỏ', price: 80000),
+        ProductSizeModel(name: 'Vừa', price: 95000),
+        ProductSizeModel(name: 'Lớn', price: 120000),
       ],
       toppings: const [
-        ProductToppingModel(label: 'Thêm thịt bò', price: 25000),
-        ProductToppingModel(label: 'Thêm gầu bò', price: 20000),
-        ProductToppingModel(label: 'Thêm trứng chần', price: 10000),
-        ProductToppingModel(label: 'Thêm bánh quẩy', price: 8000),
-      ],
-      customizations: const [
-        ProductCustomizationModel(
-          label: 'Độ cay',
-          choices: ['Không cay', 'Ít cay', 'Vừa', 'Nhiều cay'],
-          defaultIndex: 2,
-        ),
-        ProductCustomizationModel(
-          label: 'Nước dùng',
-          choices: ['Ít nước', 'Vừa nước', 'Nhiều nước'],
-          defaultIndex: 1,
-        ),
-        ProductCustomizationModel(
-          label: 'Độ béo',
-          choices: ['Không béo', 'Vừa béo', 'Nước béo'],
-          defaultIndex: 1,
-        ),
-      ],
-      nutrition: const [
-        NutritionItemModel(label: 'Năng lượng', value: 520, unit: 'kcal'),
-        NutritionItemModel(label: 'Protein', value: 28, unit: 'gram'),
-        NutritionItemModel(label: 'Tinh bột (Carbs)', value: 65, unit: 'gram'),
-        NutritionItemModel(label: 'Chất béo (Fat)', value: 12, unit: 'gram'),
-        NutritionItemModel(label: 'Natri', value: 980, unit: 'mg'),
-        NutritionItemModel(label: 'Chất xơ', value: 3, unit: 'gram'),
-      ],
-      dietTags: const ['🌿 Phù hợp Low-carb'],
-      allergenContains: const [
-        AllergenModel(icon: '🐟', name: 'Hải sản (nước mắm)'),
-        AllergenModel(icon: '🌾', name: 'Gluten (bánh phở)'),
-      ],
-      allergenDoesNotContain: const ['Sữa', 'Trứng', 'Đậu nành', 'Đậu phộng'],
-      reviewDistribution: const [
-        ReviewDistributionModel(star: 5, percent: 72),
-        ReviewDistributionModel(star: 4, percent: 18),
-        ReviewDistributionModel(star: 3, percent: 7),
-        ReviewDistributionModel(star: 2, percent: 2),
-        ReviewDistributionModel(star: 1, percent: 1),
+        ProductToppingModel(name: 'Thêm thịt bò', price: 25000),
+        ProductToppingModel(name: 'Thêm gầu bò', price: 20000),
+        ProductToppingModel(name: 'Thêm trứng chần', price: 10000),
+        ProductToppingModel(name: 'Thêm bánh quẩy', price: 8000),
       ],
       reviews: const [
-        ReviewModel(
-          name: 'N.T.H',
-          membership: 'Thành viên Gold',
+        ProductReviewModel(
+          user: 'N.T.H',
           rating: 5,
           date: '3 ngày trước',
           content:
               'Nước dùng rất ngon, ngọt thanh tự nhiên. Thịt bò tươi và mềm. Sẽ quay lại ủng hộ thường xuyên!',
-          helpful: 12,
-          reply: 'Cảm ơn bạn đã ủng hộ nhà hàng. Rất mong được phục vụ bạn lần sau!',
+          imageCount: 12,
+          tags: ['PHỞ BÒ ĐẶC BIỆT'],
+          reply:
+              'Cảm ơn bạn đã ủng hộ nhà hàng. Rất mong được phục vụ bạn lần sau!',
         ),
-        ReviewModel(
-          name: 'Trần Văn B.',
+        ProductReviewModel(
+          user: 'Trần Văn B.',
           rating: 4,
           date: '1 tuần trước',
           content:
               'Phở ngon nhưng hơi đông nên phục vụ hơi lâu chút. Bù lại đồ ăn chất lượng.',
-          helpful: 5,
+          imageCount: 5,
+          tags: ['PHỞ BÒ'],
         ),
       ],
-      pairings: const [
-        PairingItemModel(imageUrl: 'assets/images/tra_sua.jpg', name: 'Nước mía tươi', price: '25,000đ'),
-        PairingItemModel(imageUrl: 'assets/images/com.webp', name: 'Bánh quẩy', price: '10,000đ', isInCart: true),
-        PairingItemModel(imageUrl: 'assets/images/pho.jpg', name: 'Chè bưởi', price: '35,000đ'),
-      ],
-      similarSlugs: const ['pho-bo-tai', 'bun-bo-hue', 'pho-ga-ta'],
     );
   }
 }
