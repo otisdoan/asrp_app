@@ -71,11 +71,10 @@ flutter_launcher_icons:
   min_sdk_android: 21
 
 flutter_native_splash:
-  background_image: "assets/logo.png"
+  color: "#D84315"
   fullscreen: true
   android_12:
     color: "#D84315"
-    image: "assets/logo.png"
 
 flutter:
   uses-material-design: true
