@@ -41,7 +41,7 @@ class CategoriesSection extends ConsumerWidget {
           ),
         const SizedBox(height: 12),
         categoriesAsync.when(
-          data: (categories) => _buildList(context, ref, categories, selectedCategory),
+          data: (categories) => _buildList(context, ref, categories.isEmpty ? MockData.categories : categories, selectedCategory),
           loading: () => _buildList(context, ref, MockData.categories, selectedCategory), // smooth loading fallback
           error: (err, stack) => _buildList(context, ref, MockData.categories, selectedCategory), // robust error fallback
         ),

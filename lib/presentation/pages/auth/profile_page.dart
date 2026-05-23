@@ -298,28 +298,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 Widget titleWidget;
                 if (opacity < 0.5) {
                   final double textOpacity = (1.0 - (opacity * 2)).clamp(0.0, 1.0);
-                  titleWidget = Opacity(
-                    opacity: textOpacity,
-                    child: const Text(
-                      'Hồ sơ của tôi',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  titleWidget = Text(
+                    'Hồ sơ của tôi',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: textOpacity),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   );
                 } else {
                   final double textOpacity = ((opacity - 0.5) * 2).clamp(0.0, 1.0);
-                  titleWidget = Opacity(
-                    opacity: textOpacity,
-                    child: Text(
-                      user.displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  titleWidget = Text(
+                    user.displayName,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: textOpacity),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   );
                 }
@@ -402,7 +396,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
+                            color: Colors.black.withValues(alpha: 0.12),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -465,7 +459,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     Text(
                       user.phone ?? 'Chưa cập nhật SĐT',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14,
                         fontWeight: FontWeight.w300,
                       ),
@@ -474,7 +468,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     Text(
                       user.email ?? 'Chưa cập nhật Email',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 13,
                         fontWeight: FontWeight.w300,
                       ),
@@ -496,9 +490,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
                   ),
                   child: const Row(
                     children: [
@@ -535,10 +529,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF3B844).withOpacity(0.6), width: 1.2),
+        border: Border.all(color: const Color(0xFFF3B844).withValues(alpha: 0.6), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -579,7 +573,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3B844).withOpacity(0.18),
+                  color: const Color(0xFFF3B844).withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFFF3B844), width: 0.8),
                 ),
@@ -680,7 +674,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       decoration: BoxDecoration(
         color: AppColors.bgSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.15), width: 1),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1),
       ),
       child: Row(
         children: [
@@ -955,7 +949,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               decoration: BoxDecoration(
                 color: AppColors.bgSoft,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
               ),
               child: const Icon(
                 Icons.restaurant_rounded,

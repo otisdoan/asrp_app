@@ -150,7 +150,6 @@ class _NearbyStoreCard extends StatelessWidget {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -159,7 +158,13 @@ class _NearbyStoreCard extends StatelessWidget {
             height: 95,
             width: double.infinity,
             color: AppColors.bgSoft,
-            child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 95),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
+              child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 95),
+            ),
           ),
           // Info area
           Expanded(

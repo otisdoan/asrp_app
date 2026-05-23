@@ -849,19 +849,23 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image with sold badge
-            Stack(
-              children: [
-                Container(
-                  height: 80,
-                  width: double.infinity,
-                  color: AppColors.bgWarm,
-                  child: Icon(item['icon'] as IconData, size: 32, color: AppColors.textTertiary),
-                ),
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              child: Stack(
+                children: [
+                  Container(
+                    height: 80,
+                    width: double.infinity,
+                    color: AppColors.bgWarm,
+                    child: Icon(item['icon'] as IconData, size: 32, color: AppColors.textTertiary),
+                  ),
                 Positioned(
                   top: 6,
                   left: 6,
@@ -879,7 +883,8 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 ),
               ],
             ),
-            // Info
+          ),
+          // Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),

@@ -22,7 +22,7 @@ class MiniPromoBanners extends StatelessWidget {
           const SizedBox(height: 8),
           Text(p['title'] as String, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(p['textColor'] as int))),
           const SizedBox(height: 4),
-          Text(p['desc'] as String, style: TextStyle(fontSize: 10, color: Color(p['textColor'] as int).withOpacity(0.8))),
+          Text(p['desc'] as String, style: TextStyle(fontSize: 10, color: Color(p['textColor'] as int).withValues(alpha: 0.8))),
         ]),
       ));
     }).toList());

@@ -58,19 +58,21 @@ class ShopDrawer extends ConsumerWidget {
           // Categories label
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Text('DANH MỤC', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.textSecondary.withOpacity(0.6))),
+            child: Text('DANH MỤC', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.textSecondary.withValues(alpha: 0.6))),
           ),
           // All
           _buildCategoryTile(context, ref, null, 'Tất cả', null, selectedCategory),
           ...categoriesAsync.maybeWhen(
-            data: (categories) => categories.map((c) => _buildCategoryTile(context, ref, c.imageUrl, c.name, c.count, selectedCategory)),
+            data: (categories) => categories.isEmpty
+                ? MockData.categories.map((c) => _buildCategoryTile(context, ref, c.imageUrl, c.name, c.count, selectedCategory))
+                : categories.map((c) => _buildCategoryTile(context, ref, c.imageUrl, c.name, c.count, selectedCategory)),
             orElse: () => MockData.categories.map((c) => _buildCategoryTile(context, ref, c.imageUrl, c.name, c.count, selectedCategory)),
           ),
           const Divider(height: 24),
           // Quick filters label
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Text('LỌC NHANH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.textSecondary.withOpacity(0.6))),
+            child: Text('LỌC NHANH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.textSecondary.withValues(alpha: 0.6))),
           ),
           ...MockData.quickFilters.map((f) => _buildFilterTile(context, f['imageUrl'] as String, f['name'] as String)),
           const Spacer(),
@@ -79,7 +81,7 @@ class ShopDrawer extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             child: Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.primaryContainer, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withOpacity(0.2))),
+              decoration: BoxDecoration(color: AppColors.primaryContainer, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.2))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('Chi nhánh', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary)),
                 const SizedBox(height: 8),
@@ -117,7 +119,7 @@ class ShopDrawer extends ConsumerWidget {
             height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isActive ? AppColors.primary.withOpacity(0.15) : AppColors.surfaceContainerHigh,
+              color: isActive ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceContainerHigh,
             ),
             child: ClipOval(
               child: imageUrl != null
@@ -151,7 +153,7 @@ class ShopDrawer extends ConsumerWidget {
           Expanded(child: Text(name, style: TextStyle(fontSize: 13, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: isActive ? AppColors.primary : AppColors.textPrimary))),
           if (count != null) Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(color: isActive ? AppColors.primary.withOpacity(0.15) : AppColors.surfaceContainerHigh, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: isActive ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceContainerHigh, borderRadius: BorderRadius.circular(8)),
             child: Text('$count', style: TextStyle(fontSize: 10, color: isActive ? AppColors.primary : AppColors.textSecondary, fontWeight: FontWeight.w600)),
           ),
         ]),

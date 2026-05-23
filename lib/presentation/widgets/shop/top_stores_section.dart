@@ -172,18 +172,23 @@ class _StoreCard extends StatelessWidget {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image area
           Stack(
             children: [
-              Container(
-                height: 110,
-                width: double.infinity,
-                color: AppColors.bgWarm,
-                child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 110),
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(10),
+                  topRight: Radius.circular(10),
+                ),
+                child: Container(
+                  height: 110,
+                  width: double.infinity,
+                  color: AppColors.bgWarm,
+                  child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 110),
+                ),
               ),
               // Tag badge (top-left)
               if (tag.isNotEmpty)

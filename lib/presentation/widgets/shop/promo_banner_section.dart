@@ -39,12 +39,10 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
   Widget _buildBannerItem(Map<String, String> b) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
+        child: Stack(
+          fit: StackFit.expand,
         children: [
           // Full background image
           Image.asset(
@@ -90,6 +88,7 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -482,7 +482,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _buildCategoryRow() {
     final categoriesAsync = ref.watch(categoriesFutureProvider);
     return categoriesAsync.when(
-      data: (categories) => _buildCategoryList(categories),
+      data: (categories) => _buildCategoryList(categories.isEmpty ? MockData.categories : categories),
       loading: () => _buildCategoryList(MockData.categories),
       error: (err, stack) => _buildCategoryList(MockData.categories),
     );

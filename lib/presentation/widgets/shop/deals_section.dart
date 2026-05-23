@@ -162,25 +162,30 @@ class _LargeCard extends StatelessWidget {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image area
             Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    color: AppColors.bgWarm,
-                    child: Image.asset(imagePath, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: _DiscountBadge(label: discount),
-                  ),
-                ],
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(
+                      color: AppColors.bgWarm,
+                      child: Image.asset(imagePath, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _DiscountBadge(label: discount),
+                    ),
+                  ],
+                ),
               ),
             ),
             // Info area
@@ -283,26 +288,31 @@ class _SmallCard extends StatelessWidget {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Image area (square)
             AspectRatio(
               aspectRatio: 1,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    color: AppColors.bgWarm,
-                    child: Image.asset(imagePath, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: _DiscountBadge(label: discount, small: true),
-                  ),
-                ],
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  bottomLeft: Radius.circular(8),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(
+                      color: AppColors.bgWarm,
+                      child: Image.asset(imagePath, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: _DiscountBadge(label: discount, small: true),
+                    ),
+                  ],
+                ),
               ),
             ),
             // Info area

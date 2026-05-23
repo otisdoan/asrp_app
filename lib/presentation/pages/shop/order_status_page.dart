@@ -209,19 +209,24 @@ class _OrderStatusPageState extends State<OrderStatusPage> with SingleTickerProv
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.outlineVariant),
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image area
-            Container(
-              width: double.infinity,
-              height: 100,
-              color: AppColors.bgWarm,
-              child: Icon(
-                store['icon'] as IconData,
-                size: 36,
-                color: AppColors.textTertiary,
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
+              child: Container(
+                width: double.infinity,
+                height: 100,
+                color: AppColors.bgWarm,
+                child: Icon(
+                  store['icon'] as IconData,
+                  size: 36,
+                  color: AppColors.textTertiary,
+                ),
               ),
             ),
             // Info
