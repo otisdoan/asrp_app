@@ -14,24 +14,20 @@ import '../presentation/pages/staff/cashier_page.dart';
 import '../presentation/pages/shop/home_page.dart';
 import '../presentation/pages/shop/search_page.dart';
 import '../presentation/pages/shop/favorite_shops_page.dart';
-import '../presentation/pages/shop/splash_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: AppConstants.routeSplash,
+    initialLocation: AppConstants.routeHome,
     redirect: (context, state) {
-      // Currently no redirect logic - all routes accessible
-      // In production: redirect to login if not authenticated for protected routes
+      if (state.uri.path == '/') {
+        return AppConstants.routeHome;
+      }
       return null;
     },
     routes: [
-      GoRoute(
-        path: AppConstants.routeSplash,
-        builder: (context, state) => const SplashPage(),
-      ),
       // ===== Auth Routes =====
       GoRoute(
         path: AppConstants.routeLogin,

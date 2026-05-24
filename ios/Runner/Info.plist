@@ -73,7 +73,7 @@
 		<key>FirebaseAppDelegateProxyEnabled</key>
 		<false/>
 		<key>UIStatusBarHidden</key>
-		<true/>
+		<false/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 	</dict>
