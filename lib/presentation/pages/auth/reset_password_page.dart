@@ -117,11 +117,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.restaurant_menu, color: AppColors.onPrimary, size: 28),
+                padding: const EdgeInsets.all(8),
+                child: Image.asset('assets/logo.png', fit: BoxFit.contain),
               ),
               const SizedBox(height: 12),
               const Text(
-                'BMC Phở Express',
+                'DineX',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,

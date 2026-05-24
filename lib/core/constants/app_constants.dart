@@ -21,7 +21,7 @@ class AppConstants {
   static const String storageKeyUser = 'asrp_user';
 
   // App info
-  static const String appName = 'BMC Phở Express';
+  static const String appName = 'DineX';
   static const String appTagline = 'Nền tảng nhà hàng thông minh';
 
   // Branches

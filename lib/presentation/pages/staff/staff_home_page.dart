@@ -258,7 +258,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                       color: AppColors.onPrimary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.restaurant_menu, color: AppColors.onPrimary, size: 20),
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset('assets/logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -266,7 +267,7 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'BMC Phở Express',
+                          'DineX',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,

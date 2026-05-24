@@ -204,15 +204,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const SizedBox(height: 20),
 
                   // Group 4: Special Admin / Staff controls (Hiển thị có điều kiện)
-                  if (user.role == 'admin' || user.role == 'staff') ...[
-                    _buildSectionHeader('Đặc quyền ${user.role == 'admin' ? 'Quản trị viên' : 'Nhân viên'}'),
+                  if (user.role == 'admin' || user.role == 'manager' || user.role == 'staff') ...[
+                    _buildSectionHeader('Đặc quyền ${(user.role == 'admin' || user.role == 'manager') ? 'Quản lý' : 'Nhân viên'}'),
                     _buildMenuItem(
                       icon: Icons.point_of_sale_rounded,
                       title: 'Màn hình POS Nhân viên',
                       subtitle: 'Đặt món tại bàn cho khách chi nhánh',
                       onTap: () => context.push(AppConstants.routeStaffHome),
                     ),
-                    if (user.role == 'admin')
+                    if (user.role == 'admin' || user.role == 'manager')
                       _buildMenuItem(
                         icon: Icons.account_balance_wallet_outlined,
                         title: 'Màn hình Cashier Thu ngân',
@@ -824,9 +824,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget _buildRoleBadge(String role) {
     Color badgeColor;
     String label;
-    if (role == 'admin') {
+    if (role == 'admin' || role == 'manager') {
       badgeColor = const Color(0xFFF3B844);
-      label = 'Quản trị';
+      label = 'Quản lý';
     } else if (role == 'staff') {
       badgeColor = AppColors.secondary;
       label = 'Nhân viên';

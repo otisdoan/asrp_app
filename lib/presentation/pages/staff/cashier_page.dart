@@ -189,7 +189,8 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                       color: AppColors.onPrimary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.point_of_sale, color: AppColors.onPrimary, size: 20),
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset('assets/logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -206,7 +207,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'BMC Phở Express · Chi nhánh Q1',
+                          'DineX · Chi nhánh Q1',
                           style: TextStyle(fontSize: 12, color: Color(0xCCFFFFFF)),
                         ),
                       ],

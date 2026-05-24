@@ -126,6 +126,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     }
                   } else if (response.user.role == 'staff') {
                     context.go(AppConstants.routeStaffHome);
+                  } else if (response.user.role == 'admin' || response.user.role == 'manager') {
+                    context.go(AppConstants.routeCashier);
                   } else {
                     context.go(AppConstants.routeCashier);
                   }
@@ -257,11 +259,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             ),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.restaurant_menu, color: AppColors.onPrimary, size: 28),
+          padding: const EdgeInsets.all(8),
+          child: Image.asset('assets/logo.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: 12),
         const Text(
-          'BMC Phở Express',
+          'DineX',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -595,6 +598,8 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
           }
         } else if (response.user.role == 'staff') {
           GoRouter.of(context).go(AppConstants.routeStaffHome);
+        } else if (response.user.role == 'admin' || response.user.role == 'manager') {
+          GoRouter.of(context).go(AppConstants.routeCashier);
         } else {
           GoRouter.of(context).go(AppConstants.routeCashier);
         }
