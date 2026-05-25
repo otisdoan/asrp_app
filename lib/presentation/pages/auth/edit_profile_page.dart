@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
@@ -17,6 +18,8 @@ class EditProfilePage extends ConsumerStatefulWidget {
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final RegExp _emailRegex =
+      RegExp(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
@@ -56,6 +59,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         final fullName = _nameController.text.trim();
         final phone = _phoneController.text.trim();
         final email = _emailController.text.trim();
+
+        if (email.isNotEmpty && !_emailRegex.hasMatch(email)) {
+          throw Exception('Email không đúng định dạng');
+        }
+
         final userRepository = ref.read(userRepositoryProvider);
         final response = await userRepository.updateProfile(
           fullName: fullName,
@@ -100,11 +108,34 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               'Cập nhật hồ sơ thất bại với status code ${response.statusCode}');
         }
       }
+    } on DioException catch (e) {
+      final serverMessage =
+          e.response?.data is Map<String, dynamic>
+              ? (e.response?.data['message']?.toString() ??
+                  e.response?.data['error']?.toString())
+              : null;
+
+      final message = serverMessage ??
+          (e.response?.statusCode == 400
+              ? 'Dữ liệu không hợp lệ, vui lòng kiểm tra lại email.'
+              : 'Lỗi khi cập nhật hồ sơ.');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi cập nhật: $e'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -478,6 +509,16 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        validator: (val) {
+                          final email = val?.trim() ?? '';
+                          if (email.isEmpty) {
+                            return null;
+                          }
+                          if (!_emailRegex.hasMatch(email)) {
+                            return 'Email không đúng định dạng';
+                          }
+                          return null;
+                        },
                         decoration: InputDecoration(
                           labelText: 'Địa chỉ email',
                           labelStyle: const TextStyle(
