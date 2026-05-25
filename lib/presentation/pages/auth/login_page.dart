@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../data/repositories/user_repository.dart';
 
 /// Login Page — professional, clean design.
 /// Two tabs: Khách hàng (phone + password) and Nhân viên (phone + password).
@@ -57,7 +58,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _loginError = null;
     });
 
-    final phone = _phoneController.text.trim();
+    String phone = _phoneController.text.trim();
+    if (phone.startsWith('0')) {
+      phone = '+84${phone.substring(1)}';
+    }
     final password = _passwordController.text;
 
     try {
@@ -70,34 +74,45 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // Save credentials and JWT
       await ref.read(authProvider.notifier).setCredentials(response);
 
-      if (!mounted) return;
-      const storage = FlutterSecureStorage();
-      await storage.write(key: 'user_role', value: response.user.role);
+      print(
+          '[Audit Profile Sync] Login: đã setCredentials xong, chuẩn bị gọi getProfile()');
+      try {
+        final userProfile = await ref.read(userRepositoryProvider).getProfile();
+        print(
+            '[Audit Profile Sync] Login: userProfile.avatar = ${userProfile.avatar}');
+        await ref.read(authProvider.notifier).setUser(userProfile);
+        print('[Audit Profile Sync] Login: đã setUser(userProfile) thành công');
 
-      if (mounted) {
-        if (response.user.role == 'customer') {
-          final hasOnboarded = await storage.read(key: 'onboarding_completed');
-          if (!mounted) return;
-          if (hasOnboarded == 'true') {
-            context.go(AppConstants.routeHome);
+        if (!mounted) return;
+        const storage = FlutterSecureStorage();
+        await storage.write(key: 'user_role', value: userProfile.role);
+
+        if (mounted) {
+          if (userProfile.role == 'customer') {
+            final hasOnboarded =
+                await storage.read(key: 'onboarding_completed');
+            if (!mounted) return;
+            if (hasOnboarded == 'true') {
+              context.go(AppConstants.routeHome);
+            } else {
+              context.go(AppConstants.routeOnboarding);
+            }
+          } else if (userProfile.role == 'staff') {
+            context.go(AppConstants.routeStaffHome);
+          } else if (userProfile.role == 'admin' ||
+              userProfile.role == 'manager') {
+            context.go(AppConstants.routeCashier);
           } else {
-            context.go(AppConstants.routeOnboarding);
+            context.go(AppConstants.routeCashier);
           }
-        } else if (response.user.role == 'staff') {
-          context.go(AppConstants.routeStaffHome);
-        } else if (response.user.role == 'admin' || response.user.role == 'manager') {
-          context.go(AppConstants.routeCashier);
-        } else {
-          context.go(AppConstants.routeCashier);
         }
+      } catch (profileError) {
+        print(
+            '[Audit Profile Sync] Login: lỗi khi gọi getProfile/setUser = $profileError');
+        rethrow;
       }
+      return;
     } catch (e) {
-      if (e is DioException) {
-        print('[Backend Login Error] Status: ${e.response?.statusCode}');
-        print('[Backend Login Error] Data: ${e.response?.data}');
-      } else {
-        print('[Login Error]: $e');
-      }
       setState(() {
         _loading = false;
         _loginError = e is DioException
@@ -130,7 +145,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => context.push(AppConstants.routeForgotPassword),
+                  onPressed: () =>
+                      context.push(AppConstants.routeForgotPassword),
                   style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   child: const Text(
                     'Quên mật khẩu?',
@@ -239,7 +255,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           decoration: InputDecoration(
             hintText: '0901234567',
             hintStyle: const TextStyle(color: AppColors.textPlaceholder),
-            prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.textTertiary),
+            prefixIcon: const Icon(Icons.phone_outlined,
+                size: 20, color: AppColors.textTertiary),
             filled: true,
             fillColor: AppColors.surfaceContainerLowest,
             border: OutlineInputBorder(
@@ -248,10 +265,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 1.5),
             ),
             errorText: _phoneError,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
@@ -279,14 +298,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           decoration: InputDecoration(
             hintText: 'Nhập mật khẩu',
             hintStyle: const TextStyle(color: AppColors.textPlaceholder),
-            prefixIcon: const Icon(Icons.lock_outline, size: 20, color: AppColors.textTertiary),
+            prefixIcon: const Icon(Icons.lock_outline,
+                size: 20, color: AppColors.textTertiary),
             suffixIcon: IconButton(
               icon: Icon(
-                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _passwordVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
-              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+              onPressed: () =>
+                  setState(() => _passwordVisible = !_passwordVisible),
             ),
             filled: true,
             fillColor: AppColors.surfaceContainerLowest,
@@ -296,10 +319,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 1.5),
             ),
             errorText: _passwordError,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
@@ -316,7 +341,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.onPrimary,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
         child: _loading

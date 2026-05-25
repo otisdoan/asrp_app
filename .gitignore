@@ -48,3 +48,16 @@ app.*.map.json
 .env
 firebase_config.json
 lib/firebase_options.dart
+
+
+# Flutter generated plugin registrants
+/windows/flutter/generated_plugins.cmake
+/windows/flutter/generated_plugin_registrant.*
+/linux/flutter/generated_plugin_registrant.*
+/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Bỏ qua các file tự sinh của các nền tảng
+linux/flutter/generated_*
+macos/Flutter/GeneratedPluginRegistrant.swift
+windows/flutter/generated_*
+package-lock.json

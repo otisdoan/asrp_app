@@ -35,6 +35,7 @@ class AuthState {
 // ===== Auth Notifier =====
 class AuthNotifier extends StateNotifier<AuthState> {
   final _secureStorage = const FlutterSecureStorage();
+  final AuthRepository _authRepository = AuthRepository();
 
   AuthNotifier() : super(const AuthState()) {
     _loadSavedSession();
@@ -50,6 +51,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (token != null && userJson != null) {
         final userMap = jsonDecode(userJson) as Map<String, dynamic>;
         final user = UserModel.fromJson(userMap);
+        print(
+            '[Audit Avatar] _loadSavedSession() user.avatar = ${user.avatar}');
 
         DioClient().setAccessToken(token);
 
@@ -79,12 +82,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       key: AppConstants.storageKeyUser,
       value: jsonEncode(response.user.toJson()),
     );
+    print(
+        '[Audit Avatar] setCredentials() response.user.avatar = ${response.user.avatar}');
 
     state = AuthState(
       user: response.user,
       accessToken: response.accessToken,
       isAuthenticated: true,
     );
+    print(
+        '[Audit Avatar] setCredentials() state.user.avatar = ${state.user?.avatar}');
   }
 
   /// Cập nhật thông tin chi tiết của user hiện tại
@@ -94,6 +101,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       value: jsonEncode(user.toJson()),
     );
     state = state.copyWith(user: user);
+    print(
+        '[Audit Avatar] setUser() user.avatar đưa lên app/state = ${state.user?.avatar}');
   }
 
   /// Cập nhật Access Token mới (ví dụ khi được Refresh thành công)
@@ -108,10 +117,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Đăng xuất - Xóa sạch mọi phiên lưu trữ và credentials
   Future<void> logout() async {
-    await DioClient().clearAuth();
-    await _secureStorage.delete(key: AppConstants.storageKeyAccessToken);
-    await _secureStorage.delete(key: AppConstants.storageKeyUser);
-    state = const AuthState();
+    final refreshToken =
+        await _secureStorage.read(key: AppConstants.storageKeyRefreshToken);
+
+    try {
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _authRepository.logout(refreshToken);
+      }
+    } catch (_) {
+      // Mat mang hoac backend loi: van tiep tuc xoa local session.
+    } finally {
+      await DioClient().clearAuth();
+      await _secureStorage.delete(key: AppConstants.storageKeyAccessToken);
+      await _secureStorage.delete(key: AppConstants.storageKeyRefreshToken);
+      await _secureStorage.delete(key: AppConstants.storageKeyUser);
+      state = const AuthState();
+    }
   }
 }
 

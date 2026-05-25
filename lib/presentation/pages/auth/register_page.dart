@@ -1,20 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../data/models/user_model.dart';
+import '../../../data/repositories/user_repository.dart';
 import '../../../providers/auth_provider.dart';
 
-/// Register Page — professional, clean design.
-/// Two tabs: Khách hàng (phone + password + confirm → OTP) and Nhân viên (phone + password + confirm → done).
-/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
+
   @override
   ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
@@ -23,8 +24,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
   bool _passwordVisible = false;
-  bool _confirmVisible = false;
+  bool _confirmPasswordVisible = false;
   bool _loading = false;
   String? _phoneError;
   String? _passwordError;
@@ -44,103 +46,160 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _passwordError = null;
       _confirmError = null;
     });
+
     final phone = _phoneController.text.trim();
     if (phone.isEmpty || !RegExp(r'^0[0-9]{8,9}$').hasMatch(phone)) {
       setState(() => _phoneError = 'Số điện thoại không hợp lệ');
     }
-    final pw = _passwordController.text;
-    if (pw.length < 8) {
+    if (_passwordController.text.length < 8) {
       setState(() => _passwordError = 'Mật khẩu tối thiểu 8 ký tự');
-    } else if (!RegExp(r'[a-zA-Z]').hasMatch(pw)) {
-      setState(() => _passwordError = 'Mật khẩu phải bao gồm chữ cái');
-    } else if (!RegExp(r'[0-9]').hasMatch(pw)) {
-      setState(() => _passwordError = 'Mật khẩu phải bao gồm số');
     }
-    if (_confirmPasswordController.text != pw) {
+    if (_confirmPasswordController.text != _passwordController.text) {
       setState(() => _confirmError = 'Mật khẩu xác nhận không khớp');
     }
   }
 
+  String _formatPhone(String phone) {
+    if (phone.startsWith('0')) {
+      return '+84${phone.substring(1)}';
+    }
+    return phone;
+  }
+
   bool _isFirebaseAvailable() {
     try {
-      Firebase.app();
+      FirebaseAuth.instance.app;
       return true;
     } catch (_) {
       return false;
     }
   }
 
+  InputDecoration _inputDecoration(
+      {required String label, required IconData icon}) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: AppColors.bgSoft,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+
+  Future<void> _storeUserAndRoute(UserModel userProfile) async {
+    await ref.read(authProvider.notifier).setUser(userProfile);
+    const storage = FlutterSecureStorage();
+    await storage.write(key: 'user_role', value: userProfile.role);
+
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    if (userProfile.role == 'customer') {
+      final hasOnboarded = await storage.read(key: 'onboarding_completed');
+      if (!mounted) return;
+      if (hasOnboarded == 'true') {
+        context.go(AppConstants.routeHome);
+      } else {
+        context.go(AppConstants.routeOnboarding);
+      }
+    } else if (userProfile.role == 'staff') {
+      context.go(AppConstants.routeStaffHome);
+    } else if (userProfile.role == 'admin' || userProfile.role == 'manager') {
+      context.go(AppConstants.routeCashier);
+    } else {
+      context.go(AppConstants.routeCashier);
+    }
+  }
+
+  void _openOtpPage(String verificationId, String phone) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationPage(
+          verificationId: verificationId,
+          phone: phone,
+          password: _passwordController.text,
+        ),
+      ),
+    );
+  }
+
   Future<void> _register() async {
     if (_loading) return;
     _validate();
-    if (_phoneError != null || _passwordError != null || _confirmError != null) return;
-    setState(() => _loading = true);
-
-    final phone = _phoneController.text.trim();
-
-    // Check if Firebase is available and it's not a development test phone number
-    if (!_isFirebaseAvailable() || phone == '0000000000') {
-      // Mock Mode: Navigate to OTP directly
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
-      setState(() => _loading = false);
-      _navigateToOtp('mock_verification_id');
+    if (_phoneError != null ||
+        _passwordError != null ||
+        _confirmError != null) {
       return;
     }
 
-    // Real Firebase Phone Auth
-    final formattedPhone = '+84${phone.substring(1)}';
+    setState(() => _loading = true);
+    final formattedPhone = _formatPhone(_phoneController.text.trim());
+
+    if (!_isFirebaseAvailable() || formattedPhone == '+84000000000') {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _openOtpPage('mock_verification_id', formattedPhone);
+      return;
+    }
+
     try {
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: formattedPhone,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          // Instant verification on Android
           try {
-            final authResult = await FirebaseAuth.instance.signInWithCredential(credential);
+            final authResult =
+                await FirebaseAuth.instance.signInWithCredential(credential);
             final user = authResult.user;
-            if (user != null) {
-              final idToken = await user.getIdToken();
-              if (idToken != null) {
-                print('[Firebase ID Token (Auto)]: $idToken');
-                // Call backend API to register directly
-                final repository = ref.read(authRepositoryProvider);
-                final response = await repository.register(
-                  idToken: idToken,
-                  displayName: '',
-                  password: _passwordController.text,
-                );
-                await ref.read(authProvider.notifier).setCredentials(response);
-                
-                const storage = FlutterSecureStorage();
-                await storage.write(key: 'user_role', value: response.user.role);
+            if (user == null) {
+              throw Exception('Không thể đăng nhập Firebase');
+            }
 
-                if (mounted) {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                  if (response.user.role == 'customer') {
-                    final hasOnboarded = await storage.read(key: 'onboarding_completed');
-                    if (!mounted) return;
-                    if (hasOnboarded == 'true') {
-                      context.go(AppConstants.routeHome);
-                    } else {
-                      context.go(AppConstants.routeOnboarding);
-                    }
-                  } else if (response.user.role == 'staff') {
-                    context.go(AppConstants.routeStaffHome);
-                  } else if (response.user.role == 'admin' || response.user.role == 'manager') {
-                    context.go(AppConstants.routeCashier);
-                  } else {
-                    context.go(AppConstants.routeCashier);
-                  }
-                }
-              }
+            final idToken = await user.getIdToken();
+            if (idToken == null) {
+              throw Exception('Không lấy được ID Token từ Firebase');
+            }
+
+            final repository = ref.read(authRepositoryProvider);
+            final response = await repository.register(
+              idToken: idToken,
+              password: _passwordController.text,
+            );
+            await ref.read(authProvider.notifier).setCredentials(response);
+
+            print(
+                '[Audit Profile Sync] Register(auto): đã setCredentials xong, chuẩn bị gọi getProfile()');
+            try {
+              final userProfile =
+                  await ref.read(userRepositoryProvider).getProfile();
+              print(
+                  '[Audit Profile Sync] Register(auto): userProfile.avatar = ${userProfile.avatar}');
+              await _storeUserAndRoute(userProfile);
+              print(
+                  '[Audit Profile Sync] Register(auto): đã setUser(userProfile) thành công');
+            } catch (profileError) {
+              print(
+                  '[Audit Profile Sync] Register(auto): lỗi khi gọi getProfile/setUser = $profileError');
+              rethrow;
             }
           } catch (e) {
-            if (e is DioException) {
-              print('[Backend Register Error (Auto)] Status: ${e.response?.statusCode}');
-              print('[Backend Register Error (Auto)] Data: ${e.response?.data}');
-            } else {
-              print('[Auto Verify Error]: $e');
-            }
+            if (!mounted) return;
             setState(() {
               _loading = false;
               _phoneError = 'Đăng ký tự động thất bại: $e';
@@ -148,18 +207,21 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           }
         },
         verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
           setState(() {
             _loading = false;
             _phoneError = e.message ?? 'Xác thực số điện thoại thất bại';
           });
         },
         codeSent: (String verificationId, int? resendToken) {
+          if (!mounted) return;
           setState(() => _loading = false);
-          _navigateToOtp(verificationId);
+          _openOtpPage(verificationId, formattedPhone);
         },
         codeAutoRetrievalTimeout: (String verificationId) {},
       );
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _phoneError = 'Lỗi gửi mã OTP: $e';
@@ -167,25 +229,412 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
   }
 
-  void _navigateToOtp(String verificationId) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => OtpVerificationPage(
-          phone: _phoneController.text.trim(),
-          password: _passwordController.text,
-          verificationId: verificationId,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.arrow_back,
+                      size: 20, color: AppColors.textPrimary),
+                ),
+              ),
+              const SizedBox(height: 28),
+              const Text(
+                'Tạo tài khoản',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Đăng ký bằng số điện thoại để bắt đầu sử dụng ứng dụng.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: _inputDecoration(
+                        label: 'Số điện thoại', icon: Icons.phone_outlined)
+                    .copyWith(errorText: _phoneError),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: !_passwordVisible,
+                decoration: _inputDecoration(
+                        label: 'Mật khẩu', icon: Icons.lock_outline)
+                    .copyWith(
+                  errorText: _passwordError,
+                  suffixIcon: IconButton(
+                    onPressed: () =>
+                        setState(() => _passwordVisible = !_passwordVisible),
+                    icon: Icon(
+                      _passwordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: !_confirmPasswordVisible,
+                decoration: _inputDecoration(
+                        label: 'Xác nhận mật khẩu',
+                        icon: Icons.lock_reset_outlined)
+                    .copyWith(
+                  errorText: _confirmError,
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() =>
+                        _confirmPasswordVisible = !_confirmPasswordVisible),
+                    icon: Icon(
+                      _confirmPasswordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _register,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Đăng ký',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Đã có tài khoản? ',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.pop(),
+                    child: const Text(
+                      'Đăng nhập',
+                      style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        transitionsBuilder: (_, animation, __, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
+      ),
+    );
+  }
+}
+
+class OtpVerificationPage extends ConsumerStatefulWidget {
+  const OtpVerificationPage({
+    super.key,
+    required this.verificationId,
+    required this.phone,
+    required this.password,
+  });
+
+  final String verificationId;
+  final String phone;
+  final String password;
+
+  @override
+  ConsumerState<OtpVerificationPage> createState() =>
+      _OtpVerificationPageState();
+}
+
+class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
+  final List<TextEditingController> _otpControllers =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+
+  bool _loading = false;
+  String? _error;
+  int _resendCooldown = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCooldown();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    for (final controller in _otpControllers) {
+      controller.dispose();
+    }
+    for (final focusNode in _focusNodes) {
+      focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  bool _isFirebaseAvailable() {
+    try {
+      FirebaseAuth.instance.app;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _formatPhone(String phone) {
+    if (phone.startsWith('0')) {
+      return '+84${phone.substring(1)}';
+    }
+    return phone;
+  }
+
+  String get _otpValue =>
+      _otpControllers.map((controller) => controller.text).join();
+
+  void _startCooldown() {
+    _timer?.cancel();
+    setState(() => _resendCooldown = 60);
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldown <= 1) {
+        timer.cancel();
+        setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown--);
+      }
+    });
+  }
+
+  Future<void> _syncProfileAndRoute(UserModel userProfile) async {
+    await ref.read(authProvider.notifier).setUser(userProfile);
+    const storage = FlutterSecureStorage();
+    await storage.write(key: 'user_role', value: userProfile.role);
+
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    if (userProfile.role == 'customer') {
+      final hasOnboarded = await storage.read(key: 'onboarding_completed');
+      if (!mounted) return;
+      if (hasOnboarded == 'true') {
+        context.go(AppConstants.routeHome);
+      } else {
+        context.go(AppConstants.routeOnboarding);
+      }
+    } else if (userProfile.role == 'staff') {
+      context.go(AppConstants.routeStaffHome);
+    } else if (userProfile.role == 'admin' || userProfile.role == 'manager') {
+      context.go(AppConstants.routeCashier);
+    } else {
+      context.go(AppConstants.routeCashier);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_loading) return;
+    if (_otpValue.length < 6) {
+      setState(() => _error = 'Vui lòng nhập đủ 6 số OTP');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      String idToken = 'mock_firebase_id_token';
+
+      if (widget.verificationId != 'mock_verification_id') {
+        final credential = PhoneAuthProvider.credential(
+          verificationId: widget.verificationId,
+          smsCode: _otpValue,
+        );
+        final authResult =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+        final firebaseUser = authResult.user;
+        if (firebaseUser == null) {
+          throw Exception('Không thể đăng nhập Firebase');
+        }
+        final token = await firebaseUser.getIdToken();
+        if (token == null) {
+          throw Exception('Không lấy được ID Token từ Firebase');
+        }
+        idToken = token;
+      } else {
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (_otpValue != '123456') {
+          throw Exception('Mã OTP không đúng (Chế độ thử nghiệm: 123456)');
+        }
+      }
+
+      final repository = ref.read(authRepositoryProvider);
+      final response = await repository.register(
+        idToken: idToken,
+        password: widget.password,
+      );
+      await ref.read(authProvider.notifier).setCredentials(response);
+
+      print(
+          '[Audit Profile Sync] Register(OTP): đã setCredentials xong, chuẩn bị gọi getProfile()');
+      try {
+        final userProfile = await ref.read(userRepositoryProvider).getProfile();
+        print(
+            '[Audit Profile Sync] Register(OTP): userProfile.avatar = ${userProfile.avatar}');
+        await _syncProfileAndRoute(userProfile);
+        print(
+            '[Audit Profile Sync] Register(OTP): đã setUser(userProfile) thành công');
+      } catch (profileError) {
+        print(
+            '[Audit Profile Sync] Register(OTP): lỗi khi gọi getProfile/setUser = $profileError');
+        rethrow;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e is DioException
+            ? (e.response?.data['message'] ?? 'Đăng ký thất bại từ máy chủ')
+            : e.toString().replaceAll('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _resendOtp() async {
+    if (_loading || _resendCooldown > 0) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final formattedPhone = _formatPhone(widget.phone);
+
+    if (widget.verificationId == 'mock_verification_id' ||
+        !_isFirebaseAvailable()) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _startCooldown();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mã OTP mới đã được gửi')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: formattedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) {},
+        verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error = e.message ?? 'Gửi lại OTP thất bại';
+          });
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          if (!mounted) return;
+          setState(() => _loading = false);
+          _startCooldown();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mã OTP mới đã được gửi')),
           );
         },
-        transitionDuration: const Duration(milliseconds: 300),
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Lỗi gửi lại OTP: $e';
+      });
+    }
+  }
+
+  Widget _buildOtpBox(int index) {
+    return SizedBox(
+      width: 46,
+      height: 56,
+      child: TextField(
+        controller: _otpControllers[index],
+        focusNode: _focusNodes[index],
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        decoration: InputDecoration(
+          counterText: '',
+          filled: true,
+          fillColor: AppColors.bgSoft,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+          ),
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 5) {
+            _focusNodes[index + 1].requestFocus();
+          }
+          if (value.isEmpty && index > 0) {
+            _focusNodes[index - 1].requestFocus();
+          }
+          setState(() {});
+        },
       ),
     );
   }
@@ -196,489 +645,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              // Back button
-              _buildBackButton(),
-              const SizedBox(height: 24),
-              // Header
-              Center(child: _buildHeader()),
-              const SizedBox(height: 24),
-              // Form
-              _buildPhoneField(),
-              const SizedBox(height: 16),
-              _buildPasswordField(),
-              const SizedBox(height: 16),
-              _buildConfirmPasswordField(),
-              const SizedBox(height: 28),
-              // Register button
-              _buildRegisterButton(),
-              const SizedBox(height: 24),
-              // Login link
-              _buildLoginLink(),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ─── Back Button ───────────────────────────────────────────────────────
-  Widget _buildBackButton() {
-    return GestureDetector(
-      onTap: () => context.pop(),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.bgSoft,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
-      ),
-    );
-  }
-
-  // ─── Header ────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.secondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: Image.asset('assets/logo.png', fit: BoxFit.contain),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'DineX',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'Tạo tài khoản',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Đăng ký để đặt món và nhận ưu đãi',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  // ─── Phone Field ───────────────────────────────────────────────────────
-  Widget _buildPhoneField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Số điện thoại',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(10),
-          ],
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          decoration: _inputDecoration(
-            hint: '0901234567',
-            prefixIcon: Icons.phone_outlined,
-            errorText: _phoneError,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Password Field ────────────────────────────────────────────────────
-  Widget _buildPasswordField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Mật khẩu',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _passwordController,
-          obscureText: !_passwordVisible,
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          decoration: _inputDecoration(
-            hint: 'Ít nhất 8 ký tự, có chữ và số',
-            prefixIcon: Icons.lock_outline,
-            errorText: _passwordError,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Confirm Password Field ────────────────────────────────────────────
-  Widget _buildConfirmPasswordField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Xác nhận mật khẩu',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _confirmPasswordController,
-          obscureText: !_confirmVisible,
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          decoration: _inputDecoration(
-            hint: 'Nhập lại mật khẩu',
-            prefixIcon: Icons.lock_outline,
-            errorText: _confirmError,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _confirmVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-              onPressed: () => setState(() => _confirmVisible = !_confirmVisible),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Register Button ───────────────────────────────────────────────────
-  Widget _buildRegisterButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _loading ? null : _register,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 0,
-        ),
-        child: _loading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
-              )
-            : const Text(
-                'Đăng ký',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-      ),
-    );
-  }
-
-  // ─── Login Link ────────────────────────────────────────────────────────
-  Widget _buildLoginLink() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          'Đã có tài khoản? ',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
-        GestureDetector(
-          onTap: () => context.pop(),
-          child: const Text(
-            'Đăng nhập',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Input Decoration Helper ───────────────────────────────────────────
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData prefixIcon,
-    Widget? suffixIcon,
-    String? errorText,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: AppColors.textPlaceholder),
-      prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.textTertiary),
-      suffixIcon: suffixIcon,
-      errorText: errorText,
-      filled: true,
-      fillColor: AppColors.surfaceContainerLowest,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// OTP Verification Page — shown only for customer registration.
-// ═══════════════════════════════════════════════════════════════════════════
-
-class OtpVerificationPage extends ConsumerStatefulWidget {
-  final String phone;
-  final String password;
-  final String verificationId;
-
-  const OtpVerificationPage({
-    super.key,
-    required this.phone,
-    required this.password,
-    required this.verificationId,
-  });
-
-  @override
-  ConsumerState<OtpVerificationPage> createState() => _OtpVerificationPageState();
-}
-
-class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
-  final List<TextEditingController> _otpControllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
-  bool _loading = false;
-  String? _error;
-  int _resendCooldown = 60;
-  bool _canResend = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startCooldown();
-  }
-
-  @override
-  void dispose() {
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
-    super.dispose();
-  }
-
-  void _startCooldown() {
-    setState(() {
-      _resendCooldown = 60;
-      _canResend = false;
-    });
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
-      setState(() => _resendCooldown--);
-      if (_resendCooldown <= 0) {
-        setState(() => _canResend = true);
-        return false;
-      }
-      return true;
-    });
-  }
-
-  String get _otpValue => _otpControllers.map((c) => c.text).join();
-
-  Future<void> _verifyOtp() async {
-    if (_loading) return;
-    if (_otpValue.length < 6) {
-      setState(() => _error = 'Vui lòng nhập đủ 6 số OTP');
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      String idToken = 'mock_firebase_id_token';
-
-      if (widget.verificationId != 'mock_verification_id') {
-        // Real Firebase Auth verification
-        final credential = PhoneAuthProvider.credential(
-          verificationId: widget.verificationId,
-          smsCode: _otpValue,
-        );
-
-        final authResult = await FirebaseAuth.instance.signInWithCredential(credential);
-        final firebaseUser = authResult.user;
-        if (firebaseUser == null) {
-          throw Exception('Không thể đăng nhập Firebase');
-        }
-        final token = await firebaseUser.getIdToken();
-        if (token == null) {
-          throw Exception('Không lấy được ID Token từ Firebase');
-        }
-        idToken = token;
-        print('[Firebase ID Token]: $idToken');
-      } else {
-        // Mock Mode
-        await Future.delayed(const Duration(milliseconds: 800));
-        if (_otpValue != '123456') {
-          throw Exception('Mã OTP không đúng (Chế độ thử nghiệm: 123456)');
-        }
-      }
-
-      // Call API Đăng ký ở Backend
-      final repository = ref.read(authRepositoryProvider);
-      final response = await repository.register(
-        idToken: idToken,
-        displayName: '', // Gửi rỗng như backend mong đợi
-        password: widget.password,
-      );
-
-      // Lưu trữ credentials và JWT token mới
-      await ref.read(authProvider.notifier).setCredentials(response);
-
-      if (!mounted) return;
-
-      const storage = FlutterSecureStorage();
-      await storage.write(key: 'user_role', value: response.user.role);
-      
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        if (response.user.role == 'customer') {
-          final hasOnboarded = await storage.read(key: 'onboarding_completed');
-          if (!mounted) return;
-          if (hasOnboarded == 'true') {
-            GoRouter.of(context).go(AppConstants.routeHome);
-          } else {
-            GoRouter.of(context).go(AppConstants.routeOnboarding);
-          }
-        } else if (response.user.role == 'staff') {
-          GoRouter.of(context).go(AppConstants.routeStaffHome);
-        } else if (response.user.role == 'admin' || response.user.role == 'manager') {
-          GoRouter.of(context).go(AppConstants.routeCashier);
-        } else {
-          GoRouter.of(context).go(AppConstants.routeCashier);
-        }
-      }
-    } catch (e) {
-      if (e is DioException) {
-        print('[Backend Register Error] Status: ${e.response?.statusCode}');
-        print('[Backend Register Error] Headers: ${e.response?.headers}');
-        print('[Backend Register Error] Data: ${e.response?.data}');
-      } else {
-        print('[Verify OTP Error]: $e');
-      }
-      setState(() {
-        _loading = false;
-        _error = e is DioException 
-            ? (e.response?.data['message'] ?? 'Đăng ký thất bại từ máy chủ')
-            : e.toString().replaceAll('Exception: ', '');
-      });
-    }
-  }
-
-  Future<void> _resendOtp() async {
-    if (!_canResend) return;
-    setState(() {
-      _error = null;
-    });
-
-    if (widget.verificationId == 'mock_verification_id') {
-      _startCooldown();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã gửi lại mã OTP (Chế độ thử nghiệm: 123456)')),
-      );
-      return;
-    }
-
-    setState(() => _loading = true);
-    final formattedPhone = '+84${widget.phone.substring(1)}';
-
-    try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: formattedPhone,
-        verificationCompleted: (PhoneAuthCredential credential) {},
-        verificationFailed: (FirebaseAuthException e) {
-          setState(() {
-            _loading = false;
-            _error = e.message ?? 'Gửi lại OTP thất bại';
-          });
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          setState(() => _loading = false);
-          _startCooldown();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mã OTP mới đã được gửi')),
-          );
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {},
-      );
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = 'Lỗi gửi lại OTP: $e';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              // Back button
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => context.pop(),
                 child: Container(
                   width: 40,
                   height: 40,
@@ -686,15 +658,15 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
                     color: AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
+                  child: const Icon(Icons.arrow_back,
+                      size: 20, color: AppColors.textPrimary),
                 ),
               ),
-              const SizedBox(height: 32),
-              // Header
+              const SizedBox(height: 28),
               const Text(
                 'Xác thực OTP',
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: 28,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                 ),
@@ -708,128 +680,65 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 36),
-              // OTP Input
-              _buildOtpInput(),
-              // Error
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(6, _buildOtpBox),
+              ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Text(
                   _error!,
-                  style: const TextStyle(fontSize: 13, color: AppColors.error),
+                  style: const TextStyle(color: AppColors.error, fontSize: 13),
                 ),
               ],
               const SizedBox(height: 24),
-              // Resend
-              _buildResendRow(),
-              const SizedBox(height: 32),
-              // Verify button
-              _buildVerifyButton(),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _verifyOtp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Xác nhận OTP',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: _resendCooldown > 0 ? null : _resendOtp,
+                  child: Text(
+                    _resendCooldown > 0
+                        ? 'Gửi lại sau $_resendCooldown giây'
+                        : 'Gửi lại mã OTP',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // ─── OTP Input ─────────────────────────────────────────────────────────
-  Widget _buildOtpInput() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(6, (index) {
-        return SizedBox(
-          width: 48,
-          height: 56,
-          child: TextFormField(
-            controller: _otpControllers[index],
-            focusNode: _focusNodes[index],
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 1,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              counterText: '',
-              filled: true,
-              fillColor: AppColors.surfaceContainerLowest,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            onChanged: (value) {
-              if (value.isNotEmpty && index < 5) {
-                _focusNodes[index + 1].requestFocus();
-              } else if (value.isEmpty && index > 0) {
-                _focusNodes[index - 1].requestFocus();
-              }
-              // Auto verify when all filled
-              if (_otpValue.length == 6) {
-                _verifyOtp();
-              }
-            },
-          ),
-        );
-      }),
-    );
-  }
-
-  // ─── Resend Row ────────────────────────────────────────────────────────
-  Widget _buildResendRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          'Không nhận được mã? ',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
-        GestureDetector(
-          onTap: _canResend ? _resendOtp : null,
-          child: Text(
-            _canResend ? 'Gửi lại' : 'Gửi lại (${_resendCooldown}s)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: _canResend ? AppColors.primary : AppColors.textTertiary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Verify Button ─────────────────────────────────────────────────────
-  Widget _buildVerifyButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _loading ? null : _verifyOtp,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 0,
-        ),
-        child: _loading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
-              )
-            : const Text(
-                'Xác nhận',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
       ),
     );
   }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/repositories/user_repository.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -15,18 +18,22 @@ class EditProfilePage extends ConsumerStatefulWidget {
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final RegExp _emailRegex =
+      RegExp(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
 
   String? _selectedGender;
-  bool _saving = false;
+  bool _isLoading = false;
+  bool _isUploadingAvatar = false;
 
   @override
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    _nameController = TextEditingController(text: user?.fullName ?? user?.username ?? '');
+    _nameController =
+        TextEditingController(text: user?.fullName ?? user?.username ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
   }
@@ -40,23 +47,136 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    setState(() => _saving = true);
+    setState(() => _isLoading = true);
 
     try {
       final user = ref.read(currentUserProvider);
       if (user != null) {
-        final finalPhone = _phoneController.text.trim();
+        final fullName = _nameController.text.trim();
+        final phone = _phoneController.text.trim();
+        final email = _emailController.text.trim();
 
+        if (email.isNotEmpty && !_emailRegex.hasMatch(email)) {
+          throw Exception('Email không đúng định dạng');
+        }
+
+        final userRepository = ref.read(userRepositoryProvider);
+        final response = await userRepository.updateProfile(
+          fullName: fullName,
+          email: email.isEmpty ? null : email,
+        );
+
+        if (response.statusCode == 200) {
+          final updatedUser = UserModel(
+            id: user.id,
+            username: user.username,
+            email: email.isEmpty ? null : email,
+            phone: phone.isEmpty ? null : phone,
+            fullName: fullName,
+            avatar: user.avatar,
+            gender: _selectedGender,
+            birthday: user.birthday,
+            role: user.role,
+            isActive: user.isActive,
+            points: user.points,
+            tier: user.tier,
+            address: user.address,
+            createdAt: user.createdAt,
+            updatedAt: DateTime.now().toIso8601String(),
+          );
+
+          await ref.read(authProvider.notifier).setUser(updatedUser);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Đã cập nhật thông tin hồ sơ!'),
+                backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+            context.pop();
+          }
+        } else {
+          throw Exception(
+              'Cập nhật hồ sơ thất bại với status code ${response.statusCode}');
+        }
+      }
+    } on DioException catch (e) {
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
+
+      final message = serverMessage ??
+          (e.response?.statusCode == 400
+              ? 'Dữ liệu không hợp lệ, vui lòng kiểm tra lại email.'
+              : 'Lỗi khi cập nhật hồ sơ.');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_isUploadingAvatar) return;
+
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (pickedFile == null) return;
+
+    setState(() => _isUploadingAvatar = true);
+
+    try {
+      final user = ref.read(currentUserProvider);
+      if (user == null) return;
+
+      final userRepository = ref.read(userRepositoryProvider);
+      final avatarUrl = await userRepository.uploadAvatar(pickedFile.path);
+
+      if (avatarUrl != null && avatarUrl.isNotEmpty) {
         final updatedUser = UserModel(
           id: user.id,
           username: user.username,
-          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-          phone: finalPhone.isEmpty ? null : finalPhone,
-          fullName: _nameController.text.trim(),
-          avatar: user.avatar,
-          gender: _selectedGender,
+          email: user.email,
+          phone: user.phone,
+          fullName: user.fullName,
+          avatar: avatarUrl,
+          gender: user.gender,
           birthday: user.birthday,
           role: user.role,
           isActive: user.isActive,
@@ -67,35 +187,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           updatedAt: DateTime.now().toIso8601String(),
         );
 
-        // Update secure storage and Riverpod state
         await ref.read(authProvider.notifier).setUser(updatedUser);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Đã cập nhật thông tin hồ sơ!'),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-          context.pop();
-        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi khi cập nhật: $e'),
+            content: Text('Lỗi khi tải avatar: $e'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _saving = false);
+        setState(() => _isUploadingAvatar = false);
       }
     }
   }
@@ -119,7 +227,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: AppColors.textPrimary, size: 28),
+          icon: const Icon(Icons.close_rounded,
+              color: AppColors.textPrimary, size: 28),
           onPressed: () => context.pop(),
         ),
       ),
@@ -155,12 +264,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         ),
                       ),
                       child: ClipOval(
-                        child: (user?.avatar != null && user!.avatar!.isNotEmpty)
+                        child: (user?.avatar != null &&
+                                user!.avatar!.isNotEmpty)
                             ? Image.network(
                                 user.avatar!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.person_rounded, size: 60, color: AppColors.textTertiary),
+                                    const Icon(Icons.person_rounded,
+                                        size: 60,
+                                        color: AppColors.textTertiary),
                               )
                             : const Icon(
                                 Icons.person_rounded,
@@ -172,46 +284,72 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     Positioned(
                       bottom: 0,
                       right: 0,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.primary, AppColors.secondary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+                      child: GestureDetector(
+                        onTap: _changeAvatar,
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppColors.primary, AppColors.secondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          color: Colors.white,
-                          size: 14,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                         ),
                       ),
                     ),
+                    if (_isUploadingAvatar)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2), width: 0.8),
+                    border: Border.all(
+                        color: AppColors.secondary.withValues(alpha: 0.2),
+                        width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.verified_user_rounded, color: AppColors.secondary, size: 14),
+                      const Icon(Icons.verified_user_rounded,
+                          color: AppColors.secondary, size: 14),
                       const SizedBox(width: 6),
                       Text(
                         'PhởPIN Bảo Mật',
@@ -259,30 +397,41 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             color: AppColors.textTertiary,
                             size: 22,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.secondary, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.secondary, width: 1.8),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.2),
                           ),
                           focusedErrorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.8),
                           ),
                         ),
-                        style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Tên không được để trống' : null,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Tên không được để trống'
+                            : null,
                       ),
                       const SizedBox(height: 20),
 
@@ -314,29 +463,38 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             color: AppColors.textTertiary,
                             size: 22,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.secondary, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.secondary, width: 1.8),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.2),
                           ),
                           focusedErrorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.8),
                           ),
                         ),
-                        style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
                             return 'Số điện thoại không được để trống';
@@ -350,6 +508,16 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        validator: (val) {
+                          final email = val?.trim() ?? '';
+                          if (email.isEmpty) {
+                            return null;
+                          }
+                          if (!_emailRegex.hasMatch(email)) {
+                            return 'Email không đúng định dạng';
+                          }
+                          return null;
+                        },
                         decoration: InputDecoration(
                           labelText: 'Địa chỉ email',
                           labelStyle: const TextStyle(
@@ -374,29 +542,38 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             color: AppColors.textTertiary,
                             size: 22,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.secondary, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.secondary, width: 1.8),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.2),
                           ),
                           focusedErrorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.8),
                           ),
                         ),
-                        style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(left: 4, top: 6),
@@ -404,7 +581,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           'Chúng tôi sẽ gửi thông tin liên quan đến tài khoản và ưu đãi ẩm thực từ BMC Phở Express đến email này.',
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary.withValues(alpha: 0.8),
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.8),
                             height: 1.4,
                           ),
                         ),
@@ -433,22 +611,29 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             color: AppColors.textTertiary,
                             size: 22,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1.2),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant, width: 1.2),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.secondary, width: 1.8),
+                            borderSide: const BorderSide(
+                                color: AppColors.secondary, width: 1.8),
                           ),
                         ),
-                        hint: const Text('Vui lòng chọn giới tính', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                        hint: const Text('Vui lòng chọn giới tính',
+                            style: TextStyle(
+                                fontSize: 14, color: AppColors.textTertiary)),
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                            color: AppColors.textSecondary),
                         dropdownColor: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         items: <String>['Nam', 'Nữ', 'Khác'].map((String val) {
@@ -456,7 +641,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             value: val,
                             child: Text(
                               val,
-                              style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w500),
                             ),
                           );
                         }).toList(),
@@ -476,11 +664,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   child: OutlinedButton(
                     onPressed: () => _confirmLogout(context),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2), width: 1.2),
+                      side: BorderSide(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          width: 1.2),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: AppColors.bgSoft,
                       foregroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
                     child: const Text(
@@ -509,7 +700,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(left: 24, right: 24, top: 12, bottom: 24),
+        padding:
+            const EdgeInsets.only(left: 24, right: 24, top: 12, bottom: 24),
         decoration: BoxDecoration(
           color: AppColors.bgMain,
           boxShadow: [
@@ -522,17 +714,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         ),
         child: SafeArea(
           child: ElevatedButton(
-            onPressed: _saving ? null : _saveProfile,
+            onPressed: _isLoading ? null : _saveProfile,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               elevation: 2,
               shadowColor: AppColors.primary.withValues(alpha: 0.3),
             ),
-            child: _saving
+            child: _isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -563,11 +756,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 24),
+            Icon(Icons.warning_amber_rounded,
+                color: AppColors.primary, size: 24),
             SizedBox(width: 10),
             Text(
               'Đăng xuất tài khoản?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
           ],
         ),
@@ -578,7 +775,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -591,7 +789,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
             child: const Text('Đăng xuất'),
           ),

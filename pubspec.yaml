@@ -48,6 +48,9 @@ dependencies:
   # Google Sign In
   google_sign_in: ^6.2.1
 
+  # Image picker
+  image_picker: ^1.1.2
+
   # Charts (tương đương echarts)
   fl_chart: ^0.68.0
 

@@ -43,7 +43,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppConstants.routeResetPassword,
-        builder: (context, state) => const ResetPasswordPage(),
+        builder: (context, state) {
+          final phone = state.uri.queryParameters['phone'] ?? '';
+          final otp = state.uri.queryParameters['otp'] ?? '';
+          return ResetPasswordPage(phone: phone, otp: otp);
+        },
       ),
       GoRoute(
         path: AppConstants.routeOnboarding,

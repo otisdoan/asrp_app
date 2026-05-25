@@ -1,59 +1,110 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../providers/auth_provider.dart';
+
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Forgot Password Page — enter phone → OTP verification → reset password.
-/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
-class ForgotPasswordPage extends StatefulWidget {
+class ForgotPasswordPage extends ConsumerStatefulWidget {
   const ForgotPasswordPage({super.key});
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+  ConsumerState<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final _phoneController = TextEditingController();
+class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
+  final _identifierController = TextEditingController();
   bool _loading = false;
   String? _error;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _identifierController.dispose();
     super.dispose();
   }
 
+  bool _isValidIdentifier(String value) {
+    final phoneRegex = RegExp(r'^0[0-9]{8,9}$');
+    final emailRegex =
+        RegExp(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
+    return phoneRegex.hasMatch(value) || emailRegex.hasMatch(value);
+  }
+
+  String _normalizeIdentifier(String value) {
+    if (value.contains('@')) {
+      return value;
+    }
+    if (value.startsWith('0')) {
+      return '+84${value.substring(1)}';
+    }
+    return value;
+  }
+
   Future<void> _sendResetCode() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty || !RegExp(r'^0[0-9]{8,9}$').hasMatch(phone)) {
-      setState(() => _error = 'Số điện thoại không hợp lệ');
+    final rawInput = _identifierController.text.trim();
+    if (rawInput.isEmpty || !_isValidIdentifier(rawInput)) {
+      setState(() => _error = 'Vui lòng nhập số điện thoại hoặc email hợp lệ');
       return;
     }
+
+    final identifier = _normalizeIdentifier(rawInput);
+
     setState(() {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() => _loading = false);
 
-    // Navigate to OTP page
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => _ForgotPasswordOtpPage(phone: phone),
-        transitionsBuilder: (_, animation, __, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .forgotPassword(phoneOrEmail: identifier);
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) =>
+              _ForgotPasswordOtpPage(phoneOrEmail: identifier),
+          transitionsBuilder: (_, animation, __, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1, 0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
+      setState(() {
+        _loading = false;
+        _error = serverMessage ??
+            (e.response?.statusCode == 400
+                ? 'Thông tin khôi phục không hợp lệ'
+                : 'Gửi mã khôi phục thất bại');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Gửi mã khôi phục thất bại: $e';
+      });
+    }
   }
 
   @override
@@ -67,7 +118,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              // Back button
               GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
@@ -77,11 +127,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     color: AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
+                  child: const Icon(Icons.arrow_back,
+                      size: 20, color: AppColors.textPrimary),
                 ),
               ),
               const SizedBox(height: 32),
-              // Brand logo
               Center(
                 child: Column(
                   children: [
@@ -97,7 +147,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       padding: const EdgeInsets.all(8),
-                      child: Image.asset('assets/logo.png', fit: BoxFit.contain),
+                      child:
+                          Image.asset('assets/logo.png', fit: BoxFit.contain),
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -125,7 +176,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               const SizedBox(height: 8),
               const Center(
                 child: Text(
-                  'Nhập số điện thoại đã đăng ký để nhận\nmã khôi phục mật khẩu.',
+                  'Nhập số điện thoại hoặc email đã đăng ký để nhận mã khôi phục mật khẩu.',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -135,24 +186,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
               ),
               const SizedBox(height: 28),
-              // Phone field
               const Text(
-                'Số điện thoại',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                'Số điện thoại hoặc email',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
+                controller: _identifierController,
+                keyboardType: TextInputType.emailAddress,
                 inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(10),
+                  LengthLimitingTextInputFormatter(100),
                 ],
-                style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+                style:
+                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
                 decoration: InputDecoration(
-                  hintText: '0901234567',
+                  hintText: '0901234567 hoặc email@domain.com',
                   hintStyle: const TextStyle(color: AppColors.textPlaceholder),
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.textTertiary),
+                  prefixIcon: const Icon(Icons.alternate_email,
+                      size: 20, color: AppColors.textTertiary),
                   filled: true,
                   fillColor: AppColors.surfaceContainerLowest,
                   border: OutlineInputBorder(
@@ -161,17 +216,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.error)),
+                Text(_error!,
+                    style:
+                        const TextStyle(fontSize: 13, color: AppColors.error)),
               ],
               const SizedBox(height: 28),
-              // Send button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -180,18 +238,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: _loading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                              color: AppColors.onPrimary, strokeWidth: 2),
                         )
                       : const Text(
                           'Gửi mã khôi phục',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                 ),
               ),
@@ -204,26 +265,25 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Forgot Password OTP Page — verify OTP then go to Reset Password.
-// ═══════════════════════════════════════════════════════════════════════════
+class _ForgotPasswordOtpPage extends ConsumerStatefulWidget {
+  const _ForgotPasswordOtpPage({required this.phoneOrEmail});
 
-class _ForgotPasswordOtpPage extends StatefulWidget {
-  final String phone;
-  const _ForgotPasswordOtpPage({required this.phone});
+  final String phoneOrEmail;
 
   @override
-  State<_ForgotPasswordOtpPage> createState() => _ForgotPasswordOtpPageState();
+  ConsumerState<_ForgotPasswordOtpPage> createState() =>
+      _ForgotPasswordOtpPageState();
 }
 
-class _ForgotPasswordOtpPageState extends State<_ForgotPasswordOtpPage> {
+class _ForgotPasswordOtpPageState
+    extends ConsumerState<_ForgotPasswordOtpPage> {
   final List<TextEditingController> _otpControllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _loading = false;
   String? _error;
-  int _resendCooldown = 60;
-  bool _canResend = false;
+  int _resendCooldown = AppConstants.otpCooldownSeconds;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -233,163 +293,129 @@ class _ForgotPasswordOtpPageState extends State<_ForgotPasswordOtpPage> {
 
   @override
   void dispose() {
-    for (final c in _otpControllers) {
-      c.dispose();
+    _timer?.cancel();
+    for (final controller in _otpControllers) {
+      controller.dispose();
     }
-    for (final f in _focusNodes) {
-      f.dispose();
+    for (final focusNode in _focusNodes) {
+      focusNode.dispose();
     }
     super.dispose();
   }
 
+  String get _otpValue =>
+      _otpControllers.map((controller) => controller.text).join();
+
   void _startCooldown() {
+    _timer?.cancel();
     setState(() {
-      _resendCooldown = 60;
-      _canResend = false;
+      _resendCooldown = AppConstants.otpCooldownSeconds;
     });
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
-      setState(() => _resendCooldown--);
-      if (_resendCooldown <= 0) {
-        setState(() => _canResend = true);
-        return false;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
       }
-      return true;
+      if (_resendCooldown <= 1) {
+        timer.cancel();
+        setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown--);
+      }
     });
   }
 
-  String get _otpValue => _otpControllers.map((c) => c.text).join();
-
   Future<void> _verifyOtp() async {
-    if (_otpValue.length < 6) {
+    if (_otpValue.length < AppConstants.otpLength) {
       setState(() => _error = 'Vui lòng nhập đủ 6 số OTP');
       return;
     }
+
     setState(() {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
 
-    // Mock: accept any 6-digit OTP
-    if (_otpValue.length == 6) {
-      // Success → go to reset password page
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const _ResetPasswordFromOtpPage(),
-          transitionsBuilder: (_, animation, __, child) {
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(1, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-              child: child,
-            );
+    try {
+      await ref.read(authRepositoryProvider).verifyOtpForReset(
+            phoneOrEmail: widget.phoneOrEmail,
+            otp: _otpValue,
+          );
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      context.go(
+        Uri(
+          path: AppConstants.routeResetPassword,
+          queryParameters: {
+            'phone': widget.phoneOrEmail,
+            'otp': _otpValue,
           },
-          transitionDuration: const Duration(milliseconds: 300),
-        ),
+        ).toString(),
       );
-    } else {
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
       setState(() {
         _loading = false;
-        _error = 'Mã OTP không đúng';
+        _error = serverMessage ??
+            (e.response?.statusCode == 400
+                ? 'Mã OTP không hợp lệ'
+                : 'Xác thực OTP thất bại');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Xác thực OTP thất bại: $e';
       });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              // Back button
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
-                ),
-              ),
-              const SizedBox(height: 32),
-              // Header
-              const Center(
-                child: Text(
-                  'Xác thực OTP',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'Mã xác thực đã được gửi đến\n${widget.phone}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 36),
-              // OTP Input
-              _buildOtpInput(),
-              // Error
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.error)),
-              ],
-              const SizedBox(height: 24),
-              // Resend
-              _buildResendRow(),
-              const SizedBox(height: 32),
-              // Verify button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _verifyOtp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
-                        )
-                      : const Text(
-                          'Xác nhận',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
+  Future<void> _resendOtp() async {
+    if (_loading || _resendCooldown > 0) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).forgotPassword(
+            phoneOrEmail: widget.phoneOrEmail,
+          );
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _startCooldown();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mã OTP mới đã được gửi')),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
+      setState(() {
+        _loading = false;
+        _error = serverMessage ??
+            (e.response?.statusCode == 400
+                ? 'Không thể gửi lại mã OTP'
+                : 'Lỗi gửi lại OTP');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Lỗi gửi lại OTP: $e';
+      });
+    }
   }
 
   Widget _buildOtpInput() {
@@ -421,7 +447,8 @@ class _ForgotPasswordOtpPageState extends State<_ForgotPasswordOtpPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 2),
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
@@ -431,7 +458,7 @@ class _ForgotPasswordOtpPageState extends State<_ForgotPasswordOtpPage> {
               } else if (value.isEmpty && index > 0) {
                 _focusNodes[index - 1].requestFocus();
               }
-              if (_otpValue.length == 6) {
+              if (_otpValue.length == AppConstants.otpLength && !_loading) {
                 _verifyOtp();
               }
             },
@@ -450,77 +477,20 @@ class _ForgotPasswordOtpPageState extends State<_ForgotPasswordOtpPage> {
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         GestureDetector(
-          onTap: _canResend ? _startCooldown : null,
+          onTap: _resendCooldown > 0 ? null : _resendOtp,
           child: Text(
-            _canResend ? 'Gửi lại' : 'Gửi lại (${_resendCooldown}s)',
+            _resendCooldown > 0 ? 'Gửi lại ($_resendCooldown s)' : 'Gửi lại',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: _canResend ? AppColors.primary : AppColors.textTertiary,
+              color: _resendCooldown > 0
+                  ? AppColors.textTertiary
+                  : AppColors.primary,
             ),
           ),
         ),
       ],
     );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Reset Password (after OTP verified) — new password + confirm.
-// ═══════════════════════════════════════════════════════════════════════════
-
-class _ResetPasswordFromOtpPage extends StatefulWidget {
-  const _ResetPasswordFromOtpPage();
-
-  @override
-  State<_ResetPasswordFromOtpPage> createState() => _ResetPasswordFromOtpPageState();
-}
-
-class _ResetPasswordFromOtpPageState extends State<_ResetPasswordFromOtpPage> {
-  final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
-  bool _passwordVisible = false;
-  bool _confirmVisible = false;
-  bool _loading = false;
-  bool _success = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    _confirmController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _resetPassword() async {
-    final pw = _passwordController.text;
-    if (pw.length < 8) {
-      setState(() => _error = 'Mật khẩu tối thiểu 8 ký tự');
-      return;
-    }
-    if (!RegExp(r'[a-zA-Z]').hasMatch(pw)) {
-      setState(() => _error = 'Mật khẩu phải bao gồm chữ cái');
-      return;
-    }
-    if (!RegExp(r'[0-9]').hasMatch(pw)) {
-      setState(() => _error = 'Mật khẩu phải bao gồm số');
-      return;
-    }
-    if (_confirmController.text != pw) {
-      setState(() => _error = 'Mật khẩu xác nhận không khớp');
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      setState(() {
-        _loading = false;
-        _success = true;
-      });
-    }
   }
 
   @override
@@ -534,7 +504,6 @@ class _ResetPasswordFromOtpPageState extends State<_ResetPasswordFromOtpPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              // Back button
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
@@ -544,203 +513,75 @@ class _ResetPasswordFromOtpPageState extends State<_ResetPasswordFromOtpPage> {
                     color: AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
+                  child: const Icon(Icons.arrow_back,
+                      size: 20, color: AppColors.textPrimary),
                 ),
               ),
               const SizedBox(height: 32),
-              if (!_success) ...[
-                _buildResetForm(),
-              ] else ...[
-                _buildSuccessState(),
+              const Center(
+                child: Text(
+                  'Xác thực OTP',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Mã xác thực đã được gửi đến\n${widget.phoneOrEmail}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 36),
+              _buildOtpInput(),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!,
+                    style:
+                        const TextStyle(fontSize: 13, color: AppColors.error)),
               ],
+              const SizedBox(height: 24),
+              _buildResendRow(),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _verifyOtp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              color: AppColors.onPrimary, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Xác nhận',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ),
               const SizedBox(height: 40),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildResetForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Center(
-          child: Text(
-            'Đặt lại mật khẩu',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Center(
-          child: Text(
-            'Tạo mật khẩu mới cho tài khoản của bạn.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-        ),
-        const SizedBox(height: 28),
-        // New password
-        const Text(
-          'Mật khẩu mới',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _passwordController,
-          obscureText: !_passwordVisible,
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          decoration: _inputDecoration(
-            hint: 'Ít nhất 8 ký tự, có chữ và số',
-            prefixIcon: Icons.lock_outline,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Confirm password
-        const Text(
-          'Xác nhận mật khẩu mới',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _confirmController,
-          obscureText: !_confirmVisible,
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          decoration: _inputDecoration(
-            hint: 'Nhập lại mật khẩu mới',
-            prefixIcon: Icons.lock_outline,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _confirmVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-              onPressed: () => setState(() => _confirmVisible = !_confirmVisible),
-            ),
-          ),
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.error)),
-        ],
-        const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _loading ? null : _resetPassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: _loading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
-                  )
-                : const Text(
-                    'Đặt lại mật khẩu',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSuccessState() {
-    return Column(
-      children: [
-        const SizedBox(height: 40),
-        Container(
-          width: 80,
-          height: 80,
-          decoration: const BoxDecoration(
-            color: AppColors.successContainer,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check_circle, size: 44, color: AppColors.success),
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Đặt lại thành công!',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Mật khẩu đã được cập nhật.\nBạn có thể đăng nhập với mật khẩu mới.',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-            height: 1.5,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              // Pop all the way back to login
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Đăng nhập ngay',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: AppColors.textPlaceholder),
-      prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.textTertiary),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: AppColors.surfaceContainerLowest,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }
