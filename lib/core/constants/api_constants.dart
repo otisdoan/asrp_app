@@ -10,11 +10,11 @@ class ApiConstants {
   static const String logout = '/api/auth/app/logout';
   static const String refresh = '/api/auth/app/refresh';
   static const String me = '/auth/me';
-  static const String otpSend = '/auth/otp/send';
-  static const String otpVerify = '/auth/otp/verify';
-  static const String forgotPassword = '/auth/forgot-password';
-  static const String resetPassword = '/auth/reset-password';
-  static const String changePassword = '/auth/change-password';
+  static const String otpSend = '/api/auth/app/otp/send';
+  static const String otpVerify = '/api/auth/app/otp/verify';
+  static const String forgotPassword = '/api/auth/app/forgot-password';
+  static const String resetPassword = '/api/auth/app/reset-password';
+  static const String changePassword = '/api/auth/change-password';
   static const String googleAuth = '/auth/google';
 
   // Users

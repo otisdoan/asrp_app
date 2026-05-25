@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
+import 'change_password_page.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -265,6 +266,51 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         },
                       ),
                       const SizedBox(height: 32),
+
+                      // Change Password button
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.outlineVariant,
+                            width: 1,
+                          ),
+                        ),
+                        child: ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.lock_reset_rounded,
+                                color: AppColors.primary, size: 22),
+                          ),
+                          title: const Text(
+                            'Đổi mật khẩu',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                              size: 16, color: AppColors.textTertiary),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ChangePasswordPage(),
+                              ),
+                            );
+                            // If using GoRouter, replace with:
+                            // context.push(AppConstants.routeChangePassword);
+                          },
+                        ),
+                      ),
 
                       // Logout Button
                       SizedBox(

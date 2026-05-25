@@ -1,19 +1,28 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 
-/// Reset Password Page — clean, professional design.
-/// User enters new password after receiving reset code.
-/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
-class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../providers/auth_provider.dart';
+
+class ResetPasswordPage extends ConsumerStatefulWidget {
+  const ResetPasswordPage({
+    super.key,
+    required this.phone,
+    required this.otp,
+  });
+
+  final String phone;
+  final String otp;
 
   @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  ConsumerState<ResetPasswordPage> createState() => _ResetPasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
+class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _passwordVisible = false;
@@ -47,15 +56,42 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       setState(() => _error = 'Mật khẩu xác nhận không khớp');
       return;
     }
+
     setState(() {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
+
+    try {
+      await ref.read(authRepositoryProvider).resetPassword(
+            otp: widget.otp,
+            newPassword: pw,
+            phone: widget.phone,
+          );
+
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _success = true;
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
+      setState(() {
+        _loading = false;
+        _error = serverMessage ??
+            (e.response?.statusCode == 400
+                ? 'Mã OTP hoặc mật khẩu không hợp lệ'
+                : 'Đặt lại mật khẩu thất bại');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Đặt lại mật khẩu thất bại: $e';
       });
     }
   }
@@ -71,7 +107,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              // Back button
               GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
@@ -81,7 +116,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     color: AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
+                  child: const Icon(Icons.arrow_back,
+                      size: 20, color: AppColors.textPrimary),
                 ),
               ),
               const SizedBox(height: 32),
@@ -102,55 +138,37 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Brand logo
-        Center(
-          child: Column(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.all(8),
-                child: Image.asset('assets/logo.png', fit: BoxFit.contain),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'DineX',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Đặt lại mật khẩu',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+        const Center(
+          child: Text(
+            'Đặt lại mật khẩu',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Tạo mật khẩu mới cho tài khoản của bạn.',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        const Center(
+          child: Text(
+            'Tạo mật khẩu mới cho tài khoản của bạn.',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            'Mã OTP: ${widget.otp}',
+            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
         ),
         const SizedBox(height: 28),
-        // New password
         const Text(
           'Mật khẩu mới',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -162,19 +180,24 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             prefixIcon: Icons.lock_outline,
             suffixIcon: IconButton(
               icon: Icon(
-                _passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _passwordVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
-              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+              onPressed: () =>
+                  setState(() => _passwordVisible = !_passwordVisible),
             ),
           ),
         ),
         const SizedBox(height: 16),
-        // Confirm password
         const Text(
           'Xác nhận mật khẩu mới',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -186,17 +209,21 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             prefixIcon: Icons.lock_outline,
             suffixIcon: IconButton(
               icon: Icon(
-                _confirmVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _confirmVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
-              onPressed: () => setState(() => _confirmVisible = !_confirmVisible),
+              onPressed: () =>
+                  setState(() => _confirmVisible = !_confirmVisible),
             ),
           ),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.error)),
+          Text(_error!,
+              style: const TextStyle(fontSize: 13, color: AppColors.error)),
         ],
         const SizedBox(height: 28),
         SizedBox(
@@ -207,14 +234,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
             child: _loading
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        color: AppColors.onPrimary, strokeWidth: 2),
                   )
                 : const Text(
                     'Đặt lại mật khẩu',
@@ -238,7 +267,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             color: AppColors.successContainer,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_circle, size: 44, color: AppColors.success),
+          child: const Icon(Icons.check_circle,
+              size: 44, color: AppColors.success),
         ),
         const SizedBox(height: 24),
         const Text(
@@ -269,7 +299,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
             child: const Text(

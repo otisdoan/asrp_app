@@ -109,11 +109,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         }
       }
     } on DioException catch (e) {
-      final serverMessage =
-          e.response?.data is Map<String, dynamic>
-              ? (e.response?.data['message']?.toString() ??
-                  e.response?.data['error']?.toString())
-              : null;
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
 
       final message = serverMessage ??
           (e.response?.statusCode == 400

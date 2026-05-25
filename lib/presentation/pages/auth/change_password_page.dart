@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../providers/auth_provider.dart';
 
 /// Change Password Page — 3 fields: old password, new password, confirm new password.
 /// Follows RULE: UI-only widgets, AppColors 100%, responsive.
-class ChangePasswordPage extends StatefulWidget {
+class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
 
   @override
-  State<ChangePasswordPage> createState() => _ChangePasswordPageState();
+  ConsumerState<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
 
-class _ChangePasswordPageState extends State<ChangePasswordPage> {
+class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -57,14 +62,57 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Future<void> _changePassword() async {
     _validate();
-    if (_oldError != null || _newError != null || _confirmError != null) return;
+    if (_oldError != null || _newError != null || _confirmError != null) {
+      return;
+    }
+
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
+
+    try {
+      print('[Audit ChangePassword] Bắt đầu gọi API đổi mật khẩu...');
+      await ref.read(authRepositoryProvider).changePassword(
+            currentPassword: _oldPasswordController.text,
+            newPassword: _newPasswordController.text,
+            confirmPassword: _confirmPasswordController.text,
+          );
+
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _success = true;
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đổi mật khẩu thành công')),
+      );
+
+      context.pop();
+    } on DioException catch (e) {
+      print(
+          '[Audit ChangePassword] 🔴 DioException: StatusCode = ${e.response?.statusCode}');
+      print(
+          '[Audit ChangePassword] 🔴 Server Response Data: ${e.response?.data}');
+      if (!mounted) return;
+      final serverMessage = e.response?.data is Map<String, dynamic>
+          ? (e.response?.data['message']?.toString() ??
+              e.response?.data['error']?.toString())
+          : null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(serverMessage ??
+              (e.response?.statusCode == 400
+                  ? 'Dữ liệu đổi mật khẩu không hợp lệ'
+                  : 'Đổi mật khẩu thất bại')),
+        ),
+      );
+      setState(() => _loading = false);
+    } catch (e) {
+      print('[Audit ChangePassword] 🔴 Lỗi không xác định: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đổi mật khẩu thất bại: $e')),
+      );
+      setState(() => _loading = false);
     }
   }
 
@@ -89,7 +137,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     color: AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textPrimary),
+                  child: const Icon(Icons.arrow_back,
+                      size: 20, color: AppColors.textPrimary),
                 ),
               ),
               const SizedBox(height: 24),
@@ -109,7 +158,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       padding: const EdgeInsets.all(8),
-                      child: Image.asset('assets/logo.png', fit: BoxFit.contain),
+                      child:
+                          Image.asset('assets/logo.png', fit: BoxFit.contain),
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -161,7 +211,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         // Old password
         const Text(
           'Mật khẩu cũ',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -174,7 +227,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             errorText: _oldError,
             suffixIcon: IconButton(
               icon: Icon(
-                _oldVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _oldVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
@@ -186,7 +241,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         // New password
         const Text(
           'Mật khẩu mới',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -199,7 +257,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             errorText: _newError,
             suffixIcon: IconButton(
               icon: Icon(
-                _newVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _newVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
@@ -211,7 +271,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         // Confirm new password
         const Text(
           'Xác nhận mật khẩu mới',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -224,11 +287,14 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             errorText: _confirmError,
             suffixIcon: IconButton(
               icon: Icon(
-                _confirmVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _confirmVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 size: 20,
                 color: AppColors.textTertiary,
               ),
-              onPressed: () => setState(() => _confirmVisible = !_confirmVisible),
+              onPressed: () =>
+                  setState(() => _confirmVisible = !_confirmVisible),
             ),
           ),
         ),
@@ -242,14 +308,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
             child: _loading
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        color: AppColors.onPrimary, strokeWidth: 2),
                   )
                 : const Text(
                     'Đổi mật khẩu',
@@ -273,7 +341,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             color: AppColors.successContainer,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_circle, size: 44, color: AppColors.success),
+          child: const Icon(Icons.check_circle,
+              size: 44, color: AppColors.success),
         ),
         const SizedBox(height: 24),
         const Text(
@@ -303,7 +372,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
             child: const Text(
