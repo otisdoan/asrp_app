@@ -5,19 +5,18 @@ import '../models/auth_response_model.dart';
 class AuthRepository {
   final DioClient _dioClient = DioClient();
 
-  /// Đăng ký tài khoản mới bằng idToken từ Firebase, displayName và password.
+  /// Đăng ký tài khoản mới bằng idToken từ Firebase và password.
   Future<AuthResponseModel> register({
     required String idToken,
-    required String displayName,
     required String password,
   }) async {
     print('[AuthRepository] Requesting register to ${ApiConstants.register}');
-    print('[AuthRepository] Payload: { idToken: ${idToken.length > 50 ? "${idToken.substring(0, 30)}... [Length: ${idToken.length}]" : idToken}, displayName: "LÊ DOÃN HIẾU" }');
+    print(
+        '[AuthRepository] Payload: { idToken: ${idToken.length > 50 ? "${idToken.substring(0, 30)}... [Length: ${idToken.length}]" : idToken} }');
     final response = await _dioClient.dio.post(
       ApiConstants.register,
       data: {
         'idToken': idToken,
-        'displayName': "LÊ DOÃN HIẾU",
         'password': password,
       },
     );
@@ -41,17 +40,13 @@ class AuthRepository {
     required String phone,
     required String password,
   }) async {
-    String formattedPhone = phone;
-    if (phone.startsWith('0')) {
-      formattedPhone = '+84${phone.substring(1)}';
-    }
-    
     print('[AuthRepository] Requesting login to ${ApiConstants.login}');
-    print('[AuthRepository] Payload: { phoneNumber: "$formattedPhone", password: "$password" }');
+    print(
+        '[AuthRepository] Payload: { phoneNumber: "$phone", password: "$password" }');
     final response = await _dioClient.dio.post(
       ApiConstants.login,
       data: {
-        'phoneNumber': formattedPhone,
+        'phoneNumber': phone,
         'password': password,
       },
     );
@@ -66,5 +61,15 @@ class AuthRepository {
       }
     }
     return AuthResponseModel.fromJson(data);
+  }
+
+  /// Thong bao backend huy refresh token.
+  Future<void> logout(String refreshToken) async {
+    await _dioClient.dio.post(
+      ApiConstants.logout,
+      data: {
+        'refreshToken': refreshToken,
+      },
+    );
   }
 }

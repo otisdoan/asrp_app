@@ -34,17 +34,28 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final rawAvatarUrl = json['avatarUrl'];
+    final rawAvatar = json['avatar'];
+    final parsedAvatar = rawAvatarUrl ?? rawAvatar;
+    print(
+        '[Audit Avatar] UserModel.fromJson() avatarUrl backend = ${rawAvatarUrl?.toString()}');
+    print(
+        '[Audit Avatar] UserModel.fromJson() avatar fallback = ${rawAvatar?.toString()}');
+    print(
+        '[Audit Avatar] UserModel.fromJson() avatar đưa vào app = ${parsedAvatar?.toString()}');
     return UserModel(
       id: (json['id'] ?? json['_id'])?.toString() ?? '',
       username: json['username']?.toString() ?? '',
       email: json['email']?.toString(),
-      phone: json['phone']?.toString(),
+      phone: (json['phoneNumber'] ?? json['phone']) as String?,
       fullName: json['fullName']?.toString(),
-      avatar: json['avatar']?.toString(),
+      avatar: parsedAvatar as String?,
       gender: json['gender']?.toString(),
       birthday: json['birthday']?.toString(),
       role: json['role']?.toString() ?? 'customer',
-      isActive: json['isActive'] is bool ? json['isActive'] as bool : (json['isActive']?.toString() == 'true'),
+      isActive: json['isActive'] is bool
+          ? json['isActive'] as bool
+          : (json['isActive']?.toString() == 'true'),
       points: json['points'] is int
           ? json['points'] as int
           : int.tryParse(json['points']?.toString() ?? '') ?? 0,
