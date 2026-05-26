@@ -11,6 +11,7 @@ import '../../widgets/shop/all_stores_section.dart';
 
 import '../../../providers/cart_provider.dart';
 import '../../../providers/shop_provider.dart';
+import '../../../providers/branch_provider.dart';
 import 'cart_page.dart';
 import 'payment_page.dart';
 import 'orders_page.dart';
@@ -46,6 +47,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         final position = await LocationService.getCurrentPosition();
         if (position != null) {
           print('[Location] Auto: ${position.latitude}, ${position.longitude}');
+          ref.read(userLocationProvider.notifier).state = position;
         }
       } catch (_) {}
     } else {
@@ -134,6 +136,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       if (position != null) {
                         print(
                             '[Location] ✅ Tọa độ: ${position.latitude}, ${position.longitude}');
+                        ref.read(userLocationProvider.notifier).state = position;
                       } else {
                         print('[Location] ⚠️ Không lấy được vị trí');
                       }

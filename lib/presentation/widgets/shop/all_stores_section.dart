@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/location_service.dart';
+import '../../../data/models/branch_model.dart';
+import '../../../providers/branch_provider.dart';
 import '../../pages/shop/store_detail_page.dart';
 
 /// Section "Tất cả quán" — vertical list with lazy loading (10 items at a time).
-class AllStoresSection extends StatefulWidget {
+class AllStoresSection extends ConsumerStatefulWidget {
   const AllStoresSection({super.key});
 
   @override
-  State<AllStoresSection> createState() => _AllStoresSectionState();
+  ConsumerState<AllStoresSection> createState() => _AllStoresSectionState();
 }
 
-class _AllStoresSectionState extends State<AllStoresSection> {
+class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
   int _displayCount = 10;
   bool _isLoading = false;
 
@@ -53,15 +57,15 @@ class _AllStoresSectionState extends State<AllStoresSection> {
     {'name': 'Cà Phê Muối Huế - Quận 5', 'category': 'Cà phê · Đặc sản Huế', 'rating': 4.7, 'reviews': 680, 'distance': '1.8 km', 'time': '34 phút', 'promo': 'Giảm 8K ly thứ 2', 'image': 'assets/images/tra_sua.jpg'},
   ];
 
-  void _loadMore() {
-    if (_isLoading || _displayCount >= _stores.length) return;
+  void _loadMore(int totalCount) {
+    if (_isLoading || _displayCount >= totalCount) return;
     setState(() => _isLoading = true);
 
     // Simulate network delay
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
         setState(() {
-          _displayCount = (_displayCount + 10).clamp(0, _stores.length);
+          _displayCount = (_displayCount + 10).clamp(0, totalCount);
           _isLoading = false;
         });
       }
@@ -70,8 +74,46 @@ class _AllStoresSectionState extends State<AllStoresSection> {
 
   @override
   Widget build(BuildContext context) {
-    final visibleStores = _stores.take(_displayCount).toList();
-    final hasMore = _displayCount < _stores.length;
+    final branchesAsync = ref.watch(branchesFutureProvider);
+
+    return branchesAsync.when(
+      data: (branches) {
+        if (branches.isEmpty) {
+          return _buildContent(context, _stores.map((s) => BranchListItemModel(
+            id: '',
+            name: s['name'] as String,
+            imageUrl: s['image'] as String,
+            rating: s['rating'] as double,
+            reviewsCount: s['reviews'] as int,
+            distance: s['distance'] as String,
+            deliveryTime: s['time'] as String,
+            promo: s['promo'] as String,
+            category: s['category'] as String,
+          )).toList());
+        }
+        return _buildContent(context, branches);
+      },
+      loading: () => const _LoadingSection(),
+      error: (err, stack) {
+        print('[AllStoresSection] Lỗi tải chi nhánh: $err');
+        return _buildContent(context, _stores.map((s) => BranchListItemModel(
+          id: '',
+          name: s['name'] as String,
+          imageUrl: s['image'] as String,
+          rating: s['rating'] as double,
+          reviewsCount: s['reviews'] as int,
+          distance: s['distance'] as String,
+          deliveryTime: s['time'] as String,
+          promo: s['promo'] as String,
+          category: s['category'] as String,
+        )).toList());
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<BranchListItemModel> branches) {
+    final visibleStores = branches.take(_displayCount).toList();
+    final hasMore = _displayCount < branches.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +134,7 @@ class _AllStoresSectionState extends State<AllStoresSection> {
               ),
             ),
             Text(
-              '${_stores.length} quán',
+              '${branches.length} quán',
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -112,14 +154,39 @@ class _AllStoresSectionState extends State<AllStoresSection> {
           ),
           itemBuilder: (context, index) {
             final store = visibleStores[index];
+            final userLocation = ref.watch(userLocationProvider);
+
+            // Calculate dynamic distance if user location is available
+            String displayDistance = store.distance;
+            print('[AllStoresSection] Branch: ${store.name}, lat: ${store.latitude}, lng: ${store.longitude}, userLocation: ${userLocation?.latitude}, ${userLocation?.longitude}');
+            if (userLocation != null && store.latitude != null && store.longitude != null) {
+              final meters = LocationService.distanceTo(
+                userLocation.latitude,
+                userLocation.longitude,
+                store.latitude!,
+                store.longitude!,
+              );
+              displayDistance = LocationService.formatDistance(meters);
+              print('[AllStoresSection] Calculated distance: $displayDistance');
+            } else if (displayDistance.isEmpty) {
+              displayDistance = 'Gần đây';
+            }
+
+            // Fallback for empty deliveryTime
+            String displayTime = store.deliveryTime;
+            if (displayTime.isEmpty) {
+              displayTime = '25 phút';
+            }
+
             return _AllStoreCard(
-              name: store['name'] as String,
-              category: store['category'] as String,
-              rating: store['rating'] as double,
-              reviews: store['reviews'] as int,
-              distance: store['distance'] as String,
-              time: store['time'] as String,
-              promo: store['promo'] as String,
+              name: store.name,
+              category: store.category ?? 'Đồ ăn · Đồ uống',
+              rating: store.rating,
+              reviews: store.reviewsCount ?? 100,
+              distance: displayDistance,
+              time: displayTime,
+              promo: store.promo ?? '',
+              image: store.imageUrl,
               icon: Icons.restaurant,
             );
           },
@@ -141,7 +208,7 @@ class _AllStoresSectionState extends State<AllStoresSection> {
                   )
                 : Center(
                     child: GestureDetector(
-                      onTap: _loadMore,
+                      onTap: () => _loadMore(branches.length),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                         decoration: BoxDecoration(
@@ -195,6 +262,7 @@ class _AllStoreCard extends StatelessWidget {
   final String distance;
   final String time;
   final String promo;
+  final String image;
   final IconData icon;
 
   const _AllStoreCard({
@@ -205,6 +273,7 @@ class _AllStoreCard extends StatelessWidget {
     required this.distance,
     required this.time,
     required this.promo,
+    required this.image,
     required this.icon,
   });
 
@@ -229,104 +298,158 @@ class _AllStoreCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Store image
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.bgWarm,
-              borderRadius: BorderRadius.circular(8),
+            // Store image
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.bgWarm,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: image.isNotEmpty
+                    ? (image.startsWith('http')
+                        ? Image.network(
+                            image,
+                            fit: BoxFit.cover,
+                            width: 80,
+                            height: 80,
+                            errorBuilder: (_, __, ___) => Icon(icon, size: 36, color: AppColors.textTertiary),
+                          )
+                        : Image.asset(
+                            image,
+                            fit: BoxFit.cover,
+                            width: 80,
+                            height: 80,
+                            errorBuilder: (_, __, ___) => Icon(icon, size: 36, color: AppColors.textTertiary),
+                          ))
+                    : Icon(icon, size: 36, color: AppColors.textTertiary),
+              ),
             ),
-            child: Icon(icon, size: 36, color: AppColors.textTertiary),
-          ),
-          const SizedBox(width: 12),
-          // Store info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: 12),
+            // Store info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                // Category
-                Text(
-                  category,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 3),
+                  // Category
+                  Text(
+                    category,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                // Rating + time + distance
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 13, color: AppColors.star),
-                    const SizedBox(width: 2),
-                    Text(
-                      '$rating',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      ' ($reviews+)',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                    Flexible(
-                      child: Text(
-                        '$time · $distance',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                // Promo
-                if (promo.isNotEmpty) ...[
                   const SizedBox(height: 6),
+                  // Rating + time + distance
                   Row(
                     children: [
-                      const Icon(Icons.local_offer, size: 12, color: AppColors.primary),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.star, size: 13, color: AppColors.star),
+                      const SizedBox(width: 2),
+                      Text(
+                        '$rating',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        ' ($reviews+)',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                       Flexible(
                         child: Text(
-                          promo,
+                          '$time · $distance',
                           style: const TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                            color: AppColors.textSecondary,
                           ),
-                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
+                  // Promo
+                  if (promo.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.local_offer, size: 12, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            promo,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LoadingSection extends StatelessWidget {
+  const _LoadingSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 100,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 3,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (_, __) => Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

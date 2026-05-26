@@ -15,6 +15,8 @@ class BranchListItemModel {
   final String? adLabel;
   final bool? isFavorite;
   final int? displayOrder;
+  final double? latitude;
+  final double? longitude;
 
   const BranchListItemModel({
     required this.id,
@@ -31,9 +33,40 @@ class BranchListItemModel {
     this.adLabel,
     this.isFavorite,
     this.displayOrder,
+    this.latitude,
+    this.longitude,
   });
 
   factory BranchListItemModel.fromJson(Map<String, dynamic> json) {
+    String? rawDiscount = json['discount'] as String?;
+    String? formattedDiscount;
+    if (rawDiscount != null && rawDiscount.isNotEmpty) {
+      final parsedDouble = double.tryParse(rawDiscount);
+      if (parsedDouble != null) {
+        if (parsedDouble >= 1000) {
+          final kValue = parsedDouble / 1000;
+          if (kValue == kValue.roundToDouble()) {
+            formattedDiscount = '${kValue.toInt()}K';
+          } else {
+            formattedDiscount = '${kValue.toStringAsFixed(1).replaceAll('.0', '')}K';
+          }
+        } else {
+          formattedDiscount = parsedDouble.toInt().toString();
+        }
+      } else {
+        formattedDiscount = rawDiscount;
+      }
+    }
+
+    // Ghép các phần tử trong promos cách nhau bởi dấu " · "
+    String? mergedPromo = json['promo'] as String?;
+    if (json['promos'] is List) {
+      final promosList = (json['promos'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+      if (promosList.isNotEmpty) {
+        mergedPromo = promosList.join(' · ');
+      }
+    }
+
     return BranchListItemModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -43,12 +76,14 @@ class BranchListItemModel {
       deliveryTime: (json['deliveryTime'] ?? json['time']) as String? ?? '',
       category: json['category'] as String?,
       reviewsCount: json['reviewsCount'] as int? ?? json['reviews'] as int?,
-      promo: json['promo'] as String?,
-      discount: json['discount'] as String?,
+      promo: mergedPromo,
+      discount: formattedDiscount,
       tag: json['tag'] as String?,
       adLabel: json['adLabel'] as String?,
       isFavorite: json['isFavorite'] as bool?,
       displayOrder: json['displayOrder'] as int?,
+      latitude: (json['latitude'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble(),
     );
   }
 
@@ -68,6 +103,8 @@ class BranchListItemModel {
       if (adLabel != null) 'adLabel': adLabel,
       if (isFavorite != null) 'isFavorite': isFavorite,
       if (displayOrder != null) 'displayOrder': displayOrder,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
     };
   }
 }

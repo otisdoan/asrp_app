@@ -23,4 +23,7 @@ class ApiConstants {
 
   // Categories
   static const String categories = '/categories';
+
+  // Branches
+  static const String branches = '/branches';
 }
