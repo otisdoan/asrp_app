@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../providers/category_provider.dart';
+import '../../../providers/menu_provider.dart';
+import '../../../data/models/category_model.dart';
+import '../../../data/models/menu_item_model.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
 
 /// Store Detail Page — shows store info, promos, popular items, and full menu.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class StoreDetailPage extends StatefulWidget {
+class StoreDetailPage extends ConsumerStatefulWidget {
   final String storeName;
   final String category;
   final double rating;
@@ -30,10 +34,10 @@ class StoreDetailPage extends StatefulWidget {
   });
 
   @override
-  State<StoreDetailPage> createState() => _StoreDetailPageState();
+  ConsumerState<StoreDetailPage> createState() => _StoreDetailPageState();
 }
 
-class _StoreDetailPageState extends State<StoreDetailPage> {
+class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   int _selectedCategoryIndex = 0;
   bool _isCollapsed = false;
   bool _isTabTapping = false;
@@ -88,13 +92,11 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
       _firstMatchingFoodName = null;
       return;
     }
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
-      for (final item in items) {
-        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
-          _firstMatchingFoodName = item['name'] as String;
-          return;
-        }
+    final allItems = _getMenuItems();
+    for (final item in allItems) {
+      if (item.name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+        _firstMatchingFoodName = item.name;
+        return;
       }
     }
     _firstMatchingFoodName = null;
@@ -104,16 +106,16 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     if (_searchQuery.isEmpty || _firstMatchingFoodName == null) return;
 
     // 1. Find which category contains the matching product
+    final categories = _getCategories();
+    final allItems = _getMenuItems();
+    
     int targetCategoryIndex = -1;
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
-      for (final item in items) {
-        if (item['name'].toString() == _firstMatchingFoodName) {
-          targetCategoryIndex = i;
-          break;
-        }
+    for (final item in allItems) {
+      if (item.name == _firstMatchingFoodName) {
+        // Find category index
+        targetCategoryIndex = categories.indexWhere((cat) => cat.id == item.categoryId);
+        break;
       }
-      if (targetCategoryIndex != -1) break;
     }
 
     if (targetCategoryIndex == -1) return;
@@ -193,15 +195,18 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
   void _activateTabForHighlightedItem() {
     if (_searchQuery.isEmpty) return;
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
-      for (final item in items) {
-        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
+    final categories = _getCategories();
+    final allItems = _getMenuItems();
+    
+    for (final item in allItems) {
+      if (item.name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+        final catIndex = categories.indexWhere((cat) => cat.id == item.categoryId);
+        if (catIndex != -1) {
           setState(() {
-            _selectedCategoryIndex = i;
+            _selectedCategoryIndex = catIndex;
           });
-          return;
         }
+        return;
       }
     }
   }
@@ -221,67 +226,45 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     });
   }
 
-  // Mock menu categories
-  static const _menuCategories = [
-    'Món phổ biến',
-    'Phở & Bún',
-    'Cơm',
-    'Đồ uống',
-    'Combo',
-    'Tráng miệng',
-  ];
+  // Helper methods to get data from providers
+  List<CategoryModel> _getCategories() {
+    final categoriesAsync = ref.watch(categoriesFutureProvider);
+    return categoriesAsync.maybeWhen(
+      data: (categories) {
+        print('[UI Check] StoreDetail: Đã nạp thành công ${categories.length} Danh mục (Tab).');
+        return categories;
+      },
+      orElse: () => [],
+    );
+  }
 
-  // Mock menu items per category
-  static const _menuItems = [
-    // Món phổ biến
-    [
-      {'name': 'Combo 1: Phần gà + khoai', 'sold': '200+', 'likes': 3, 'price': '40.000đ', 'icon': Icons.fastfood},
-      {'name': 'Set sum vầy (4 người)', 'sold': '600+', 'likes': 12, 'price': '53.000đ', 'icon': Icons.dinner_dining},
-      {'name': 'Gà rán truyền thống (2 miếng)', 'sold': '500+', 'likes': 8, 'price': '45.000đ', 'icon': Icons.lunch_dining},
-      {'name': 'Gà sốt cay Hàn Quốc', 'sold': '150+', 'likes': 5, 'price': '55.000đ', 'icon': Icons.local_fire_department},
-    ],
-    // Phở & Bún
-    [
-      {'name': 'Phở bò tái chín', 'sold': '300+', 'likes': 15, 'price': '65.000đ', 'icon': Icons.ramen_dining},
-      {'name': 'Phở gà ta', 'sold': '180+', 'likes': 7, 'price': '60.000đ', 'icon': Icons.ramen_dining},
-      {'name': 'Bún bò Huế đặc biệt', 'sold': '250+', 'likes': 10, 'price': '70.000đ', 'icon': Icons.soup_kitchen},
-    ],
-    // Cơm
-    [
-      {'name': 'Cơm gà xối mỡ', 'sold': '400+', 'likes': 20, 'price': '55.000đ', 'icon': Icons.rice_bowl},
-      {'name': 'Cơm tấm sườn bì chả', 'sold': '350+', 'likes': 18, 'price': '50.000đ', 'icon': Icons.rice_bowl},
-    ],
-    // Đồ uống
-    [
-      {'name': 'Trà đào cam sả', 'sold': '600+', 'likes': 25, 'price': '35.000đ', 'icon': Icons.local_drink},
-      {'name': 'Cà phê sữa đá', 'sold': '800+', 'likes': 30, 'price': '29.000đ', 'icon': Icons.coffee},
-      {'name': 'Nước ép cam tươi', 'sold': '200+', 'likes': 8, 'price': '32.000đ', 'icon': Icons.local_drink},
-    ],
-    // Combo
-    [
-      {'name': 'Combo A: 2 gà + 1 nước', 'sold': '150+', 'likes': 6, 'price': '89.000đ', 'icon': Icons.fastfood},
-      {'name': 'Combo B: 3 gà + khoai + nước', 'sold': '100+', 'likes': 4, 'price': '119.000đ', 'icon': Icons.fastfood},
-    ],
-    // Tráng miệng
-    [
-      {'name': 'Kem vani socola', 'sold': '80+', 'likes': 3, 'price': '25.000đ', 'icon': Icons.icecream},
-      {'name': 'Bánh flan caramel', 'sold': '120+', 'likes': 5, 'price': '20.000đ', 'icon': Icons.cake},
-    ],
-  ];
+  List<MenuItemModel> _getMenuItems() {
+    final menuAsync = ref.watch(branchMenuItemsProvider);
+    return menuAsync.maybeWhen(
+      data: (items) {
+        print('[UI Check] StoreDetail: Đã nạp thành công ${items.length} Món ăn thuộc chi nhánh này.');
+        return items;
+      },
+      orElse: () => [],
+    );
+  }
 
-  // Mock promos
+  List<MenuItemModel> _getPopularItems() {
+    final allItems = _getMenuItems();
+    // Filter items with soldCount > 100 or sort by soldCount
+    final popular = allItems.where((item) => (item.soldCount ?? 0) > 100).toList();
+    popular.sort((a, b) => (b.soldCount ?? 0).compareTo(a.soldCount ?? 0));
+    final result = popular.take(6).toList();
+    print('[UI Check] StoreDetail: Đã lọc được ${result.length} Món phổ biến (soldCount > 100).');
+    return result;
+  }
+
+  // Mock promos (keeping for now - can be replaced with API later)
   static const _promos = [
     'Giảm 50% · Đơn từ 55k',
     'Giảm 50% · Đơn từ 55k',
     'Giảm 50% · Đơn từ 99k',
     'Freeship · Đơn từ 30k',
-  ];
-
-  // Mock popular items (horizontal scroll)
-  static const _popularItems = [
-    {'name': 'Set sum vầy', 'sold': '600+', 'price': '53.000đ', 'icon': Icons.dinner_dining},
-    {'name': 'Gà rán combo', 'sold': '200+', 'price': '89.000đ', 'icon': Icons.fastfood},
-    {'name': 'Gà sốt cay', 'sold': '150+', 'price': '55.000đ', 'icon': Icons.local_fire_department},
   ];
 
   @override
@@ -313,7 +296,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
           SliverPersistentHeader(
             pinned: true,
             delegate: _CategoryTabsDelegate(
-              categories: _menuCategories,
+              categories: _getCategories().map((c) => c.name).toList(),
               selectedIndex: _selectedCategoryIndex,
               onSelected: _scrollToSection,
             ),
@@ -407,10 +390,16 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   // ─── Build all menu sections (category title + items) ───────────────────
   List<Widget> _buildAllMenuSections() {
     final List<Widget> slivers = [];
+    final categories = _getCategories();
+    final allItems = _getMenuItems();
 
-    for (int i = 0; i < _menuCategories.length; i++) {
-      final category = _menuCategories[i];
-      final items = _menuItems[i];
+    for (int i = 0; i < categories.length; i++) {
+      final category = categories[i];
+      final items = allItems.where((item) => item.categoryId == category.id).toList();
+
+      print('[UI Check] StoreDetail: Đang vẽ Section cho Danh mục "${category.name}" với ${items.length} món ăn.');
+
+      if (items.isEmpty) continue;
 
       // Category title
       slivers.add(
@@ -419,7 +408,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             key: _sectionKeys[i],
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text(
-              '$category (${items.length})',
+              '${category.name} (${items.length})',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -813,10 +802,10 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _popularItems.length,
+              itemCount: _getPopularItems().length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, index) {
-                final item = _popularItems[index];
+                final item = _getPopularItems()[index];
                 return _buildPopularItemCard(item);
               },
             ),
@@ -826,16 +815,16 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     );
   }
 
-  Widget _buildPopularItemCard(Map<String, dynamic> item) {
+  Widget _buildPopularItemCard(MenuItemModel item) {
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
-            name: item['name'] as String,
-            price: item['price'] as String,
-            sold: item['sold'] as String,
+            name: item.name,
+            price: item.price,
+            sold: '${item.soldCount ?? 0}+',
             likes: 0,
-            icon: item['icon'] as IconData,
+            icon: Icons.fastfood,
           ),
         ));
         _handleCartResult(result);
@@ -864,7 +853,10 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                     height: 80,
                     width: double.infinity,
                     color: AppColors.bgWarm,
-                    child: Icon(item['icon'] as IconData, size: 32, color: AppColors.textTertiary),
+                    child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                        ? Image.network(item.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => 
+                            const Icon(Icons.fastfood, size: 32, color: AppColors.textTertiary))
+                        : const Icon(Icons.fastfood, size: 32, color: AppColors.textTertiary),
                   ),
                 Positioned(
                   top: 6,
@@ -876,7 +868,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '${item['sold']} đã bán',
+                      '${item.soldCount ?? 0}+ đã bán',
                       style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -892,7 +884,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['name'] as String,
+                      item.name,
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -902,7 +894,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          item['price'] as String,
+                          item.price,
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
                         ),
                         Container(
@@ -927,19 +919,19 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Menu Item Card ─────────────────────────────────────────────────────
-  Widget _buildMenuItem(Map<String, dynamic> item) {
+  Widget _buildMenuItem(MenuItemModel item) {
     final isHighlighted = _firstMatchingFoodName != null &&
-        item['name'].toString().toLowerCase() == _firstMatchingFoodName!.toLowerCase();
+        item.name.toLowerCase() == _firstMatchingFoodName!.toLowerCase();
 
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
-            name: item['name'] as String,
-            price: item['price'] as String,
-            sold: item['sold'] as String,
-            likes: item['likes'] as int,
-            icon: item['icon'] as IconData,
+            name: item.name,
+            price: item.price,
+            sold: '${item.soldCount ?? 0}+',
+            likes: 0,
+            icon: Icons.fastfood,
           ),
         ));
         _handleCartResult(result);
@@ -965,7 +957,10 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 color: AppColors.bgWarm,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(item['icon'] as IconData, size: 28, color: AppColors.textTertiary),
+              child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                  ? Image.network(item.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => 
+                      const Icon(Icons.fastfood, size: 28, color: AppColors.textTertiary))
+                  : const Icon(Icons.fastfood, size: 28, color: AppColors.textTertiary),
             ),
             const SizedBox(width: 12),
             // Info
@@ -974,7 +969,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['name'] as String,
+                    item.name,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -987,19 +982,19 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                   Row(
                     children: [
                       Text(
-                        '${item['sold']} đã bán',
+                        '${item.soldCount ?? 0}+ đã bán',
                         style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${item['likes']} lượt thích',
+                        '0 lượt thích',
                         style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    item['price'] as String,
+                    item.price,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

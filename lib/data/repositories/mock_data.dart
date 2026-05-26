@@ -37,20 +37,20 @@ class MockData {
   // ===== CATEGORIES =====
   static const List<CategoryModel> categories = [
     CategoryModel(
-        id: 'pho', name: 'Phở', count: 12, imageUrl: 'assets/images/pho.jpg'),
+        id: 'pho', name: 'Phở', menuItemCount: 12, imageUrl: 'assets/images/pho.jpg'),
     CategoryModel(
-        id: 'bun', name: 'Bún', count: 8, imageUrl: 'assets/images/pho_bo.png'),
+        id: 'bun', name: 'Bún', menuItemCount: 8, imageUrl: 'assets/images/pho_bo.png'),
     CategoryModel(
-        id: 'com', name: 'Cơm', count: 10, imageUrl: 'assets/images/com.webp'),
+        id: 'com', name: 'Cơm', menuItemCount: 10, imageUrl: 'assets/images/com.webp'),
     CategoryModel(
         id: 'drinks',
         name: 'Đồ uống',
-        count: 7,
+        menuItemCount: 7,
         imageUrl: 'assets/images/tra_sua.jpg'),
     CategoryModel(
         id: 'dessert',
         name: 'Tráng miệng',
-        count: 5,
+        menuItemCount: 5,
         imageUrl: 'assets/images/tra_sua.jpg'),
   ];
 

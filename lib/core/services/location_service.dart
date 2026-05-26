@@ -9,7 +9,6 @@ class LocationService {
     // Check if location services are enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      print('[LocationService] Location services are disabled.');
       return null;
     }
 
@@ -18,13 +17,11 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        print('[LocationService] Location permission denied.');
         return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      print('[LocationService] Location permission permanently denied.');
       return null;
     }
 
@@ -35,14 +32,16 @@ class LocationService {
       ),
     );
 
-    print('[LocationService] GPS: ${position.latitude}, ${position.longitude}');
+    // GPS coordinates retrieved
     return position;
   }
 
   /// Calculate distance (meters) between user and a branch.
   static double distanceTo(
-    double userLat, double userLng,
-    double branchLat, double branchLng,
+    double userLat,
+    double userLng,
+    double branchLat,
+    double branchLng,
   ) {
     return Geolocator.distanceBetween(userLat, userLng, branchLat, branchLng);
   }
@@ -55,4 +54,3 @@ class LocationService {
     return '${meters.toInt()} m';
   }
 }
-

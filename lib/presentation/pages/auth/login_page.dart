@@ -74,14 +74,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // Save credentials and JWT
       await ref.read(authProvider.notifier).setCredentials(response);
 
-      print(
-          '[Audit Profile Sync] Login: đã setCredentials xong, chuẩn bị gọi getProfile()');
+      // Removed profile sync audit log
       try {
         final userProfile = await ref.read(userRepositoryProvider).getProfile();
-        print(
-            '[Audit Profile Sync] Login: userProfile.avatar = ${userProfile.avatar}');
+        // Removed profile sync audit log
         await ref.read(authProvider.notifier).setUser(userProfile);
-        print('[Audit Profile Sync] Login: đã setUser(userProfile) thành công');
+        // Removed profile sync audit log
 
         if (!mounted) return;
         const storage = FlutterSecureStorage();
@@ -107,8 +105,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           }
         }
       } catch (profileError) {
-        print(
-            '[Audit Profile Sync] Login: lỗi khi gọi getProfile/setUser = $profileError');
+        // Removed profile sync audit log
         rethrow;
       }
       return;

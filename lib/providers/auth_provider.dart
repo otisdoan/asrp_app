@@ -51,8 +51,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (token != null && userJson != null) {
         final userMap = jsonDecode(userJson) as Map<String, dynamic>;
         final user = UserModel.fromJson(userMap);
-        print(
-            '[Audit Avatar] _loadSavedSession() user.avatar = ${user.avatar}');
+        // Removed audit avatar log
 
         DioClient().setAccessToken(token);
 
@@ -82,16 +81,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       key: AppConstants.storageKeyUser,
       value: jsonEncode(response.user.toJson()),
     );
-    print(
-        '[Audit Avatar] setCredentials() response.user.avatar = ${response.user.avatar}');
+    // Removed audit avatar log
 
     state = AuthState(
       user: response.user,
       accessToken: response.accessToken,
       isAuthenticated: true,
     );
-    print(
-        '[Audit Avatar] setCredentials() state.user.avatar = ${state.user?.avatar}');
+    // Removed audit avatar log
   }
 
   /// Cập nhật thông tin chi tiết của user hiện tại
@@ -101,8 +98,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       value: jsonEncode(user.toJson()),
     );
     state = state.copyWith(user: user);
-    print(
-        '[Audit Avatar] setUser() user.avatar đưa lên app/state = ${state.user?.avatar}');
+    // Removed audit avatar log
   }
 
   /// Cập nhật Access Token mới (ví dụ khi được Refresh thành công)

@@ -10,8 +10,7 @@ class UserRepository {
   Future<UserModel> getProfile() async {
     try {
       final response = await _dioClient.dio.get(ApiConstants.profile);
-      print(
-          '[Audit Profile Sync] GET /api/users/profile response.data = ${response.data}');
+      // Removed profile sync debug log
 
       final rawData = response.data;
       final profileData = rawData is Map<String, dynamic> &&
@@ -20,7 +19,7 @@ class UserRepository {
           : rawData as Map<String, dynamic>;
 
       final user = UserModel.fromJson(profileData);
-      print('[Audit Profile Sync] getProfile() parsed user = ${user.toJson()}');
+      // Removed profile sync debug log
       return user;
     } on DioException {
       rethrow;

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
+import '../../../data/models/branch_model.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/category_provider.dart';
+import '../../../providers/branch_provider.dart';
 
 class ShopDrawer extends ConsumerWidget {
   const ShopDrawer({super.key});
@@ -11,38 +13,36 @@ class ShopDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedCategory = ref.watch(selectedCategoryProvider);
-    final branch = ref.watch(selectedBranchProvider);
+    final selectedBranchId = ref.watch(selectedBranchProvider);
     final categoriesAsync = ref.watch(categoriesFutureProvider);
+    final branchesAsync = ref.watch(branchesFutureProvider);
 
     return Drawer(
       child: SafeArea(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.primary,
-            child: Row(children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    'assets/images/pho.jpg',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('BMC Phở Express', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                Text(branch.length > 20 ? '${branch.substring(0, 20)}...' : branch, style: const TextStyle(fontSize: 10, color: Color(0xCCFFFFFF))),
-              ]),
-            ]),
+          // Header - Display selected branch info
+          branchesAsync.when(
+            loading: () => _buildHeaderLoading(),
+            error: (_, __) => _buildHeaderError(),
+            data: (branches) {
+              if (branches.isEmpty) {
+                return _buildHeaderError();
+              }
+
+              // Find the selected branch
+              BranchListItemModel? selectedBranch;
+              try {
+                selectedBranch = branches.firstWhere(
+                  (b) => b.id == selectedBranchId || b.branchId == selectedBranchId,
+                );
+              } catch (_) {
+                selectedBranch = branches.first;
+              }
+
+              print('[UI Check] Shop Drawer: Header đang hiển thị Chi nhánh ID: $selectedBranchId - Tên: ${selectedBranch.name}');
+
+              return _buildHeader(selectedBranch);
+            },
           ),
           // Table info
           Container(
@@ -76,26 +76,255 @@ class ShopDrawer extends ConsumerWidget {
           ),
           ...MockData.quickFilters.map((f) => _buildFilterTile(context, f['imageUrl'] as String, f['name'] as String)),
           const Spacer(),
-          // Branch selector
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.primaryContainer, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.2))),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Chi nhánh', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                const SizedBox(height: 8),
-                ...(["Bàn số: 05", "Số người: 2", "Chi nhánh: Quận 1"]).map((info) {
-                  final parts = info.split(': ');
-                  return Padding(padding: const EdgeInsets.only(bottom: 3), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text(parts[0], style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                    Text(parts[1], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  ]));
-                }),
-              ]),
-            ),
+          // Branch selector - Display current branch info
+          branchesAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (branches) {
+              if (branches.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              // Find the selected branch
+              BranchListItemModel? selectedBranch;
+              try {
+                selectedBranch = branches.firstWhere(
+                  (b) => b.id == selectedBranchId || b.branchId == selectedBranchId,
+                );
+              } catch (_) {
+                selectedBranch = branches.first;
+              }
+
+              return Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Chi nhánh',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildBranchInfoRow('Bàn số', '05'),
+                      _buildBranchInfoRow('Số người', '2'),
+                      _buildBranchInfoRow(
+                        'Chi nhánh',
+                        selectedBranch.name.isNotEmpty ? selectedBranch.name : 'Đang cập nhật',
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ]),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BranchListItemModel branch) {
+    final displayName = branch.name.isNotEmpty ? branch.name : 'Đang cập nhật';
+    final displayAddress = branch.address ?? 'Địa chỉ đang cập nhật';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.primary,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: _buildBranchImage(branch),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  displayAddress.length > 30 ? '${displayAddress.substring(0, 30)}...' : displayAddress,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xCCFFFFFF),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderLoading() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.primary,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 14,
+                  width: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  height: 10,
+                  width: 160,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderError() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.primary,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.store, size: 24, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cửa hàng',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'Đang tải thông tin...',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xCCFFFFFF),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBranchImage(BranchListItemModel branch) {
+    if (branch.imageUrl != null && branch.imageUrl!.isNotEmpty) {
+      return Image.network(
+        branch.imageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return Container(
+            color: AppColors.bgWarm,
+            child: const Icon(
+              Icons.store,
+              size: 24,
+              color: AppColors.primary,
+            ),
+          );
+        },
+      );
+    }
+    return Container(
+      color: AppColors.bgWarm,
+      child: const Icon(
+        Icons.store,
+        size: 24,
+        color: AppColors.primary,
+      ),
+    );
+  }
+
+  Widget _buildBranchInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

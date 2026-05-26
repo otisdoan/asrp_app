@@ -21,9 +21,7 @@ class AuthRepository {
     required String idToken,
     required String password,
   }) async {
-    print('[AuthRepository] Requesting register to ${ApiConstants.register}');
-    print(
-        '[AuthRepository] Payload: { idToken: ${idToken.length > 50 ? "${idToken.substring(0, 30)}... [Length: ${idToken.length}]" : idToken} }');
+    // Removed AuthRepository debug logs
     final response = await _dioClient.dio.post(
       ApiConstants.register,
       data: {
@@ -31,8 +29,7 @@ class AuthRepository {
         'password': password,
       },
     );
-    print('[AuthRepository] Response status code: ${response.statusCode}');
-    print('[AuthRepository] Response data: ${response.data}');
+    // Removed AuthRepository response logs
 
     return AuthResponseModel.fromJson(_extractData(response.data));
   }
@@ -42,9 +39,7 @@ class AuthRepository {
     required String phone,
     required String password,
   }) async {
-    print('[AuthRepository] Requesting login to ${ApiConstants.login}');
-    print(
-        '[AuthRepository] Payload: { phoneNumber: "$phone", password: "$password" }');
+    // Removed AuthRepository login debug logs
     final response = await _dioClient.dio.post(
       ApiConstants.login,
       data: {

@@ -1,48 +1,85 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../providers/shop_provider.dart';
+import '../../../data/models/branch_model.dart';
 import '../../pages/shop/store_detail_page.dart';
 
 /// Section "Gần bạn" — horizontal scroll of nearby store cards.
-class NearbyStoresSection extends StatelessWidget {
+class NearbyStoresSection extends ConsumerWidget {
   const NearbyStoresSection({super.key});
 
-  static const _stores = [
-    {
-      'name': 'Cơm Tấm Bụi Sài Gòn',
-      'rating': 4.5,
-      'distance': '0.3 km',
-      'time': '15 phút',
-      'promo': 'Freeship',
-      'image': 'assets/images/com.webp',
-    },
-    {
-      'name': 'Bún Đậu Mắm Tôm Hà Nội',
-      'rating': 4.3,
-      'distance': '0.5 km',
-      'time': '18 phút',
-      'promo': 'Giảm 20%',
-      'image': 'assets/images/pho_bo.png',
-    },
-    {
-      'name': 'Trà Sữa ToCoToCo',
-      'rating': 4.6,
-      'distance': '0.7 km',
-      'time': '20 phút',
-      'promo': 'Mua 1 tặng 1',
-      'image': 'assets/images/tra_sua.jpg',
-    },
-    {
-      'name': 'Pizza Hut - Nguyễn Trãi',
-      'rating': 4.4,
-      'distance': '1.0 km',
-      'time': '25 phút',
-      'promo': 'Giảm 50K',
-      'image': 'assets/images/pho.jpg',
-    },
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final branchesAsyncValue = ref.watch(branchesFutureProvider);
+
+    return branchesAsyncValue.when(
+      loading: () => _buildLoadingState(),
+      error: (error, stack) => _buildErrorState(error),
+      data: (branches) {
+        if (branches.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Text('', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text(
+                      'Gần bạn',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {},
+                    child: const Text(
+                      'Xem thêm',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Store cards
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: branches.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final branch = branches[index];
+                  return _NearbyStoreCard(
+                    branch: branch,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingState() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -63,80 +100,127 @@ class NearbyStoresSection extends StatelessWidget {
                   ),
                 ),
               ),
-              GestureDetector(
-                onTap: () {},
-                child: const Text(
-                  'Xem thêm',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        // Store cards
         SizedBox(
           height: 200,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: _stores.length,
+            itemCount: 3,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final store = _stores[index];
-              return _NearbyStoreCard(
-                name: store['name'] as String,
-                rating: store['rating'] as double,
-                distance: store['distance'] as String,
-                time: store['time'] as String,
-                promo: store['promo'] as String,
-                image: store['image'] as String,
-              );
-            },
+            itemBuilder: (_, __) => _buildShimmerCard(),
           ),
         ),
       ],
     );
   }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      width: 150,
+      decoration: BoxDecoration(
+        color: AppColors.bgSoft,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 95,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerHigh,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 12,
+                    width: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 10,
+                    width: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+      child: Center(
+        child: Text(
+          'Không thể tải danh sách quán',
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _NearbyStoreCard extends StatelessWidget {
-  final String name;
-  final double rating;
-  final String distance;
-  final String time;
-  final String promo;
-  final String image;
+  final BranchListItemModel branch;
 
   const _NearbyStoreCard({
-    required this.name,
-    required this.rating,
-    required this.distance,
-    required this.time,
-    required this.promo,
-    required this.image,
+    required this.branch,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => StoreDetailPage(
-            storeName: name,
-            category: 'Đồ ăn · Đồ uống',
-            rating: rating,
-            reviews: 100,
-            deliveryTime: time,
-            distance: distance,
-            icon: Icons.store,
-          ),
-        ));
-      },
+    // Safe mapping with fallbacks
+    final displayName = branch.name.isNotEmpty ? branch.name : 'Đang cập nhật';
+    final displayRating = branch.rating ?? 0.0;
+    final displayDistance = branch.distance.isNotEmpty ? branch.distance : '1.2 km';
+    final displayTime = branch.deliveryTime.isNotEmpty ? branch.deliveryTime : '20 phút';
+    final displayReviews = branch.reviewsCount ?? 100;
+    final displayPromo = branch.promo ?? '';
+
+    return Consumer(
+      builder: (context, ref, child) {
+        return GestureDetector(
+          onTap: () {
+            // Kích hoạt provider để fetch menu mới
+            ref.read(selectedBranchProvider.notifier).state = branch.id ?? branch.branchId ?? '';
+            
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => StoreDetailPage(
+                storeName: displayName,
+                category: branch.category ?? 'Đồ ăn · Đồ uống',
+                rating: displayRating,
+                reviews: displayReviews,
+                deliveryTime: displayTime,
+                distance: displayDistance,
+                icon: Icons.store,
+              ),
+            ));
+          },
       child: Container(
         width: 150,
         decoration: BoxDecoration(
@@ -154,16 +238,16 @@ class _NearbyStoreCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image area
-          Container(
-            height: 95,
-            width: double.infinity,
-            color: AppColors.bgSoft,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
-              child: Image.asset(image, fit: BoxFit.cover, width: double.infinity, height: 95),
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(10),
+              topRight: Radius.circular(10),
+            ),
+            child: Container(
+              height: 95,
+              width: double.infinity,
+              color: AppColors.bgSoft,
+              child: _buildImage(),
             ),
           ),
           // Info area
@@ -175,7 +259,7 @@ class _NearbyStoreCard extends StatelessWidget {
                 children: [
                   // Store name
                   Text(
-                    name,
+                    displayName,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -192,7 +276,7 @@ class _NearbyStoreCard extends StatelessWidget {
                       const Icon(Icons.star, size: 12, color: AppColors.star),
                       const SizedBox(width: 2),
                       Text(
-                        rating.toString(),
+                        displayRating.toString(),
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -202,7 +286,7 @@ class _NearbyStoreCard extends StatelessWidget {
                       const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                       Flexible(
                         child: Text(
-                          '$time · $distance',
+                          '$displayTime · $displayDistance',
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.textSecondary,
@@ -214,7 +298,7 @@ class _NearbyStoreCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   // Promo
-                  if (promo.isNotEmpty)
+                  if (displayPromo.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -222,7 +306,7 @@ class _NearbyStoreCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        promo,
+                        displayPromo,
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -236,6 +320,57 @@ class _NearbyStoreCard extends StatelessWidget {
           ),
         ],
       ),
+        ),
+      );
+    },
+    );
+  }
+
+  Widget _buildImage() {
+    if (branch.imageUrl != null && branch.imageUrl!.isNotEmpty) {
+      return Image.network(
+        branch.imageUrl!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 95,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppColors.bgSoft,
+            child: const Icon(
+              Icons.storefront,
+              size: 32,
+              color: AppColors.textTertiary,
+            ),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: AppColors.bgSoft,
+            child: Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return Container(
+      color: AppColors.bgSoft,
+      child: const Icon(
+        Icons.storefront,
+        size: 32,
+        color: AppColors.textTertiary,
       ),
     );
   }

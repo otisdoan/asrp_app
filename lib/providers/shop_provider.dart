@@ -1,10 +1,42 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/constants/app_constants.dart';
+
+import '../data/models/branch_model.dart';
+import 'branch_provider.dart';
 
 // ===== Branch Provider =====
+// Keep this provider simple to avoid circular initialization.
 final selectedBranchProvider = StateProvider<String>(
-  (ref) => AppConstants.branches[0],
+  (ref) => '',
 );
+
+final branchSelectionSyncProvider = Provider<void>((ref) {
+  ref.listen<AsyncValue<List<BranchListItemModel>>>(
+    branchesFutureProvider,
+    (previous, next) {
+      next.whenData((branches) {
+        if (branches.isEmpty) {
+          return;
+        }
+
+        final currentBranchId = ref.read(selectedBranchProvider);
+        if (currentBranchId.isNotEmpty) {
+          final hasCurrentBranch = branches.any(
+            (branch) =>
+                branch.id == currentBranchId ||
+                branch.branchId == currentBranchId,
+          );
+          if (hasCurrentBranch) {
+            return;
+          }
+        }
+
+        final defaultBranchId = branches.first.branchId ?? branches.first.id;
+        ref.read(selectedBranchProvider.notifier).state = defaultBranchId;
+      });
+    },
+    fireImmediately: true,
+  );
+});
 
 // ===== Category Provider =====
 final selectedCategoryProvider = StateProvider<String>(

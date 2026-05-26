@@ -23,6 +23,11 @@ class ApiConstants {
   static const String userList = '/users';
   static String userDetail(String id) => '/users/$id';
 
+  // Branches
+  static const String getBranches = '/api/branches';
+  static String getMenuByBranch(String branchId) =>
+      '/api/branches/$branchId/menu-items';
+
   // Categories
-  static const String categories = '/categories';
+  static const String categories = '/api/categories';
 }

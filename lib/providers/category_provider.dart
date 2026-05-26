@@ -6,7 +6,11 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
   return CategoryRepository();
 });
 
-final categoriesFutureProvider = FutureProvider<List<CategoryModel>>((ref) async {
+final categoriesFutureProvider =
+    FutureProvider<List<CategoryModel>>((ref) async {
   final repository = ref.watch(categoryRepositoryProvider);
-  return repository.getCategories();
+  final categories = await repository.getCategories();
+  // print(
+  //     '[Audit Categories] Provider đã nhận được ${categories.length} danh mục từ API.');
+  return categories;
 });

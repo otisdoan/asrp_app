@@ -1,12 +1,78 @@
 import 'menu_item_model.dart';
 
+String? _readString(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value != null) {
+      return value.toString();
+    }
+  }
+  return null;
+}
+
+double? _readDouble(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value != null) {
+      return double.tryParse(value.toString());
+    }
+  }
+  return null;
+}
+
+int? _readInt(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value != null) {
+      return int.tryParse(value.toString());
+    }
+  }
+  return null;
+}
+
+bool? _readBool(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value != null) {
+      final normalized = value.toString().toLowerCase();
+      if (normalized == 'true' || normalized == '1') {
+        return true;
+      }
+      if (normalized == 'false' || normalized == '0') {
+        return false;
+      }
+    }
+  }
+  return null;
+}
+
 class BranchListItemModel {
   final String id;
+  final String? branchId;
   final String name;
   final String imageUrl;
   final double rating;
   final String distance;
   final String deliveryTime;
+  final String? address;
+  final bool? isActive;
+  final double? latitude;
+  final double? longitude;
   final String? category;
   final int? reviewsCount;
   final String? promo;
@@ -18,11 +84,16 @@ class BranchListItemModel {
 
   const BranchListItemModel({
     required this.id,
+    this.branchId,
     required this.name,
     required this.imageUrl,
     required this.rating,
     required this.distance,
     required this.deliveryTime,
+    this.address,
+    this.isActive,
+    this.latitude,
+    this.longitude,
     this.category,
     this.reviewsCount,
     this.promo,
@@ -34,32 +105,47 @@ class BranchListItemModel {
   });
 
   factory BranchListItemModel.fromJson(Map<String, dynamic> json) {
+    print('[Audit Branch] 4. Đang parse Model cho: ${json['name']}');
+    final resolvedId = _readString(json, ['id', 'branchId', 'branch_id']) ?? '';
     return BranchListItemModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      imageUrl: (json['imageUrl'] ?? json['image']) as String? ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      distance: json['distance'] as String? ?? '',
-      deliveryTime: (json['deliveryTime'] ?? json['time']) as String? ?? '',
-      category: json['category'] as String?,
-      reviewsCount: json['reviewsCount'] as int? ?? json['reviews'] as int?,
-      promo: json['promo'] as String?,
-      discount: json['discount'] as String?,
-      tag: json['tag'] as String?,
-      adLabel: json['adLabel'] as String?,
-      isFavorite: json['isFavorite'] as bool?,
-      displayOrder: json['displayOrder'] as int?,
+      id: resolvedId,
+      branchId: _readString(json, ['branchId', 'branch_id']) ?? resolvedId,
+      name: _readString(json, ['name', 'branchName']) ?? '',
+      imageUrl:
+          _readString(json, ['imageUrl', 'image', 'thumbnail', 'coverImage']) ??
+              '',
+      rating: _readDouble(json, ['rating']) ?? 0.0,
+      distance: _readString(json, ['distance']) ?? '',
+      deliveryTime:
+          _readString(json, ['deliveryTime', 'time', 'delivery_time']) ?? '',
+      address: _readString(json, ['address', 'branchAddress']),
+      isActive: _readBool(json, ['isActive', 'active']),
+      latitude: _readDouble(json, ['latitude', 'lat']),
+      longitude: _readDouble(json, ['longitude', 'lng']),
+      category: _readString(json, ['category']),
+      reviewsCount: _readInt(json, ['reviewsCount', 'reviews']),
+      promo: _readString(json, ['promo']),
+      discount: _readString(json, ['discount']),
+      tag: _readString(json, ['tag']),
+      adLabel: _readString(json, ['adLabel']),
+      isFavorite: _readBool(json, ['isFavorite']),
+      displayOrder: _readInt(json, ['displayOrder']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (branchId != null) 'branchId': branchId,
       'name': name,
       'imageUrl': imageUrl,
       'rating': rating,
       'distance': distance,
       'deliveryTime': deliveryTime,
+      if (address != null) 'address': address,
+      if (isActive != null) 'isActive': isActive,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
       if (category != null) 'category': category,
       if (reviewsCount != null) 'reviewsCount': reviewsCount,
       if (promo != null) 'promo': promo,
@@ -101,6 +187,7 @@ class BranchMenuSectionModel {
 
 class BranchDetailModel {
   final String id;
+  final String? branchId;
   final String name;
   final String imageUrl;
   final double rating;
@@ -121,6 +208,7 @@ class BranchDetailModel {
 
   const BranchDetailModel({
     required this.id,
+    this.branchId,
     required this.name,
     required this.imageUrl,
     required this.rating,
@@ -140,24 +228,27 @@ class BranchDetailModel {
   });
 
   factory BranchDetailModel.fromJson(Map<String, dynamic> json) {
+    final resolvedId = _readString(json, ['id', 'branchId', 'branch_id']) ?? '';
     return BranchDetailModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      imageUrl: (json['imageUrl'] ?? json['image']) as String? ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      distance: json['distance'] as String? ?? '',
-      deliveryTime: (json['deliveryTime'] ?? json['time']) as String? ?? '',
-      category: json['category'] as String?,
-      reviewsCount: json['reviewsCount'] as int? ?? json['reviews'] as int?,
-      isFavorite: json['isFavorite'] as bool?,
-      likesCount: json['likesCount'] as int? ?? json['likes'] as int?,
-      address: json['address'] as String?,
-      description: json['description'] as String?,
-      latitude: (json['latitude'] as num?)?.toDouble() ??
-          (json['lat'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble() ??
-          (json['lng'] as num?)?.toDouble(),
-      isActive: json['isActive'] as bool?,
+      id: resolvedId,
+      branchId: _readString(json, ['branchId', 'branch_id']) ?? resolvedId,
+      name: _readString(json, ['name', 'branchName']) ?? '',
+      imageUrl:
+          _readString(json, ['imageUrl', 'image', 'thumbnail', 'coverImage']) ??
+              '',
+      rating: _readDouble(json, ['rating']) ?? 0.0,
+      distance: _readString(json, ['distance']) ?? '',
+      deliveryTime:
+          _readString(json, ['deliveryTime', 'time', 'delivery_time']) ?? '',
+      category: _readString(json, ['category']),
+      reviewsCount: _readInt(json, ['reviewsCount', 'reviews']),
+      isFavorite: _readBool(json, ['isFavorite']),
+      likesCount: _readInt(json, ['likesCount', 'likes']),
+      address: _readString(json, ['address', 'branchAddress']),
+      description: _readString(json, ['description']),
+      latitude: _readDouble(json, ['latitude', 'lat']),
+      longitude: _readDouble(json, ['longitude', 'lng']),
+      isActive: _readBool(json, ['isActive', 'active']),
       promos:
           (json['promos'] as List<dynamic>?)?.map((e) => e as String).toList(),
       menu: (json['menu'] as List<dynamic>?)
@@ -170,6 +261,7 @@ class BranchDetailModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (branchId != null) 'branchId': branchId,
       'name': name,
       'imageUrl': imageUrl,
       'rating': rating,

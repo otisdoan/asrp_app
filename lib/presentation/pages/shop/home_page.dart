@@ -10,6 +10,9 @@ import '../../widgets/shop/nearby_stores_section.dart';
 import '../../widgets/shop/all_stores_section.dart';
 
 import '../../../providers/cart_provider.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../providers/category_provider.dart';
+import '../../../providers/menu_provider.dart';
 import '../../../providers/shop_provider.dart';
 import 'cart_page.dart';
 import 'payment_page.dart';
@@ -45,7 +48,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       try {
         final position = await LocationService.getCurrentPosition();
         if (position != null) {
-          print('[Location] Auto: ${position.latitude}, ${position.longitude}');
+          // location obtained silently
         }
       } catch (_) {}
     } else {
@@ -127,18 +130,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                     // Save flag
                     const storage = FlutterSecureStorage();
                     await storage.write(key: 'location_asked', value: 'true');
-                    print('[Location] Đang lấy vị trí...');
                     try {
                       final position =
                           await LocationService.getCurrentPosition();
+                      // handle position if needed
                       if (position != null) {
-                        print(
-                            '[Location] ✅ Tọa độ: ${position.latitude}, ${position.longitude}');
-                      } else {
-                        print('[Location] ⚠️ Không lấy được vị trí');
+                        // position available
                       }
                     } catch (e) {
-                      print('[Location] ❌ Lỗi: $e');
+                      // ignore location errors
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -360,6 +360,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
+    ref.watch(
+        branchMenuItemsProvider); // TODO: Ngòi nổ test log Menu - Sẽ xóa khi ghép UI
+    ref.watch(
+        categoriesFutureProvider); // TODO: Ngòi nổ test log Categories - Sẽ xóa khi ghép UI
 
     return Listener(
       behavior: HitTestBehavior.translucent,

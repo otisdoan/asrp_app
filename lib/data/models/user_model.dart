@@ -37,12 +37,7 @@ class UserModel {
     final rawAvatarUrl = json['avatarUrl'];
     final rawAvatar = json['avatar'];
     final parsedAvatar = rawAvatarUrl ?? rawAvatar;
-    print(
-        '[Audit Avatar] UserModel.fromJson() avatarUrl backend = ${rawAvatarUrl?.toString()}');
-    print(
-        '[Audit Avatar] UserModel.fromJson() avatar fallback = ${rawAvatar?.toString()}');
-    print(
-        '[Audit Avatar] UserModel.fromJson() avatar đưa vào app = ${parsedAvatar?.toString()}');
+    // Removed avatar audit prints
     return UserModel(
       id: (json['id'] ?? json['_id'])?.toString() ?? '',
       username: json['username']?.toString() ?? '',

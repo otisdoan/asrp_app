@@ -69,7 +69,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     setState(() => _loading = true);
 
     try {
-      print('[Audit ChangePassword] Bắt đầu gọi API đổi mật khẩu...');
+      // Audit logs removed
       await ref.read(authRepositoryProvider).changePassword(
             currentPassword: _oldPasswordController.text,
             newPassword: _newPasswordController.text,
@@ -88,10 +88,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
 
       context.pop();
     } on DioException catch (e) {
-      print(
-          '[Audit ChangePassword] 🔴 DioException: StatusCode = ${e.response?.statusCode}');
-      print(
-          '[Audit ChangePassword] 🔴 Server Response Data: ${e.response?.data}');
+      // Removed detailed DioException audit logs
       if (!mounted) return;
       final serverMessage = e.response?.data is Map<String, dynamic>
           ? (e.response?.data['message']?.toString() ??
@@ -107,7 +104,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
       );
       setState(() => _loading = false);
     } catch (e) {
-      print('[Audit ChangePassword] 🔴 Lỗi không xác định: $e');
+      // Removed unknown error audit log
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đổi mật khẩu thất bại: $e')),

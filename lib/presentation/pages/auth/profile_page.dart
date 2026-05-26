@@ -435,9 +435,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final String initialChar = user.displayName.isNotEmpty
         ? user.displayName.trim().substring(0, 1).toUpperCase()
         : 'U';
-    print('[Audit Avatar] ProfilePage render - user.avatar = ${user.avatar}');
-    print(
-        '[Audit Avatar] ProfilePage render - sẽ ${user.avatar != null && user.avatar!.isNotEmpty ? 'hiển thị ảnh' : 'fallback chữ cái đầu'}');
+    // Audit prints removed
 
     return Container(
       width: double.infinity,
