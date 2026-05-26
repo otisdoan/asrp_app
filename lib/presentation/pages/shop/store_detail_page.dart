@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/favorite_shops_provider.dart';
 import '../../../data/models/branch_model.dart';
@@ -39,8 +40,9 @@ class StoreDetailPage extends ConsumerStatefulWidget {
 }
 
 class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
-  int _selectedCategoryIndex = 0;
-  bool _isCollapsed = false;
+  // ── Performance: use ValueNotifier so scroll NEVER calls setState ──
+  final ValueNotifier<int> _selectedCategoryNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<bool> _isCollapsedNotifier = ValueNotifier<bool>(false);
   bool _isTabTapping = false;
   late ScrollController _scrollController;
   late List<GlobalKey> _sectionKeys;
@@ -58,6 +60,11 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   final GlobalKey _highlightedItemKey = GlobalKey();
   String? _firstMatchingFoodName;
   BranchDetailModel? _lastResolvedDetail;
+
+  // ── Performance: cached computed values ──
+  List<dynamic>? _cachedMenuItems;
+  List<String>? _cachedCategories;
+  static final _priceRegExp = RegExp(r'(\d)(?=(\d{3})+(?!\d))');
 
   @override
   void initState() {
@@ -90,27 +97,36 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   }
 
   List<dynamic> get _currentMenuItems {
+    if (_cachedMenuItems != null) return _cachedMenuItems!;
     final detailVal = _lastResolvedDetail;
     if (detailVal != null) {
       final menu = detailVal.menu;
       if (menu != null && menu.isNotEmpty) {
         final dynamicSections = menu.map((e) => e.items).toList();
-        return [ _popularItems, ...dynamicSections ];
+        _cachedMenuItems = [ _popularItems, ...dynamicSections ];
+        return _cachedMenuItems!;
       }
     }
     return _menuItems;
   }
 
   List<String> get _currentCategories {
+    if (_cachedCategories != null) return _cachedCategories!;
     final detailVal = _lastResolvedDetail;
     if (detailVal != null) {
       final menu = detailVal.menu;
       if (menu != null && menu.isNotEmpty) {
         final dynamicCats = menu.map((e) => e.name).toList();
-        return [ 'Món phổ biến', ...dynamicCats ];
+        _cachedCategories = [ 'Món phổ biến', ...dynamicCats ];
+        return _cachedCategories!;
       }
     }
     return _menuCategories;
+  }
+
+  void _invalidateMenuCache() {
+    _cachedMenuItems = null;
+    _cachedCategories = null;
   }
 
   void _findFirstMatchingFood() {
@@ -152,10 +168,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
     if (targetCategoryIndex == -1) return;
 
-    // 2. Set the active tab state
-    setState(() {
-      _selectedCategoryIndex = targetCategoryIndex;
-    });
+    // 2. Set the active tab state (no setState needed)
+    _selectedCategoryNotifier.value = targetCategoryIndex;
 
     // 3. Scroll to the category header first
     final categoryKey = _sectionKeys[targetCategoryIndex];
@@ -194,35 +208,38 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
+    _selectedCategoryNotifier.dispose();
+    _isCollapsedNotifier.dispose();
     super.dispose();
   }
 
   void _onScroll() {
+    // Update notifier — NO setState, only the ValueListenableBuilder rebuilds
     final collapsed = _scrollController.offset > 140;
-    if (collapsed != _isCollapsed) {
-      setState(() => _isCollapsed = collapsed);
+    if (collapsed != _isCollapsedNotifier.value) {
+      _isCollapsedNotifier.value = collapsed;
     }
 
-    // Auto-highlight tab based on visible section
     if (_isTabTapping) return;
     _updateActiveTab();
   }
 
   void _updateActiveTab() {
+    int newIndex = _selectedCategoryNotifier.value;
     for (int i = _sectionKeys.length - 1; i >= 0; i--) {
-      if (i >= _sectionKeys.length) continue;
       final key = _sectionKeys[i];
       if (key.currentContext == null) continue;
       final box = key.currentContext!.findRenderObject() as RenderBox?;
       if (box == null) continue;
       final position = box.localToGlobal(Offset.zero);
-      // If the section title is at or above the tabs area (~kToolbarHeight + 48)
       if (position.dy <= kToolbarHeight + 100) {
-        if (_selectedCategoryIndex != i) {
-          setState(() => _selectedCategoryIndex = i);
-        }
-        return;
+        newIndex = i;
+        break;
       }
+    }
+    // Update notifier — NO setState, only the ValueListenableBuilder rebuilds
+    if (newIndex != _selectedCategoryNotifier.value) {
+      _selectedCategoryNotifier.value = newIndex;
     }
   }
 
@@ -234,9 +251,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       for (final item in items) {
         final String name = item is MenuItemModel ? item.name : (item['name'] as String);
         if (name.toLowerCase().contains(_searchQuery.toLowerCase())) {
-          setState(() {
-            _selectedCategoryIndex = i;
-          });
+          _selectedCategoryNotifier.value = i;
           return;
         }
       }
@@ -247,7 +262,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final key = _sectionKeys[index];
     if (key.currentContext == null) return;
     _isTabTapping = true;
-    setState(() => _selectedCategoryIndex = index);
+    _selectedCategoryNotifier.value = index;
     Scrollable.ensureVisible(
       key.currentContext!,
       duration: const Duration(milliseconds: 300),
@@ -342,48 +357,54 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       _sectionKeys.addAll(List.generate(categories.length, (_) => GlobalKey()));
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // ─── App Bar with image ─────────────────────────────
-          _buildSliverAppBar(context, detail),
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            // ─── App Bar with image ─────────────────────────────
+            _buildSliverAppBar(context, detail),
 
-          // ─── Store Info ─────────────────────────────────────
-          SliverToBoxAdapter(child: _buildStoreInfo(detail)),
+            // ─── Store Info ─────────────────────────────────────
+            SliverToBoxAdapter(child: _buildStoreInfo(detail)),
 
-          // ─── Delivery Info ──────────────────────────────────
-          SliverToBoxAdapter(child: _buildDeliveryInfo(detail)),
+            // ─── Delivery Info ──────────────────────────────────
+            SliverToBoxAdapter(child: _buildDeliveryInfo(detail)),
 
-          // ─── Promos ─────────────────────────────────────────
-          SliverToBoxAdapter(child: _buildPromos(detail)),
+            // ─── Promos ─────────────────────────────────────────
+            SliverToBoxAdapter(child: _buildPromos(detail)),
 
-          // ─── Popular Items ──────────────────────────────────
-          SliverToBoxAdapter(child: _buildPopularItems(detail)),
+            // ─── Popular Items ──────────────────────────────────
+            SliverToBoxAdapter(child: _buildPopularItems(detail)),
 
-          // Spacing
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            // Spacing
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-          // ─── Category Tabs ──────────────────────────────────
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _CategoryTabsDelegate(
-              categories: categories,
-              selectedIndex: _selectedCategoryIndex,
-              onSelected: _scrollToSection,
+            // ─── Category Tabs ──────────────────────────────────
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _CategoryTabsDelegate(
+                categories: categories,
+                selectedIndexNotifier: _selectedCategoryNotifier,
+                onSelected: _scrollToSection,
+              ),
             ),
-          ),
 
-          // ─── All Menu Items grouped by category ──────────
-          ..._buildAllMenuSections(categories, menuItems),
+            // ─── All Menu Items grouped by category ──────────
+            ..._buildAllMenuSections(categories, menuItems),
 
-          // Bottom spacing
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
-        ],
+            // Bottom spacing
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          ],
+        ),
+        // ─── Floating Cart Bar ─────────────────────────────────
+        bottomNavigationBar: _cartItemCount > 0 ? _buildCartBar() : null,
       ),
-      // ─── Floating Cart Bar ─────────────────────────────────
-      bottomNavigationBar: _cartItemCount > 0 ? _buildCartBar() : null,
     );
   }
 
@@ -393,7 +414,10 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       final detailAsync = ref.watch(branchDetailFutureProvider(widget.branchId!));
       return detailAsync.when(
         data: (detail) {
-          _lastResolvedDetail = detail;
+          if (_lastResolvedDetail != detail) {
+            _lastResolvedDetail = detail;
+            _invalidateMenuCache();
+          }
           return _buildMainScaffold(context, detail);
         },
         loading: () => _buildLoadingScaffold(context),
@@ -465,7 +489,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
   String _formatCartPrice(int price) {
     return price.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      _priceRegExp,
       (m) => '${m[1]}.',
     );
   }
@@ -509,8 +533,12 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       slivers.add(
         SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) => _buildMenuItem(items[index]),
+            (context, index) => RepaintBoundary(
+              child: _buildMenuItem(items[index]),
+            ),
             childCount: items.length,
+            addAutomaticKeepAlives: false,
+            addRepaintBoundaries: false, // We add RepaintBoundary manually above
           ),
         ),
       );
@@ -529,85 +557,117 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: (_isCollapsed || _isSearchActive)
-          ? Container(
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  const Icon(Icons.search, size: 18, color: Colors.white70),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.trim();
-                          _isSearchActive = _searchQuery.isNotEmpty;
-                          _findFirstMatchingFood();
-                        });
-                        if (_isSearchActive) {
-                          _activateTabForHighlightedItem();
-                          _scrollToHighlightedItem();
-                        }
-                      },
-                      onSubmitted: (value) {
+      // ── Title: only rebuilds when _isCollapsedNotifier changes ──
+      title: ValueListenableBuilder<bool>(
+        valueListenable: _isCollapsedNotifier,
+        builder: (context, isCollapsed, _) {
+          if (!(isCollapsed || _isSearchActive)) return const SizedBox.shrink();
+          return Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: isCollapsed
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: isCollapsed
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.search,
+                  size: 18,
+                  color: isCollapsed ? Colors.white70 : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim();
+                        _isSearchActive = _searchQuery.isNotEmpty;
+                        _findFirstMatchingFood();
+                      });
+                      if (_isSearchActive) {
+                        _activateTabForHighlightedItem();
                         _scrollToHighlightedItem();
-                      },
-                      style: const TextStyle(
+                      }
+                    },
+                    onSubmitted: (value) {
+                      _scrollToHighlightedItem();
+                    },
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isCollapsed ? Colors.white : AppColors.textPrimary,
+                    ),
+                    cursorColor: isCollapsed ? Colors.white : AppColors.primary,
+                    decoration: InputDecoration(
+                      filled: false,
+                      fillColor: Colors.transparent,
+                      hintText: 'Tìm món trong quán',
+                      hintStyle: TextStyle(
                         fontSize: 13,
-                        color: Colors.white,
+                        color: isCollapsed ? Colors.white70 : AppColors.textTertiary,
+                        fontWeight: FontWeight.w400,
                       ),
-                      cursorColor: Colors.white,
-                      decoration: const InputDecoration(
-                        filled: false,
-                        fillColor: Colors.transparent,
-                        hintText: 'Tìm món trong quán',
-                        hintStyle: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  if (_searchController.text.isNotEmpty) ...[
-                    GestureDetector(
-                      onTap: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                          _isSearchActive = false;
-                          _firstMatchingFoodName = null;
-                        });
-                      },
-                      child: const Icon(Icons.close, size: 18, color: Colors.white70),
+                ),
+                if (_searchController.text.isNotEmpty) ...[
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                        _isSearchActive = false;
+                        _firstMatchingFoodName = null;
+                      });
+                    },
+                    child: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: isCollapsed ? Colors.white70 : AppColors.textSecondary,
                     ),
-                    const SizedBox(width: 12),
-                  ],
+                  ),
+                  const SizedBox(width: 12),
                 ],
-              ),
-            )
-          : null,
+              ],
+            ),
+          );
+        },
+      ),
       actions: [
-        if (!_isCollapsed && !_isSearchActive)
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                _isSearchActive = true;
-              });
-            },
-          ),
+        // ── Search icon: only rebuilds when _isCollapsedNotifier changes ──
+        ValueListenableBuilder<bool>(
+          valueListenable: _isCollapsedNotifier,
+          builder: (context, isCollapsed, _) {
+            if (!isCollapsed && !_isSearchActive) {
+              return IconButton(
+                icon: const Icon(Icons.search, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _isSearchActive = true;
+                  });
+                },
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         Consumer(
           builder: (context, ref, child) {
             final favorites = ref.watch(favoriteShopsProvider);
@@ -642,10 +702,16 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
           color: AppColors.bgWarm,
           child: (detail != null && detail.imageUrl.isNotEmpty)
               ? (detail.imageUrl.startsWith('http')
-                  ? Image.network(
-                      detail.imageUrl,
+                  ? CachedNetworkImage(
+                      imageUrl: detail.imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+                      placeholder: (_, __) => const Center(
+                        child: SizedBox(
+                          width: 24, height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
                     )
                   : Image.asset(
                       detail.imageUrl,
@@ -988,7 +1054,12 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                     color: AppColors.bgWarm,
                     child: (imageUrl != null && imageUrl.isNotEmpty)
                         ? (imageUrl.startsWith('http')
-                            ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary))
+                            ? CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => Icon(icon, size: 32, color: AppColors.textTertiary),
+                                errorWidget: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary),
+                              )
                             : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary)))
                         : Icon(icon, size: 32, color: AppColors.textTertiary),
                   ),
@@ -1114,7 +1185,12 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                 borderRadius: BorderRadius.circular(8),
                 child: (imageUrl != null && imageUrl.isNotEmpty)
                     ? (imageUrl.startsWith('http')
-                        ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary))
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => Icon(icon, size: 28, color: AppColors.textTertiary),
+                            errorWidget: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary),
+                          )
                         : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary)))
                     : Icon(icon, size: 28, color: AppColors.textTertiary),
               ),
@@ -1182,14 +1258,16 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 }
 
 // ─── Category Tabs Persistent Header Delegate ──────────────────────────────
+// Uses ValueNotifier + ValueListenableBuilder so tab highlight changes
+// NEVER trigger a parent setState / full page rebuild.
 class _CategoryTabsDelegate extends SliverPersistentHeaderDelegate {
   final List<String> categories;
-  final int selectedIndex;
+  final ValueNotifier<int> selectedIndexNotifier;
   final ValueChanged<int> onSelected;
 
   _CategoryTabsDelegate({
     required this.categories,
-    required this.selectedIndex,
+    required this.selectedIndexNotifier,
     required this.onSelected,
   });
 
@@ -1201,51 +1279,58 @@ class _CategoryTabsDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.background,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 20),
-              itemBuilder: (_, index) {
-                final isSelected = index == selectedIndex;
-                return GestureDetector(
-                  onTap: () => onSelected(index),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        categories[index],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                        ),
+    return ValueListenableBuilder<int>(
+      valueListenable: selectedIndexNotifier,
+      builder: (context, selectedIndex, _) {
+        return Container(
+          color: AppColors.background,
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: categories.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 20),
+                  itemBuilder: (_, index) {
+                    final isSelected = index == selectedIndex;
+                    return GestureDetector(
+                      onTap: () => onSelected(index),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            categories[index],
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            height: 2,
+                            width: 30,
+                            color: isSelected ? AppColors.primary : Colors.transparent,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: 2,
-                        width: 30,
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.outlineVariant),
+            ],
           ),
-          const Divider(height: 1, color: AppColors.outlineVariant),
-        ],
-      ),
+        );
+      },
     );
   }
 
   @override
   bool shouldRebuild(covariant _CategoryTabsDelegate oldDelegate) {
-    return oldDelegate.selectedIndex != selectedIndex;
+    // Only rebuild when categories list changes — NOT for index changes
+    // (index changes are handled internally by ValueListenableBuilder)
+    return oldDelegate.categories != categories;
   }
 }
