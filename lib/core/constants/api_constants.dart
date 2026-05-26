@@ -4,10 +4,10 @@ class ApiConstants {
   static const String baseUrl = 'http://api.asrp.io.vn/api'; // Change for production
 
   // Auth
-  static const String login = '/auth/login';
-  static const String register = '/auth/register';
-  static const String logout = '/auth/logout';
-  static const String refresh = '/auth/refresh';
+  static const String login = '/auth/app/login';
+  static const String register = '/auth/app/register';
+  static const String logout = '/auth/app/logout';
+  static const String refresh = '/auth/app/refresh';
   static const String me = '/auth/me';
   static const String otpSend = '/auth/otp/send';
   static const String otpVerify = '/auth/otp/verify';
