@@ -15,25 +15,37 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late ScrollController _scrollController;
-  late ValueNotifier<double> _scrollOffsetNotifier;
+  late ValueNotifier<double> _appBarOpacityNotifier;
 
   @override
   void initState() {
     super.initState();
-    _scrollOffsetNotifier = ValueNotifier<double>(0.0);
+    _appBarOpacityNotifier = ValueNotifier<double>(0.0);
     _scrollController = ScrollController()..addListener(_onScroll);
   }
 
   void _onScroll() {
     if (_scrollController.hasClients) {
-      _scrollOffsetNotifier.value = _scrollController.offset;
+      final double offset = _scrollController.offset;
+      const double scrollThresholdStart = 40.0;
+      const double scrollThresholdEnd = 120.0;
+      
+      double opacity = 0.0;
+      if (offset > scrollThresholdStart) {
+        opacity = ((offset - scrollThresholdStart) / (scrollThresholdEnd - scrollThresholdStart)).clamp(0.0, 1.0);
+      }
+
+      // Only update when the calculated opacity actually changes
+      if (_appBarOpacityNotifier.value != opacity) {
+        _appBarOpacityNotifier.value = opacity;
+      }
     }
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _scrollOffsetNotifier.dispose();
+    _appBarOpacityNotifier.dispose();
     super.dispose();
   }
 
@@ -98,7 +110,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
 
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    final Color iconColor = Colors.white;
+    const Color iconColor = Colors.white;
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
@@ -286,15 +298,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             left: 0,
             right: 0,
             child: ValueListenableBuilder<double>(
-              valueListenable: _scrollOffsetNotifier,
-              builder: (context, scrollOffset, child) {
-                final double scrollThresholdStart = 40.0;
-                final double scrollThresholdEnd = 120.0;
-                double opacity = 0.0;
-                if (scrollOffset > scrollThresholdStart) {
-                  opacity = ((scrollOffset - scrollThresholdStart) / (scrollThresholdEnd - scrollThresholdStart)).clamp(0.0, 1.0);
-                }
-
+              valueListenable: _appBarOpacityNotifier,
+              builder: (context, opacity, child) {
                 Widget titleWidget;
                 if (opacity < 0.5) {
                   final double textOpacity = (1.0 - (opacity * 2)).clamp(0.0, 1.0);
@@ -337,7 +342,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     children: [
                       const SizedBox(width: 4),
                       IconButton(
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 20),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 20),
                         onPressed: () => context.pop(),
                       ),
                       Expanded(
