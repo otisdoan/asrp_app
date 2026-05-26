@@ -177,6 +177,38 @@ class BranchDetailModel {
   });
 
   factory BranchDetailModel.fromJson(Map<String, dynamic> json) {
+    final List<dynamic>? rawMenu = json['menu'] as List<dynamic>?;
+    List<BranchMenuSectionModel>? groupedMenu;
+
+    if (rawMenu != null) {
+      final Map<String, List<MenuItemModel>> categoryGroups = {};
+      
+      for (final item in rawMenu) {
+        if (item is Map<String, dynamic>) {
+          if (item['items'] is List && item['name'] != null) {
+            groupedMenu ??= [];
+            groupedMenu.add(BranchMenuSectionModel.fromJson(item));
+            continue;
+          }
+          
+          final menuItem = MenuItemModel.fromJson(item);
+          final categoryName = item['categoryName'] as String? ?? item['category'] as String? ?? 'Khác';
+          
+          categoryGroups.putIfAbsent(categoryName, () => []).add(menuItem);
+        }
+      }
+      
+      if (categoryGroups.isNotEmpty) {
+        groupedMenu ??= [];
+        categoryGroups.forEach((catName, items) {
+          groupedMenu!.add(BranchMenuSectionModel(
+            name: catName,
+            items: items,
+          ));
+        });
+      }
+    }
+
     return BranchDetailModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -197,10 +229,7 @@ class BranchDetailModel {
       isActive: json['isActive'] as bool?,
       promos:
           (json['promos'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      menu: (json['menu'] as List<dynamic>?)
-          ?.map(
-              (e) => BranchMenuSectionModel.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      menu: groupedMenu,
     );
   }
 

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../data/models/branch_model.dart';
+import '../../../data/models/menu_item_model.dart';
+import '../../../providers/branch_provider.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
 
 /// Store Detail Page — shows store info, promos, popular items, and full menu.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class StoreDetailPage extends StatefulWidget {
+class StoreDetailPage extends ConsumerStatefulWidget {
   final String storeName;
   final String category;
   final double rating;
@@ -16,6 +19,7 @@ class StoreDetailPage extends StatefulWidget {
   final String distance;
   final IconData icon;
   final String? highlightFoodName;
+  final String? branchId;
 
   const StoreDetailPage({
     super.key,
@@ -27,13 +31,14 @@ class StoreDetailPage extends StatefulWidget {
     required this.distance,
     required this.icon,
     this.highlightFoodName,
+    this.branchId,
   });
 
   @override
-  State<StoreDetailPage> createState() => _StoreDetailPageState();
+  ConsumerState<StoreDetailPage> createState() => _StoreDetailPageState();
 }
 
-class _StoreDetailPageState extends State<StoreDetailPage> {
+class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   int _selectedCategoryIndex = 0;
   bool _isCollapsed = false;
   bool _isTabTapping = false;
@@ -52,6 +57,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   // Highlight key for auto-scrolling
   final GlobalKey _highlightedItemKey = GlobalKey();
   String? _firstMatchingFoodName;
+  BranchDetailModel? _lastResolvedDetail;
 
   @override
   void initState() {
@@ -83,16 +89,42 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     }
   }
 
+  List<dynamic> get _currentMenuItems {
+    final detailVal = _lastResolvedDetail;
+    if (detailVal != null) {
+      final menu = detailVal.menu;
+      if (menu != null && menu.isNotEmpty) {
+        final dynamicSections = menu.map((e) => e.items).toList();
+        return [ _popularItems, ...dynamicSections ];
+      }
+    }
+    return _menuItems;
+  }
+
+  List<String> get _currentCategories {
+    final detailVal = _lastResolvedDetail;
+    if (detailVal != null) {
+      final menu = detailVal.menu;
+      if (menu != null && menu.isNotEmpty) {
+        final dynamicCats = menu.map((e) => e.name).toList();
+        return [ 'Món phổ biến', ...dynamicCats ];
+      }
+    }
+    return _menuCategories;
+  }
+
   void _findFirstMatchingFood() {
     if (_searchQuery.isEmpty) {
       _firstMatchingFoodName = null;
       return;
     }
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
+    final itemsList = _currentMenuItems;
+    for (int i = 0; i < itemsList.length; i++) {
+      final items = itemsList[i] as List<dynamic>;
       for (final item in items) {
-        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
-          _firstMatchingFoodName = item['name'] as String;
+        final String name = item is MenuItemModel ? item.name : (item['name'] as String);
+        if (name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+          _firstMatchingFoodName = name;
           return;
         }
       }
@@ -103,12 +135,14 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   void _scrollToHighlightedItem() {
     if (_searchQuery.isEmpty || _firstMatchingFoodName == null) return;
 
+    final itemsList = _currentMenuItems;
     // 1. Find which category contains the matching product
     int targetCategoryIndex = -1;
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
+    for (int i = 0; i < itemsList.length; i++) {
+      final items = itemsList[i] as List<dynamic>;
       for (final item in items) {
-        if (item['name'].toString() == _firstMatchingFoodName) {
+        final String name = item is MenuItemModel ? item.name : (item['name'] as String);
+        if (name == _firstMatchingFoodName) {
           targetCategoryIndex = i;
           break;
         }
@@ -176,6 +210,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
   void _updateActiveTab() {
     for (int i = _sectionKeys.length - 1; i >= 0; i--) {
+      if (i >= _sectionKeys.length) continue;
       final key = _sectionKeys[i];
       if (key.currentContext == null) continue;
       final box = key.currentContext!.findRenderObject() as RenderBox?;
@@ -193,10 +228,12 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
   void _activateTabForHighlightedItem() {
     if (_searchQuery.isEmpty) return;
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
+    final itemsList = _currentMenuItems;
+    for (int i = 0; i < itemsList.length; i++) {
+      final items = itemsList[i] as List<dynamic>;
       for (final item in items) {
-        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
+        final String name = item is MenuItemModel ? item.name : (item['name'] as String);
+        if (name.toLowerCase().contains(_searchQuery.toLowerCase())) {
           setState(() {
             _selectedCategoryIndex = i;
           });
@@ -284,27 +321,46 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     {'name': 'Gà sốt cay', 'sold': '150+', 'price': '55.000đ', 'icon': Icons.local_fire_department},
   ];
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildLoadingScaffold(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: CircularProgressIndicator(
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainScaffold(BuildContext context, BranchDetailModel? detail) {
+    final categories = _currentCategories;
+    final menuItems = _currentMenuItems;
+
+    // Check key initialization
+    if (_sectionKeys.length != categories.length) {
+      _sectionKeys.clear();
+      _sectionKeys.addAll(List.generate(categories.length, (_) => GlobalKey()));
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
           // ─── App Bar with image ─────────────────────────────
-          _buildSliverAppBar(context),
+          _buildSliverAppBar(context, detail),
 
           // ─── Store Info ─────────────────────────────────────
-          SliverToBoxAdapter(child: _buildStoreInfo()),
+          SliverToBoxAdapter(child: _buildStoreInfo(detail)),
 
           // ─── Delivery Info ──────────────────────────────────
-          SliverToBoxAdapter(child: _buildDeliveryInfo()),
+          SliverToBoxAdapter(child: _buildDeliveryInfo(detail)),
 
           // ─── Promos ─────────────────────────────────────────
-          SliverToBoxAdapter(child: _buildPromos()),
+          SliverToBoxAdapter(child: _buildPromos(detail)),
 
           // ─── Popular Items ──────────────────────────────────
-          SliverToBoxAdapter(child: _buildPopularItems()),
+          SliverToBoxAdapter(child: _buildPopularItems(detail)),
 
           // Spacing
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -313,14 +369,14 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
           SliverPersistentHeader(
             pinned: true,
             delegate: _CategoryTabsDelegate(
-              categories: _menuCategories,
+              categories: categories,
               selectedIndex: _selectedCategoryIndex,
               onSelected: _scrollToSection,
             ),
           ),
 
           // ─── All Menu Items grouped by category ──────────
-          ..._buildAllMenuSections(),
+          ..._buildAllMenuSections(categories, menuItems),
 
           // Bottom spacing
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
@@ -329,6 +385,25 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
       // ─── Floating Cart Bar ─────────────────────────────────
       bottomNavigationBar: _cartItemCount > 0 ? _buildCartBar() : null,
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.branchId != null && widget.branchId!.isNotEmpty) {
+      final detailAsync = ref.watch(branchDetailFutureProvider(widget.branchId!));
+      return detailAsync.when(
+        data: (detail) {
+          _lastResolvedDetail = detail;
+          return _buildMainScaffold(context, detail);
+        },
+        loading: () => _buildLoadingScaffold(context),
+        error: (err, stack) {
+          print('[StoreDetailPage] Error loading branch: $err');
+          return _buildMainScaffold(context, null);
+        },
+      );
+    }
+    return _buildMainScaffold(context, null);
   }
 
   // ─── Cart Bar ──────────────────────────────────────────────────────────
@@ -405,12 +480,12 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Build all menu sections (category title + items) ───────────────────
-  List<Widget> _buildAllMenuSections() {
+  List<Widget> _buildAllMenuSections(List<String> categories, List<dynamic> menuSections) {
     final List<Widget> slivers = [];
 
-    for (int i = 0; i < _menuCategories.length; i++) {
-      final category = _menuCategories[i];
-      final items = _menuItems[i];
+    for (int i = 0; i < categories.length; i++) {
+      final category = categories[i];
+      final items = menuSections[i] as List<dynamic>;
 
       // Category title
       slivers.add(
@@ -445,7 +520,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Sliver App Bar ──────────────────────────────────────────────────────
-  Widget _buildSliverAppBar(BuildContext context) {
+  Widget _buildSliverAppBar(BuildContext context, BranchDetailModel? detail) {
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,
@@ -548,8 +623,8 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                   SnackBar(
                     content: Text(
                       isFav
-                          ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
-                          : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
+                        ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
+                        : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
                     ),
                     duration: const Duration(seconds: 1),
                     behavior: SnackBarBehavior.floating,
@@ -565,7 +640,19 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           color: AppColors.bgWarm,
-          child: Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+          child: (detail != null && detail.imageUrl.isNotEmpty)
+              ? (detail.imageUrl.startsWith('http')
+                  ? Image.network(
+                      detail.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+                    )
+                  : Image.asset(
+                      detail.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+                    ))
+              : Icon(widget.icon, size: 80, color: AppColors.textTertiary),
         ),
       ),
     );
@@ -573,7 +660,12 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
 
   // ─── Store Info Section ──────────────────────────────────────────────────
-  Widget _buildStoreInfo() {
+  Widget _buildStoreInfo(BranchDetailModel? detail) {
+    final name = detail?.name ?? widget.storeName;
+    final rating = detail?.rating ?? widget.rating;
+    final reviews = detail?.reviewsCount ?? widget.reviews;
+    final deliveryTime = (detail?.deliveryTime != null && detail!.deliveryTime.isNotEmpty) ? detail.deliveryTime : widget.deliveryTime;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Column(
@@ -602,7 +694,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               // Store name
               Expanded(
                 child: Text(
-                  widget.storeName,
+                  name,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -619,9 +711,9 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             children: [
               // Stars (compact)
               ...List.generate(5, (i) {
-                if (i < widget.rating.floor()) {
+                if (i < rating.floor()) {
                   return const Icon(Icons.star, size: 14, color: AppColors.star);
-                } else if (i < widget.rating) {
+                } else if (i < rating) {
                   return const Icon(Icons.star_half, size: 14, color: AppColors.star);
                 }
                 return const Icon(Icons.star_border, size: 14, color: AppColors.star);
@@ -630,7 +722,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               // Rating + reviews (flexible to prevent overflow)
               Flexible(
                 child: Text(
-                  '${widget.rating} (${widget.reviews}+ Bình luận) >',
+                  '$rating ($reviews+ Bình luận) >',
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -643,23 +735,23 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               const Icon(Icons.access_time, size: 13, color: AppColors.textSecondary),
               const SizedBox(width: 3),
               Text(
-                widget.deliveryTime,
+                deliveryTime,
                 style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(width: 12),
               // Favorite
               Consumer(
                 builder: (context, ref, child) {
-                  final isFav = ref.watch(favoriteShopsProvider).contains(widget.storeName);
+                  final isFav = ref.watch(favoriteShopsProvider).contains(name);
                   return GestureDetector(
                     onTap: () {
-                      ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
+                      ref.read(favoriteShopsProvider.notifier).toggleFavorite(name);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             isFav
-                                ? 'Đã xóa "${widget.storeName}" khỏi yêu thích'
-                                : 'Đã thêm "${widget.storeName}" vào yêu thích',
+                                ? 'Đã xóa "$name" khỏi yêu thích'
+                                : 'Đã thêm "$name" vào yêu thích',
                           ),
                           duration: const Duration(seconds: 1),
                           behavior: SnackBarBehavior.floating,
@@ -683,7 +775,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Delivery Info Section ──────────────────────────────────────────────
-  Widget _buildDeliveryInfo() {
+  Widget _buildDeliveryInfo(BranchDetailModel? detail) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
@@ -723,33 +815,53 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             ],
           ),
           const SizedBox(height: 10),
-          // Promo row
-          Row(
-            children: [
-              const Icon(Icons.local_offer, size: 18, color: AppColors.accent),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Ưu đãi dành cho bạn',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          // Address row
+          if (detail != null && detail.address != null && detail.address!.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 18, color: AppColors.accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    detail.address!,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: const Text(
-                  'Xem thêm >',
-                  style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+              ],
+            ),
+          ] else ...[
+            Row(
+              children: [
+                const Icon(Icons.local_offer, size: 18, color: AppColors.accent),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Ưu đãi dành cho bạn',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                GestureDetector(
+                  onTap: () {},
+                  child: const Text(
+                    'Xem thêm >',
+                    style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
   // ─── Promos Section ─────────────────────────────────────────────────────
-  Widget _buildPromos() {
+  Widget _buildPromos(BranchDetailModel? detail) {
+    final promos = detail != null ? (detail.promos ?? []) : _promos;
+    if (promos.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: SizedBox(
@@ -757,7 +869,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _promos.length,
+          itemCount: promos.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (_, index) {
             return Container(
@@ -771,7 +883,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _promos[index],
+                    promos[index],
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -790,7 +902,9 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Popular Items Section ──────────────────────────────────────────────
-  Widget _buildPopularItems() {
+  Widget _buildPopularItems(BranchDetailModel? detail) {
+    const popularItemsList = _popularItems;
+
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Column(
@@ -813,10 +927,10 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _popularItems.length,
+              itemCount: popularItemsList.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, index) {
-                final item = _popularItems[index];
+                final item = popularItemsList[index];
                 return _buildPopularItemCard(item);
               },
             ),
@@ -826,16 +940,24 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     );
   }
 
-  Widget _buildPopularItemCard(Map<String, dynamic> item) {
+  Widget _buildPopularItemCard(dynamic item) {
+    final String name = item is MenuItemModel ? item.name : (item['name'] as String);
+    final String priceStr = item is MenuItemModel ? item.price : (item['price'] as String);
+    final String price = _formatPriceString(priceStr);
+    final String sold = item is MenuItemModel ? '${item.soldCount ?? 0}+' : (item['sold'] as String);
+    final String? imageUrl = item is MenuItemModel ? item.imageUrl : null;
+    final IconData icon = item is MenuItemModel ? Icons.restaurant : (item['icon'] as IconData);
+
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
-            name: item['name'] as String,
-            price: item['price'] as String,
-            sold: item['sold'] as String,
+            name: name,
+            price: price,
+            sold: sold,
             likes: 0,
-            icon: item['icon'] as IconData,
+            icon: icon,
+            imageUrl: imageUrl,
           ),
         ));
         _handleCartResult(result);
@@ -864,27 +986,31 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                     height: 80,
                     width: double.infinity,
                     color: AppColors.bgWarm,
-                    child: Icon(item['icon'] as IconData, size: 32, color: AppColors.textTertiary),
+                    child: (imageUrl != null && imageUrl.isNotEmpty)
+                        ? (imageUrl.startsWith('http')
+                            ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary))
+                            : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary)))
+                        : Icon(icon, size: 32, color: AppColors.textTertiary),
                   ),
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${item['sold']} đã bán',
-                      style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$sold đã bán',
+                        style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Info
+            // Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
@@ -892,7 +1018,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['name'] as String,
+                      name,
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -902,7 +1028,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          item['price'] as String,
+                          price,
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
                         ),
                         Container(
@@ -927,19 +1053,38 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Menu Item Card ─────────────────────────────────────────────────────
-  Widget _buildMenuItem(Map<String, dynamic> item) {
+  String _formatPriceString(String priceStr) {
+    if (priceStr.isEmpty) return '0đ';
+    final parsedDouble = double.tryParse(priceStr);
+    if (parsedDouble != null) {
+      final intPrice = parsedDouble.toInt();
+      return '${_formatCartPrice(intPrice)}đ';
+    }
+    return priceStr;
+  }
+
+  Widget _buildMenuItem(dynamic item) {
+    final String name = item is MenuItemModel ? item.name : (item['name'] as String);
+    final String priceStr = item is MenuItemModel ? item.price : (item['price'] as String);
+    final String price = _formatPriceString(priceStr);
+    final String sold = item is MenuItemModel ? '${item.soldCount ?? 0}+' : (item['sold'] as String);
+    final int likes = item is MenuItemModel ? (item.likesCount ?? 0) : (item['likes'] as int? ?? 0);
+    final String? imageUrl = item is MenuItemModel ? item.imageUrl : null;
+    final IconData icon = item is MenuItemModel ? Icons.restaurant : (item['icon'] as IconData);
+
     final isHighlighted = _firstMatchingFoodName != null &&
-        item['name'].toString().toLowerCase() == _firstMatchingFoodName!.toLowerCase();
+        name.toLowerCase() == _firstMatchingFoodName!.toLowerCase();
 
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
-            name: item['name'] as String,
-            price: item['price'] as String,
-            sold: item['sold'] as String,
-            likes: item['likes'] as int,
-            icon: item['icon'] as IconData,
+            name: name,
+            price: price,
+            sold: sold,
+            likes: likes,
+            icon: icon,
+            imageUrl: imageUrl,
           ),
         ));
         _handleCartResult(result);
@@ -965,7 +1110,14 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 color: AppColors.bgWarm,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(item['icon'] as IconData, size: 28, color: AppColors.textTertiary),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: (imageUrl != null && imageUrl.isNotEmpty)
+                    ? (imageUrl.startsWith('http')
+                        ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary))
+                        : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary)))
+                    : Icon(icon, size: 28, color: AppColors.textTertiary),
+              ),
             ),
             const SizedBox(width: 12),
             // Info
@@ -974,7 +1126,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['name'] as String,
+                    name,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -987,19 +1139,19 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                   Row(
                     children: [
                       Text(
-                        '${item['sold']} đã bán',
+                        '$sold đã bán',
                         style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${item['likes']} lượt thích',
+                        '$likes lượt thích',
                         style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    item['price'] as String,
+                    price,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

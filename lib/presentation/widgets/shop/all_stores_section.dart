@@ -188,6 +188,7 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
               promo: store.promo ?? '',
               image: store.imageUrl,
               icon: Icons.restaurant,
+              branchId: store.id,
             );
           },
         ),
@@ -264,6 +265,7 @@ class _AllStoreCard extends StatelessWidget {
   final String promo;
   final String image;
   final IconData icon;
+  final String? branchId;
 
   const _AllStoreCard({
     required this.name,
@@ -275,6 +277,7 @@ class _AllStoreCard extends StatelessWidget {
     required this.promo,
     required this.image,
     required this.icon,
+    this.branchId,
   });
 
   @override
@@ -290,6 +293,7 @@ class _AllStoreCard extends StatelessWidget {
             deliveryTime: time,
             distance: distance,
             icon: icon,
+            branchId: branchId,
           ),
         ));
       },

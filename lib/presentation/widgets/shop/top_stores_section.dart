@@ -182,6 +182,7 @@ class TopStoresSection extends ConsumerWidget {
                 discount: branch.discount ?? '',
                 image: branch.imageUrl,
                 adLabel: branch.adLabel ?? '',
+                branchId: branch.id,
               );
             },
           ),
@@ -201,6 +202,7 @@ class _StoreCard extends StatelessWidget {
   final String discount;
   final String image;
   final String adLabel;
+  final String? branchId;
 
   const _StoreCard({
     required this.name,
@@ -212,6 +214,7 @@ class _StoreCard extends StatelessWidget {
     required this.discount,
     required this.image,
     required this.adLabel,
+    this.branchId,
   });
 
   @override
@@ -227,6 +230,7 @@ class _StoreCard extends StatelessWidget {
             deliveryTime: time,
             distance: distance,
             icon: Icons.store,
+            branchId: branchId,
           ),
         ));
       },

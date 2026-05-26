@@ -12,4 +12,9 @@ final branchesFutureProvider = FutureProvider<List<BranchListItemModel>>((ref) a
   return repository.getBranches();
 });
 
+final branchDetailFutureProvider = FutureProvider.family<BranchDetailModel, String>((ref, id) async {
+  final repository = ref.watch(branchRepositoryProvider);
+  return repository.getBranchDetail(id);
+});
+
 final userLocationProvider = StateProvider<Position?>((ref) => null);

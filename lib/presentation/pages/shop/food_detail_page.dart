@@ -10,6 +10,7 @@ class FoodDetailPage extends StatelessWidget {
   final String sold;
   final int likes;
   final IconData icon;
+  final String? imageUrl;
 
   const FoodDetailPage({
     super.key,
@@ -18,6 +19,7 @@ class FoodDetailPage extends StatelessWidget {
     required this.sold,
     required this.likes,
     required this.icon,
+    this.imageUrl,
   });
 
   // Mock description
@@ -141,7 +143,19 @@ class FoodDetailPage extends StatelessWidget {
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           color: AppColors.bgWarm,
-          child: Icon(icon, size: 100, color: AppColors.textTertiary),
+          child: (imageUrl != null && imageUrl!.isNotEmpty)
+              ? (imageUrl!.startsWith('http')
+                  ? Image.network(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(icon, size: 100, color: AppColors.textTertiary),
+                    )
+                  : Image.asset(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(icon, size: 100, color: AppColors.textTertiary),
+                    ))
+              : Icon(icon, size: 100, color: AppColors.textTertiary),
         ),
       ),
     );

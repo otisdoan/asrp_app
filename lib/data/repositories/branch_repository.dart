@@ -29,4 +29,19 @@ class BranchRepository {
         .map((item) => BranchListItemModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
+
+  /// Lấy chi tiết chi nhánh từ Backend (GET /api/branches/{id}).
+  Future<BranchDetailModel> getBranchDetail(String id) async {
+    final response = await _dioClient.dio.get(ApiConstants.branchDetail(id));
+    print('[BranchRepository] Detail Response status: ${response.statusCode}');
+
+    final rawData = response.data;
+    if (rawData is Map<String, dynamic>) {
+      if (rawData['data'] is Map<String, dynamic>) {
+        return BranchDetailModel.fromJson(rawData['data'] as Map<String, dynamic>);
+      }
+      return BranchDetailModel.fromJson(rawData);
+    }
+    throw Exception('Invalid response structure for branch detail');
+  }
 }

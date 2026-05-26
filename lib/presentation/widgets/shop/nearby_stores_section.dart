@@ -163,6 +163,7 @@ class NearbyStoresSection extends ConsumerWidget {
                 time: displayTime,
                 promo: displayPromo,
                 image: branch.imageUrl,
+                branchId: branch.id,
               );
             },
           ),
@@ -179,6 +180,7 @@ class _NearbyStoreCard extends StatelessWidget {
   final String time;
   final String promo;
   final String image;
+  final String? branchId;
 
   const _NearbyStoreCard({
     required this.name,
@@ -187,6 +189,7 @@ class _NearbyStoreCard extends StatelessWidget {
     required this.time,
     required this.promo,
     required this.image,
+    this.branchId,
   });
 
   @override
@@ -202,6 +205,7 @@ class _NearbyStoreCard extends StatelessWidget {
             deliveryTime: time,
             distance: distance,
             icon: Icons.store,
+            branchId: branchId,
           ),
         ));
       },
