@@ -1,12 +1,154 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/branch_model.dart';
+import '../../../data/models/menu_item_model.dart';
+import '../../../providers/branches/branch_provider.dart';
+
+final _topSoldDealsProvider = FutureProvider<List<_DealItem>>((ref) async {
+  final branches = await ref.watch(branchListProvider.future);
+  final repository = ref.read(branchRepositoryProvider);
+
+  final branchDetails = await Future.wait(
+    branches.map((branch) async {
+      try {
+        return await repository.getBranchDetail(branch.id);
+      } catch (_) {
+        return null;
+      }
+    }),
+  );
+
+  final deals = <_DealItem>[];
+  for (final branch in branchDetails.whereType<BranchDetailModel>()) {
+    for (final section in branch.menu ?? const <BranchMenuSectionModel>[]) {
+      for (final item in section.items) {
+        deals.add(_DealItem.fromMenuItem(branch.name, item));
+      }
+    }
+  }
+
+  deals.sort((a, b) => b.soldCount.compareTo(a.soldCount));
+  return deals.take(3).toList();
+});
+
+class _DealItem {
+  final String shopName;
+  final String menuItemName;
+  final String price;
+  final String oldPrice;
+  final String discount;
+  final String imagePath;
+  final int soldCount;
+
+  const _DealItem({
+    required this.shopName,
+    required this.menuItemName,
+    required this.price,
+    required this.oldPrice,
+    required this.discount,
+    required this.imagePath,
+    required this.soldCount,
+  });
+
+  factory _DealItem.fromMenuItem(String shopName, MenuItemModel item) {
+    final price = _safeString(item.price);
+
+    return _DealItem(
+      shopName: _safeString(shopName),
+      menuItemName: _safeString(item.name),
+      price: _formatPrice(price),
+      oldPrice: _oldPriceFromDiscount(price, item.badge?.label),
+      discount: _normalizeDiscount(item.badge?.label),
+      imagePath: _safeString(item.imageUrl),
+      soldCount: item.soldCount ?? 0,
+    );
+  }
+}
+
+String _safeString(Object? value) => value?.toString() ?? '';
+
+String _normalizeDiscount(String? value) {
+  final label = value?.trim() ?? '';
+  if (label.isEmpty) return '';
+
+  final percentMatch = RegExp(r'(\d+(?:[.,]\d+)?)%').firstMatch(label);
+  if (percentMatch != null) {
+    return '-${percentMatch.group(1)!.replaceAll(',', '.')}%';
+  }
+
+  return label;
+}
+
+String _oldPriceFromDiscount(String price, String? discountLabel) {
+  final percentMatch = RegExp(r'(\d+(?:[.,]\d+)?)%').firstMatch(
+    discountLabel ?? '',
+  );
+  if (percentMatch == null) return '';
+
+  final percent = double.tryParse(
+    percentMatch.group(1)!.replaceAll(',', '.'),
+  );
+  final currentPrice = _priceAmount(price);
+  if (percent == null || percent <= 0 || percent >= 100 || currentPrice <= 0) {
+    return '';
+  }
+
+  final oldPrice = currentPrice / (1 - percent / 100);
+  return _formatPrice(oldPrice.round().toString());
+}
+
+int _priceAmount(String value) {
+  return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+}
+
+String _formatPrice(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return '';
+  if (trimmed.contains('đ')) return trimmed;
+
+  final amount = int.tryParse(trimmed.replaceAll(RegExp(r'[^0-9]'), ''));
+  if (amount == null) return trimmed;
+
+  final formatted = amount.toString().replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match[1]}.',
+      );
+  return '${formatted}đ';
+}
 
 /// Section "Trùm Deal Ngon" — grid layout: 1 large left card + 2 small right cards.
 /// Matches the ShopeeFood-style design reference.
-class DealsSection extends StatelessWidget {
+class DealsSection extends ConsumerWidget {
   final Function(String) onItemTap;
 
   const DealsSection({super.key, required this.onItemTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topDeals = ref.watch(_topSoldDealsProvider);
+
+    return topDeals.when(
+      data: (deals) {
+        if (deals.length < 3) {
+          return const SizedBox.shrink();
+        }
+        return _DealsContent(deals: deals, onItemTap: onItemTap);
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, st) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _DealsContent extends StatelessWidget {
+  final List<_DealItem> deals;
+  final Function(String) onItemTap;
+
+  const _DealsContent({
+    required this.deals,
+    required this.onItemTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +156,9 @@ class DealsSection extends StatelessWidget {
     const double smallCardHeight = 105.0;
     const double gap = 10.0;
     const double totalHeight = smallCardHeight * 2 + gap;
+    final mainDeal = deals[0];
+    final secondDeal = deals[1];
+    final thirdDeal = deals[2];
 
     return Container(
       decoration: BoxDecoration(
@@ -76,13 +221,13 @@ class DealsSection extends StatelessWidget {
                 Expanded(
                   flex: 4,
                   child: _LargeCard(
-                    discount: '-30%',
-                    shopName: 'Bánh Mì Khói - 120...',
-                    productName: 'BÁNH MÌ ỐP LA',
-                    price: '17.500đ',
-                    oldPrice: '25.000đ',
-                    imagePath: 'assets/images/com.webp',
-                    onTap: () => onItemTap('BÁNH MÌ ỐP LA'),
+                    discount: mainDeal.discount,
+                    shopName: mainDeal.shopName,
+                    menuItemName: mainDeal.menuItemName,
+                    price: mainDeal.price,
+                    oldPrice: mainDeal.oldPrice,
+                    imagePath: mainDeal.imagePath,
+                    onTap: () => onItemTap(mainDeal.menuItemName),
                   ),
                 ),
                 const SizedBox(width: gap),
@@ -93,25 +238,25 @@ class DealsSection extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _SmallCard(
-                          discount: '-30%',
-                          shopName: 'Nhà Cô Thanh - Bún Thịt Nư...',
-                          productName: 'BÚN MẮM NÊM\nDEALNGON',
-                          price: '32.900đ',
-                          oldPrice: '47.000đ',
-                          imagePath: 'assets/images/pho_bo.png',
-                          onTap: () => onItemTap('BÚN MẮM NÊM DEALNGON'),
+                          discount: secondDeal.discount,
+                          shopName: secondDeal.shopName,
+                          menuItemName: secondDeal.menuItemName,
+                          price: secondDeal.price,
+                          oldPrice: secondDeal.oldPrice,
+                          imagePath: secondDeal.imagePath,
+                          onTap: () => onItemTap(secondDeal.menuItemName),
                         ),
                       ),
                       const SizedBox(height: gap),
                       Expanded(
                         child: _SmallCard(
-                          discount: '-30%',
-                          shopName: 'Quán Ăn Hà Nội Phở - Bánh...',
-                          productName: 'BÁNH CUỐN CHẢ\nHÀ NỘI + NƯỚC ĐẬ...',
-                          price: '38.500đ',
-                          oldPrice: '55.000đ',
-                          imagePath: 'assets/images/pho.jpg',
-                          onTap: () => onItemTap('BÁNH CUỐN CHẢ HÀ NỘI'),
+                          discount: thirdDeal.discount,
+                          shopName: thirdDeal.shopName,
+                          menuItemName: thirdDeal.menuItemName,
+                          price: thirdDeal.price,
+                          oldPrice: thirdDeal.oldPrice,
+                          imagePath: thirdDeal.imagePath,
+                          onTap: () => onItemTap(thirdDeal.menuItemName),
                         ),
                       ),
                     ],
@@ -130,7 +275,7 @@ class DealsSection extends StatelessWidget {
 class _LargeCard extends StatelessWidget {
   final String discount;
   final String shopName;
-  final String productName;
+  final String menuItemName;
   final String price;
   final String oldPrice;
   final String imagePath;
@@ -139,7 +284,7 @@ class _LargeCard extends StatelessWidget {
   const _LargeCard({
     required this.discount,
     required this.shopName,
-    required this.productName,
+    required this.menuItemName,
     required this.price,
     required this.oldPrice,
     required this.imagePath,
@@ -177,13 +322,14 @@ class _LargeCard extends StatelessWidget {
                   children: [
                     Container(
                       color: AppColors.bgWarm,
-                      child: Image.asset(imagePath, fit: BoxFit.cover),
+                      child: _DealImage(imagePath: imagePath),
                     ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: _DiscountBadge(label: discount),
-                    ),
+                    if (discount.isNotEmpty)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _DiscountBadge(label: discount),
+                      ),
                   ],
                 ),
               ),
@@ -206,7 +352,7 @@ class _LargeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    productName,
+                    menuItemName,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -228,18 +374,19 @@ class _LargeCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          oldPrice,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.textTertiary,
-                            decoration: TextDecoration.lineThrough,
+                      if (oldPrice.isNotEmpty)
+                        Flexible(
+                          child: Text(
+                            oldPrice,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.textTertiary,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
                     ],
                   ),
                 ],
@@ -256,7 +403,7 @@ class _LargeCard extends StatelessWidget {
 class _SmallCard extends StatelessWidget {
   final String discount;
   final String shopName;
-  final String productName;
+  final String menuItemName;
   final String price;
   final String oldPrice;
   final String imagePath;
@@ -265,7 +412,7 @@ class _SmallCard extends StatelessWidget {
   const _SmallCard({
     required this.discount,
     required this.shopName,
-    required this.productName,
+    required this.menuItemName,
     required this.price,
     required this.oldPrice,
     required this.imagePath,
@@ -304,13 +451,14 @@ class _SmallCard extends StatelessWidget {
                   children: [
                     Container(
                       color: AppColors.bgWarm,
-                      child: Image.asset(imagePath, fit: BoxFit.cover),
+                      child: _DealImage(imagePath: imagePath),
                     ),
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: _DiscountBadge(label: discount, small: true),
-                    ),
+                    if (discount.isNotEmpty)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: _DiscountBadge(label: discount, small: true),
+                      ),
                   ],
                 ),
               ),
@@ -335,7 +483,7 @@ class _SmallCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      productName,
+                      menuItemName,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -357,18 +505,19 @@ class _SmallCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            oldPrice,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textTertiary,
-                              decoration: TextDecoration.lineThrough,
+                        if (oldPrice.isNotEmpty)
+                          Flexible(
+                            child: Text(
+                              oldPrice,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.textTertiary,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
                       ],
                     ),
                   ],
@@ -383,6 +532,45 @@ class _SmallCard extends StatelessWidget {
 }
 
 // ─── Discount Badge ────────────────────────────────────────────────────────
+class _DealImage extends StatelessWidget {
+  final String imagePath;
+
+  const _DealImage({required this.imagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    if (imagePath.isEmpty) {
+      return const Icon(
+        Icons.fastfood,
+        size: 32,
+        color: AppColors.textTertiary,
+      );
+    }
+
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.fastfood,
+          size: 32,
+          color: AppColors.textTertiary,
+        ),
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(
+        Icons.fastfood,
+        size: 32,
+        color: AppColors.textTertiary,
+      ),
+    );
+  }
+}
+
 class _DiscountBadge extends StatelessWidget {
   final String label;
   final bool small;

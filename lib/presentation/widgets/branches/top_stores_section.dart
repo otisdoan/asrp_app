@@ -19,7 +19,7 @@ class TopStoresSection extends ConsumerWidget {
         if (topBranches.isEmpty) {
           topBranches = branches.take(5).toList();
         }
-        
+
         if (topBranches.isEmpty) {
           return const SizedBox.shrink();
         }
@@ -63,6 +63,8 @@ class TopStoresSection extends ConsumerWidget {
                     discount: store.discount ?? '',
                     imageUrl: store.imageUrl,
                     adLabel: store.adLabel ?? '',
+                    category: store.category ?? 'Ẩm thực',
+                    reviewsCount: store.reviewsCount ?? 0,
                   );
                 },
               ),
@@ -70,7 +72,8 @@ class TopStoresSection extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary)),
       error: (e, st) => const SizedBox.shrink(),
     );
   }
@@ -87,6 +90,8 @@ class _TopStoreCard extends StatelessWidget {
   final String discount;
   final String imageUrl;
   final String adLabel;
+  final String category;
+  final int reviewsCount;
 
   const _TopStoreCard({
     required this.id,
@@ -99,24 +104,53 @@ class _TopStoreCard extends StatelessWidget {
     required this.discount,
     required this.imageUrl,
     required this.adLabel,
+    required this.category,
+    required this.reviewsCount,
   });
+
+  String get _formattedDiscount {
+    final value = discount.trim();
+    if (value.isEmpty) return '';
+
+    final withoutTrailingZeroDecimals = value.replaceFirst(RegExp(r'\.0+$'), '');
+    final numericValue =
+        num.tryParse(withoutTrailingZeroDecimals.replaceAll(',', ''));
+
+    if (numericValue != null &&
+        numericValue != 0 &&
+        numericValue % 1000 == 0) {
+      final thousands = numericValue / 1000;
+      final formattedThousands = thousands % 1 == 0
+          ? thousands.toInt().toString()
+          : thousands
+              .toStringAsFixed(1)
+              .replaceFirst(RegExp(r'\.0$'), '');
+      return '${formattedThousands}K';
+    }
+
+    return withoutTrailingZeroDecimals;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final formattedDiscount = _formattedDiscount;
+
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => StoreDetailPage(
-            storeId: id,
-            storeName: name,
-            category: 'Top Quán',
-            rating: rating,
-            reviews: 500, // mock
-            deliveryTime: time,
-            distance: distance,
-            icon: Icons.star,
-          ),
-        ));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StoreDetailPage(
+                storeId: id,
+                storeName: name,
+                category: category,
+                rating: rating,
+                reviews: reviewsCount,
+                deliveryTime: time,
+                distance: distance,
+                icon: Icons.star,
+              ),
+            ));
       },
       child: Container(
         width: 180,
@@ -147,138 +181,115 @@ class _TopStoreCard extends StatelessWidget {
                       ? Image.asset(imageUrl, fit: BoxFit.cover)
                       : imageUrl.isNotEmpty && imageUrl.startsWith('http')
                           ? Image.network(imageUrl, fit: BoxFit.cover)
-                          : const Icon(Icons.restaurant, size: 40, color: AppColors.textTertiary),
+                          : const Icon(Icons.restaurant,
+                              size: 40, color: AppColors.textTertiary),
                 ),
-                // Ad Label
-                if (adLabel.isNotEmpty)
+                // Tag (Quán Ngon) at Top Left
+                if (tag.isNotEmpty)
                   Positioned(
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
+                        color: const Color(0xFF5B874B), // Green color
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        adLabel,
+                        tag,
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
                     ),
                   ),
-                // Heart icon
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_border,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tag
-                  if (tag.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                // Discount (Ưu đãi 56K) at Bottom Right
+                if (formattedDiscount.isNotEmpty)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: const Color(0xFFC05C3B), // Orange/Brown color
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        tag,
+                        'Ưu đãi $formattedDiscount',
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                  ],
-                  // Name
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  // Rating & Distance
-                  Row(
-                    children: [
-                      const Icon(Icons.star, size: 13, color: AppColors.star),
-                      const SizedBox(width: 3),
-                      Text(
-                        '$rating',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                      Text(
-                        distance,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                      Text(
-                        time,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Promo Text
-                  if (promo.isNotEmpty)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.local_offer, size: 12, color: AppColors.primary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            promo,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.primary,
+              ],
+            ),
+            // Info
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Promo Text with red tag icon
+                    if (promo.isNotEmpty) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.local_offer,
+                              size: 12,
+                              color: Color(0xFFC84C35)), // Reddish tag
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              promo,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFC84C35),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    // Name
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    const Spacer(),
+                    // Bottom info: Quảng cáo · 30 phút · 1.2 km
+                    Text(
+                      [
+                        if (adLabel.isNotEmpty) adLabel,
+                        if (time.isNotEmpty) time,
+                        if (distance.isNotEmpty) distance,
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

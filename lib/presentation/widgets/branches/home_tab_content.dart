@@ -40,10 +40,16 @@ class HomeTabContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 // Top Stores
-                const TopStoresSection(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: TopStoresSection(),
+                ),
                 const SizedBox(height: 20),
                 // Nearby Stores
-                const NearbyStoresSection(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: NearbyStoresSection(),
+                ),
                 const SizedBox(height: 20),
                 // All Stores
                 const Padding(

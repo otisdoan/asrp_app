@@ -87,34 +87,34 @@ class BranchSummaryResponse {
 
   factory BranchSummaryResponse.fromJson(Map<String, dynamic> json) {
     return BranchSummaryResponse(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      imageUrl: json['imageUrl'] as String? ?? '',
+      id: _stringFromJson(json['id']),
+      name: _stringFromJson(json['name']),
+      imageUrl: _stringFromJson(json['imageUrl']),
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      distance: json['distance'] as String? ?? '',
-      deliveryTime: json['deliveryTime'] as String? ?? '',
-      category: json['category'] as String?,
+      distance: _stringFromJson(json['distance']),
+      deliveryTime: _stringFromJson(json['deliveryTime']),
+      category: _nullableStringFromJson(json['category']),
       reviewsCount: json['reviewsCount'] as int?,
-      promo: json['promo'] as String?,
-      discount: json['discount'] as String?,
-      tag: json['tag'] as String?,
-      adLabel: json['adLabel'] as String?,
+      promo: _nullableStringFromJson(json['promo']),
+      discount: _nullableStringFromJson(json['discount']),
+      tag: _nullableStringFromJson(json['tag']),
+      adLabel: _nullableStringFromJson(json['adLabel']),
       isFavorite: json['isFavorite'] as bool?,
       displayOrder: json['displayOrder'] as int?,
-      address: json['address'] as String?,
-      phone: json['phone'] as String?,
+      address: _nullableStringFromJson(json['address']),
+      phone: _nullableStringFromJson(json['phone']),
       floor: json['floor'] as int?,
-      openingTime: json['openingTime'] as String?,
-      closingTime: json['closingTime'] as String?,
+      openingTime: _nullableStringFromJson(json['openingTime']),
+      closingTime: _nullableStringFromJson(json['closingTime']),
       isActive: json['isActive'] as bool? ?? false,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
-      description: json['description'] as String?,
-      promos: (json['promos'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      description: _nullableStringFromJson(json['description']),
+      promos: _stringListFromJson(json['promos']),
       likesCount: json['likesCount'] as int? ?? 0,
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: json['reviewCount'] as int? ?? 0,
-      createdAt: json['createdAt'] as String? ?? '',
+      createdAt: _stringFromJson(json['createdAt']),
     );
   }
 }
@@ -182,32 +182,32 @@ class BranchDetailResponse {
 
   factory BranchDetailResponse.fromJson(Map<String, dynamic> json) {
     return BranchDetailResponse(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      imageUrl: json['imageUrl'] as String? ?? '',
+      id: _stringFromJson(json['id']),
+      name: _stringFromJson(json['name']),
+      imageUrl: _stringFromJson(json['imageUrl']),
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      distance: json['distance'] as String? ?? '',
-      deliveryTime: json['deliveryTime'] as String? ?? '',
-      category: json['category'] as String?,
+      distance: _stringFromJson(json['distance']),
+      deliveryTime: _stringFromJson(json['deliveryTime']),
+      category: _nullableStringFromJson(json['category']),
       reviewsCount: json['reviewsCount'] as int?,
       isFavorite: json['isFavorite'] as bool?,
       likesCount: json['likesCount'] as int?,
-      address: json['address'] as String?,
-      description: json['description'] as String?,
+      address: _nullableStringFromJson(json['address']),
+      description: _nullableStringFromJson(json['description']),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       isActive: json['isActive'] as bool?,
-      promos: (json['promos'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      promos: _stringListFromJson(json['promos']),
       menu: (json['menu'] as List<dynamic>?)?.map((e) => BranchMenuItemResponse.fromJson(e as Map<String, dynamic>)).toList(),
-      phone: json['phone'] as String?,
+      phone: _nullableStringFromJson(json['phone']),
       floor: json['floor'] as int?,
-      openingTime: json['openingTime'] as String?,
-      closingTime: json['closingTime'] as String?,
+      openingTime: _nullableStringFromJson(json['openingTime']),
+      closingTime: _nullableStringFromJson(json['closingTime']),
       displayOrder: json['displayOrder'] as int? ?? 0,
-      promo: json['promo'] as String?,
-      discount: json['discount'] as String?,
-      tag: json['tag'] as String?,
-      adLabel: json['adLabel'] as String?,
+      promo: _nullableStringFromJson(json['promo']),
+      discount: _nullableStringFromJson(json['discount']),
+      tag: _nullableStringFromJson(json['tag']),
+      adLabel: _nullableStringFromJson(json['adLabel']),
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: json['reviewCount'] as int? ?? 0,
     );
@@ -261,26 +261,39 @@ class BranchMenuItemResponse {
 
   factory BranchMenuItemResponse.fromJson(Map<String, dynamic> json) {
     return BranchMenuItemResponse(
-      id: json['id'] as String? ?? '',
-      menuItemId: json['menuItemId'] as String? ?? '',
-      slug: json['slug'] as String?,
-      imageUrl: json['imageUrl'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String?,
-      price: json['price'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      menuItemId: json['menuItemId']?.toString() ?? '',
+      slug: json['slug']?.toString(),
+      imageUrl: json['imageUrl']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      price: json['price']?.toString() ?? '',
       rating: (json['rating'] as num?)?.toDouble(),
       soldCount: json['soldCount'] as int?,
       likesCount: json['likesCount'] as int?,
       priceAmount: json['priceAmount'] as int? ?? 0,
       basePrice: (json['basePrice'] as num?)?.toDouble() ?? 0.0,
-      galleryImages: (json['galleryImages'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      galleryImages: (json['galleryImages'] as List<dynamic>?)
+              ?.where((e) => e != null)
+              .map((e) => e.toString())
+              .toList() ??
+          [],
       isAvailable: json['isAvailable'] as bool? ?? true,
       isSoldOut: json['isSoldOut'] as bool? ?? false,
-      categoryId: json['categoryId'] as String? ?? '',
-      categoryName: json['categoryName'] as String? ?? '',
+      categoryId: json['categoryId']?.toString() ?? '',
+      categoryName: json['categoryName']?.toString() ?? '',
       reviewCount: json['reviewCount'] as int? ?? 0,
-      badgeLabel: json['badgeLabel'] as String?,
-      badgeType: json['badgeType'] as String?,
+      badgeLabel: json['badgeLabel']?.toString(),
+      badgeType: json['badgeType']?.toString(),
     );
   }
+}
+
+String _stringFromJson(Object? value) => value?.toString() ?? '';
+
+String? _nullableStringFromJson(Object? value) => value?.toString();
+
+List<String>? _stringListFromJson(Object? value) {
+  if (value is! List) return null;
+  return value.where((e) => e != null).map((e) => e.toString()).toList();
 }

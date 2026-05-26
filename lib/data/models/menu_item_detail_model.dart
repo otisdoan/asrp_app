@@ -1,12 +1,12 @@
-class ProductToppingModel {
+class MenuItemToppingModel {
   final String name;
   final int price;
 
-  const ProductToppingModel({required this.name, required this.price});
+  const MenuItemToppingModel({required this.name, required this.price});
 
-  factory ProductToppingModel.fromJson(Map<String, dynamic> json) {
-    return ProductToppingModel(
-      name: (json['name'] ?? json['label']) as String? ?? '',
+  factory MenuItemToppingModel.fromJson(Map<String, dynamic> json) {
+    return MenuItemToppingModel(
+      name: _stringFromJson(json['name'] ?? json['label']),
       price: json['price'] as int? ?? 0,
     );
   }
@@ -19,15 +19,15 @@ class ProductToppingModel {
   }
 }
 
-class ProductSizeModel {
+class MenuItemSizeModel {
   final String name;
   final int price;
 
-  const ProductSizeModel({required this.name, required this.price});
+  const MenuItemSizeModel({required this.name, required this.price});
 
-  factory ProductSizeModel.fromJson(Map<String, dynamic> json) {
-    return ProductSizeModel(
-      name: (json['name'] ?? json['label']) as String? ?? '',
+  factory MenuItemSizeModel.fromJson(Map<String, dynamic> json) {
+    return MenuItemSizeModel(
+      name: _stringFromJson(json['name'] ?? json['label']),
       price: json['price'] as int? ?? 0,
     );
   }
@@ -40,7 +40,7 @@ class ProductSizeModel {
   }
 }
 
-class ProductReviewModel {
+class MenuItemReviewModel {
   final String user;
   final int rating;
   final String date;
@@ -49,7 +49,7 @@ class ProductReviewModel {
   final List<String> tags;
   final String? reply;
 
-  const ProductReviewModel({
+  const MenuItemReviewModel({
     required this.user,
     required this.rating,
     required this.date,
@@ -59,17 +59,15 @@ class ProductReviewModel {
     this.reply,
   });
 
-  factory ProductReviewModel.fromJson(Map<String, dynamic> json) {
-    return ProductReviewModel(
-      user: (json['user'] ?? json['name']) as String? ?? '',
+  factory MenuItemReviewModel.fromJson(Map<String, dynamic> json) {
+    return MenuItemReviewModel(
+      user: _stringFromJson(json['user'] ?? json['name']),
       rating: json['rating'] as int? ?? 5,
-      date: json['date'] as String? ?? '',
-      content: json['content'] as String? ?? '',
+      date: _stringFromJson(json['date']),
+      content: _stringFromJson(json['content']),
       imageCount: (json['imageCount'] ?? json['helpful'] ?? 0) as int,
-      tags:
-          (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-              [],
-      reply: json['reply'] as String?,
+      tags: _stringListFromJson(json['tags']),
+      reply: _nullableStringFromJson(json['reply']),
     );
   }
 
@@ -86,7 +84,7 @@ class ProductReviewModel {
   }
 }
 
-class ProductDetailModel {
+class MenuItemDetailModel {
   final String? slug;
   final String name;
   final String imageUrl;
@@ -95,11 +93,11 @@ class ProductDetailModel {
   final String? description;
   final String soldCount;
   final int likesCount;
-  final List<ProductToppingModel> toppings;
-  final List<ProductSizeModel> sizes;
-  final List<ProductReviewModel> reviews;
+  final List<MenuItemToppingModel> toppings;
+  final List<MenuItemSizeModel> sizes;
+  final List<MenuItemReviewModel> reviews;
 
-  const ProductDetailModel({
+  const MenuItemDetailModel({
     this.slug,
     required this.name,
     required this.imageUrl,
@@ -113,28 +111,28 @@ class ProductDetailModel {
     this.reviews = const [],
   });
 
-  factory ProductDetailModel.fromJson(Map<String, dynamic> json) {
-    return ProductDetailModel(
-      slug: json['slug'] as String?,
-      name: json['name'] as String? ?? '',
-      imageUrl: (json['imageUrl'] ?? json['image']) as String? ?? '',
+  factory MenuItemDetailModel.fromJson(Map<String, dynamic> json) {
+    return MenuItemDetailModel(
+      slug: _nullableStringFromJson(json['slug']),
+      name: _stringFromJson(json['name']),
+      imageUrl: _stringFromJson(json['imageUrl'] ?? json['image']),
       priceDisplay: (json['priceDisplay'] ?? json['price'])?.toString() ?? '',
-      priceAmount: (json['priceAmount'] ?? json['price']) as int? ?? 0,
-      description: json['description'] as String?,
+      priceAmount: _intFromJson(json['priceAmount'] ?? json['price']),
+      description: _nullableStringFromJson(json['description']),
       soldCount: (json['soldCountText'] ?? json['sold'])?.toString() ?? '',
       likesCount: json['likesCount'] as int? ?? json['likes'] as int? ?? 0,
       toppings: (json['toppings'] as List<dynamic>?)
               ?.map((e) =>
-                  ProductToppingModel.fromJson(e as Map<String, dynamic>))
+                  MenuItemToppingModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
       sizes: (json['sizes'] as List<dynamic>?)
-              ?.map((e) => ProductSizeModel.fromJson(e as Map<String, dynamic>))
+              ?.map((e) => MenuItemSizeModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
       reviews: (json['reviews'] as List<dynamic>?)
               ?.map(
-                  (e) => ProductReviewModel.fromJson(e as Map<String, dynamic>))
+                  (e) => MenuItemReviewModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
@@ -155,4 +153,20 @@ class ProductDetailModel {
       'reviews': reviews.map((e) => e.toJson()).toList(),
     };
   }
+}
+
+String _stringFromJson(Object? value) => value?.toString() ?? '';
+
+String? _nullableStringFromJson(Object? value) => value?.toString();
+
+List<String> _stringListFromJson(Object? value) {
+  if (value is! List) return const [];
+  return value.where((e) => e != null).map((e) => e.toString()).toList();
+}
+
+int _intFromJson(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '') ??
+      0;
 }

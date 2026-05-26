@@ -4,13 +4,14 @@ import '../../../core/theme/app_colors.dart';
 import '../../pages/branches/branches_detail_page.dart';
 import '../../../providers/branches/branch_provider.dart';
 
-/// Section "Gần bạn" — horizontal scroll of nearby store cards.
+/// Section "Gần bạn" - horizontal scroll of nearby store cards.
 class NearbyStoresSection extends ConsumerWidget {
   const NearbyStoresSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncNearby = ref.watch(nearbyBranchListProvider);
+    // TODO: Switch back to nearbyBranchListProvider when real location is ready.
+    final asyncNearby = ref.watch(branchListProvider);
 
     return asyncNearby.when(
       data: (branches) {
@@ -65,7 +66,9 @@ class NearbyStoresSection extends ConsumerWidget {
                   return _NearbyStoreCard(
                     id: store.id,
                     name: store.name,
+                    category: store.category ?? 'Ẩm thực',
                     rating: store.rating,
+                    reviewsCount: store.reviewsCount ?? 0,
                     distance: store.distance,
                     time: store.deliveryTime,
                     promo: store.promo ?? '',
@@ -77,7 +80,9 @@ class NearbyStoresSection extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
       error: (e, st) => const SizedBox.shrink(),
     );
   }
@@ -86,7 +91,9 @@ class NearbyStoresSection extends ConsumerWidget {
 class _NearbyStoreCard extends StatelessWidget {
   final String id;
   final String name;
+  final String category;
   final double rating;
+  final int reviewsCount;
   final String distance;
   final String time;
   final String promo;
@@ -95,35 +102,47 @@ class _NearbyStoreCard extends StatelessWidget {
   const _NearbyStoreCard({
     required this.id,
     required this.name,
+    required this.category,
     required this.rating,
+    required this.reviewsCount,
     required this.distance,
     required this.time,
     required this.promo,
     required this.imageUrl,
   });
 
+  String get _offerLabel {
+    if (promo.trim().isNotEmpty) return promo.trim();
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final offerLabel = _offerLabel;
+
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => StoreDetailPage(
-            storeId: id,
-            storeName: name,
-            category: 'Gần bạn',
-            rating: rating,
-            reviews: 100, // mock
-            deliveryTime: time,
-            distance: distance,
-            icon: Icons.store,
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StoreDetailPage(
+              storeId: id,
+              storeName: name,
+              category: category,
+              rating: rating,
+              reviews: reviewsCount,
+              deliveryTime: time,
+              distance: distance,
+              icon: Icons.store,
+            ),
           ),
-        ));
+        );
       },
       child: Container(
         width: 140,
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.outlineVariant),
           boxShadow: [
             BoxShadow(
@@ -137,7 +156,6 @@ class _NearbyStoreCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image area with promo tag
             Stack(
               children: [
                 Container(
@@ -148,90 +166,116 @@ class _NearbyStoreCard extends StatelessWidget {
                       ? Image.asset(imageUrl, fit: BoxFit.cover)
                       : imageUrl.isNotEmpty && imageUrl.startsWith('http')
                           ? Image.network(imageUrl, fit: BoxFit.cover)
-                          : const Icon(Icons.store, size: 30, color: AppColors.textTertiary),
+                          : const Icon(
+                              Icons.store,
+                              size: 30,
+                              color: AppColors.textTertiary,
+                            ),
                 ),
-                if (promo.isNotEmpty)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        promo,
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, size: 12, color: AppColors.star),
-                      const SizedBox(width: 3),
-                      Text(
-                        '$rating',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
-                      const Text(' · ', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                      Expanded(
-                        child: Text(
-                          distance,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 12, color: AppColors.star),
+                        const SizedBox(width: 3),
+                        Text(
+                          rating.toStringAsFixed(1),
                           style: const TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textTertiary),
-                      const SizedBox(width: 4),
-                      Text(
-                        time,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
+                        const Text(
+                          ' · ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textTertiary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        Flexible(
+                          child: Text(
+                            time,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Text(
+                          ' · ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            distance,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    if (offerLabel.isNotEmpty)
+                      _OfferChip(label: offerLabel),
+                  ],
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OfferChip extends StatelessWidget {
+  final String label;
+
+  const _OfferChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5E7E1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFC05C3B),
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

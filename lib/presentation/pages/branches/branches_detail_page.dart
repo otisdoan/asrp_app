@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/theme/app_colors.dart';
-import '../../../providers/favorite_shops_provider.dart';
+import '../../../data/models/branch_model.dart';
+import '../../../data/models/cart_item_model.dart';
 import '../../../providers/branches/branch_provider.dart';
 import '../../../providers/cart_provider.dart';
-import '../../../data/models/cart_item_model.dart';
-import '../../../data/models/branch_model.dart';
-import 'food_detail_page.dart';
+import '../../widgets/branches/detail/branch_cart_bar.dart';
+import '../../widgets/branches/detail/branch_category_tabs.dart';
+import '../../widgets/branches/detail/branch_delivery_info.dart';
+import '../../widgets/branches/detail/branch_detail_app_bar.dart';
+import '../../widgets/branches/detail/branch_menu_widgets.dart';
+import '../../widgets/branches/detail/branch_promos_list.dart';
+import '../../widgets/branches/detail/branch_store_info.dart';
+import 'branch_detail_view_data.dart';
 import 'checkout_page.dart';
+import 'food_detail_page.dart';
 
-/// Store Detail Page — shows store info, promos, popular items, and full menu.
-/// Follows RULE: UI-only, uses AppColors, responsive.
 class StoreDetailPage extends ConsumerStatefulWidget {
   final String storeId;
   final String storeName;
@@ -40,49 +46,173 @@ class StoreDetailPage extends ConsumerStatefulWidget {
 }
 
 class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
+  final GlobalKey _highlightedItemKey = GlobalKey();
+
+  late final ScrollController _scrollController;
+  late final TextEditingController _searchController;
+
+  List<GlobalKey> _sectionKeys = const [];
+  BranchDetailViewData _viewData = const BranchDetailViewData(
+    menuSections: [],
+    promos: [],
+    popularItems: [],
+  );
+
   int _selectedCategoryIndex = 0;
   bool _isCollapsed = false;
   bool _isTabTapping = false;
-  late ScrollController _scrollController;
-  late List<GlobalKey> _sectionKeys;
-
-  // Search state
-  late TextEditingController _searchController;
-  String _searchQuery = '';
   bool _isSearchActive = false;
-
-  // Highlight key for auto-scrolling
-  final GlobalKey _highlightedItemKey = GlobalKey();
+  bool _didAutoScrollToHighlight = false;
+  String _searchQuery = '';
   String? _firstMatchingFoodName;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-    _sectionKeys = List.generate(6, (_) => GlobalKey());
-
-    // Search initialization
-    _searchController = TextEditingController(text: widget.highlightFoodName ?? '');
+    _scrollController = ScrollController()..addListener(_onScroll);
+    _searchController = TextEditingController(
+      text: widget.highlightFoodName ?? '',
+    );
     _searchQuery = widget.highlightFoodName ?? '';
-    _isSearchActive = widget.highlightFoodName != null && widget.highlightFoodName!.isNotEmpty;
+    _isSearchActive = _searchQuery.isNotEmpty;
+  }
 
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncBranch = ref.watch(branchDetailProvider(widget.storeId));
+    final cartItemCount = ref.watch(cartProvider).totalItems;
+
+    return asyncBranch.when(
+      data: (branchDetail) {
+        _syncViewData(branchDetail);
+        _syncHighlightAfterDataLoad();
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              BranchDetailAppBar(
+                branch: branchDetail,
+                storeName: widget.storeName,
+                fallbackIcon: widget.icon,
+                showSearch: _isCollapsed || _isSearchActive,
+                searchController: _searchController,
+                onSearchChanged: _handleSearchChanged,
+                onSearchSubmitted: (_) => _scrollToHighlightedItem(),
+                onSearchTap: () => setState(() => _isSearchActive = true),
+                onClearSearch: _clearSearch,
+              ),
+              SliverToBoxAdapter(
+                child: BranchStoreInfo(
+                  branch: branchDetail,
+                  storeName: widget.storeName,
+                  rating: widget.rating,
+                  reviews: widget.reviews,
+                ),
+              ),
+              const SliverToBoxAdapter(child: BranchDeliveryInfo()),
+              if (_viewData.promos.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: BranchPromosList(promos: _viewData.promos),
+                ),
+              if (_viewData.popularItems.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: BranchPopularItems(
+                    items: _viewData.popularItems,
+                    onItemTap: _openFoodDetail,
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              if (_viewData.menuSections.isNotEmpty)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: BranchCategoryTabsDelegate(
+                    categories:
+                        _viewData.menuSections.map((section) => section.name).toList(),
+                    selectedIndex: _selectedCategoryIndex,
+                    onSelected: _scrollToSection,
+                  ),
+                ),
+              if (_viewData.menuSections.isNotEmpty)
+                BranchMenuSectionSlivers(
+                  sections: _viewData.menuSections,
+                  sectionKeys: _sectionKeys,
+                  highlightedItemName: _firstMatchingFoodName,
+                  highlightedItemKey: _highlightedItemKey,
+                  onItemTap: _openFoodDetail,
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
+          bottomNavigationBar: cartItemCount > 0
+              ? BranchCartBar(
+                  onTap: () => _openCheckout(branchDetail),
+                )
+              : null,
+        );
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, st) => Scaffold(
+        body: Center(child: Text('Lỗi: $e')),
+      ),
+    );
+  }
+
+  void _syncViewData(BranchDetailModel branchDetail) {
+    _viewData = BranchDetailViewData.fromBranch(branchDetail);
+    if (_sectionKeys.length != _viewData.menuSections.length) {
+      _sectionKeys = List.generate(
+        _viewData.menuSections.length,
+        (_) => GlobalKey(),
+      );
+      if (_selectedCategoryIndex >= _viewData.menuSections.length) {
+        _selectedCategoryIndex = 0;
+      }
+    }
+  }
+
+  void _syncHighlightAfterDataLoad() {
     _findFirstMatchingFood();
+    if (_didAutoScrollToHighlight || _firstMatchingFoodName == null) return;
+    _didAutoScrollToHighlight = true;
 
-    if (_searchQuery.isNotEmpty) {
-      _activateTabForHighlightedItem();
-    }
-
-    // Auto-scroll to highlighted item
-    if (_firstMatchingFoodName != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 450), () {
-          if (mounted) {
-            _scrollToHighlightedItem();
-          }
-        });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 450), () {
+        if (mounted) _scrollToHighlightedItem();
       });
+    });
+  }
+
+  void _handleSearchChanged(String value) {
+    setState(() {
+      _searchQuery = value.trim();
+      _isSearchActive = _searchQuery.isNotEmpty;
+      _findFirstMatchingFood();
+      _activateTabForHighlightedItem();
+    });
+    if (_isSearchActive) {
+      _scrollToHighlightedItem();
     }
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _isSearchActive = false;
+      _firstMatchingFoodName = null;
+    });
   }
 
   void _findFirstMatchingFood() {
@@ -90,11 +220,12 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       _firstMatchingFoodName = null;
       return;
     }
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
-      for (final item in items) {
-        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
-          _firstMatchingFoodName = item['name'] as String;
+
+    final query = _searchQuery.toLowerCase();
+    for (final section in _viewData.menuSections) {
+      for (final item in section.items) {
+        if (item.name.toLowerCase().contains(query)) {
+          _firstMatchingFoodName = item.name;
           return;
         }
       }
@@ -102,44 +233,37 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     _firstMatchingFoodName = null;
   }
 
+  void _activateTabForHighlightedItem() {
+    if (_firstMatchingFoodName == null) return;
+
+    final targetIndex = _categoryIndexForItem(_firstMatchingFoodName!);
+    if (targetIndex == -1 || targetIndex == _selectedCategoryIndex) return;
+    _selectedCategoryIndex = targetIndex;
+  }
+
   void _scrollToHighlightedItem() {
     if (_searchQuery.isEmpty || _firstMatchingFoodName == null) return;
 
-    // 1. Find which category contains the matching product
-    int targetCategoryIndex = -1;
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
-      for (final item in items) {
-        if (item['name'].toString() == _firstMatchingFoodName) {
-          targetCategoryIndex = i;
-          break;
-        }
-      }
-      if (targetCategoryIndex != -1) break;
-    }
-
+    final targetCategoryIndex = _categoryIndexForItem(_firstMatchingFoodName!);
     if (targetCategoryIndex == -1) return;
 
-    // 2. Set the active tab state
-    setState(() {
-      _selectedCategoryIndex = targetCategoryIndex;
-    });
-
-    // 3. Scroll to the category header first
+    setState(() => _selectedCategoryIndex = targetCategoryIndex);
     final categoryKey = _sectionKeys[targetCategoryIndex];
-    if (categoryKey.currentContext != null) {
-      _isTabTapping = true;
-      Scrollable.ensureVisible(
-        categoryKey.currentContext!,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      ).then((_) {
-        _isTabTapping = false;
-        _scrollItemIntoView();
-      });
-    } else {
+
+    if (categoryKey.currentContext == null) {
       _scrollItemIntoView();
+      return;
     }
+
+    _isTabTapping = true;
+    Scrollable.ensureVisible(
+      categoryKey.currentContext!,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    ).then((_) {
+      _isTabTapping = false;
+      _scrollItemIntoView();
+    });
   }
 
   void _scrollItemIntoView() {
@@ -157,12 +281,15 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     });
   }
 
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    _searchController.dispose();
-    super.dispose();
+  int _categoryIndexForItem(String itemName) {
+    for (var i = 0; i < _viewData.menuSections.length; i++) {
+      final section = _viewData.menuSections[i];
+      final containsItem = section.items.any(
+        (item) => item.name.toLowerCase() == itemName.toLowerCase(),
+      );
+      if (containsItem) return i;
+    }
+    return -1;
   }
 
   void _onScroll() {
@@ -170,20 +297,18 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     if (collapsed != _isCollapsed) {
       setState(() => _isCollapsed = collapsed);
     }
-
-    // Auto-highlight tab based on visible section
-    if (_isTabTapping) return;
-    _updateActiveTab();
+    if (!_isTabTapping) _updateActiveTab();
   }
 
   void _updateActiveTab() {
-    for (int i = _sectionKeys.length - 1; i >= 0; i--) {
-      final key = _sectionKeys[i];
-      if (key.currentContext == null) continue;
-      final box = key.currentContext!.findRenderObject() as RenderBox?;
+    for (var i = _sectionKeys.length - 1; i >= 0; i--) {
+      final context = _sectionKeys[i].currentContext;
+      if (context == null) continue;
+
+      final box = context.findRenderObject() as RenderBox?;
       if (box == null) continue;
+
       final position = box.localToGlobal(Offset.zero);
-      // If the section title is at or above the tabs area (~kToolbarHeight + 48)
       if (position.dy <= kToolbarHeight + 100) {
         if (_selectedCategoryIndex != i) {
           setState(() => _selectedCategoryIndex = i);
@@ -193,24 +318,11 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     }
   }
 
-  void _activateTabForHighlightedItem() {
-    if (_searchQuery.isEmpty) return;
-    for (int i = 0; i < _menuItems.length; i++) {
-      final items = _menuItems[i];
-      for (final item in items) {
-        if (item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) {
-          setState(() {
-            _selectedCategoryIndex = i;
-          });
-          return;
-        }
-      }
-    }
-  }
-
   void _scrollToSection(int index) {
+    if (index < 0 || index >= _sectionKeys.length) return;
     final key = _sectionKeys[index];
     if (key.currentContext == null) return;
+
     _isTabTapping = true;
     setState(() => _selectedCategoryIndex = index);
     Scrollable.ensureVisible(
@@ -223,879 +335,58 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     });
   }
 
-  List<String> _menuCategories = [];
-  List<List<Map<String, dynamic>>> _menuItems = [];
-  List<String> _promos = [];
-  List<Map<String, dynamic>> _popularItems = [];
+  Future<void> _openFoodDetail(BranchMenuItemViewData item) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FoodDetailPage(
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          sold: item.sold,
+          likes: item.likes,
+          icon: item.icon,
+          imageUrl: item.imageUrl,
+        ),
+      ),
+    );
 
-  @override
-  Widget build(BuildContext context) {
-    final asyncBranch = ref.watch(branchDetailProvider(widget.storeId));
-    
-    // Watch cart state
-    final cartState = ref.watch(cartProvider);
-    final cartItemCount = cartState.totalItems;
+    _handleCartResult(result, item);
+  }
 
-    return asyncBranch.when(
-      data: (branchDetail) {
-        // Map data from BE
-        _menuCategories = branchDetail.menu?.map((m) => m.name).toList() ?? [];
-        _menuItems = branchDetail.menu?.map((m) => m.items.map((i) => {
-          'id': i.slug,
-          'name': i.name,
-          'price': '${i.price}đ',
-          'sold': '${i.soldCount ?? 0}+',
-          'likes': i.likesCount ?? 0,
-          'icon': Icons.fastfood, // Fallback icon
-          'imageUrl': i.imageUrl,
-        }).toList()).toList() ?? [];
-        _promos = branchDetail.promos ?? [];
-        _popularItems = []; // For demo, could extract from menu
-        
-        if (_sectionKeys.length != _menuCategories.length) {
-          _sectionKeys = List.generate(_menuCategories.length, (_) => GlobalKey());
-        }
+  void _handleCartResult(dynamic result, BranchMenuItemViewData item) {
+    if (result is! Map<String, dynamic>) return;
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // ─── App Bar with image ─────────────────────────────
-              _buildSliverAppBar(context, branchDetail),
+    final quantity = result['quantity'] as int? ?? 0;
+    if (quantity <= 0) return;
 
-              // ─── Store Info ─────────────────────────────────────
-              SliverToBoxAdapter(child: _buildStoreInfo(branchDetail)),
+    final priceAmount =
+        int.tryParse(item.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
-              // ─── Delivery Info ──────────────────────────────────
-              SliverToBoxAdapter(child: _buildDeliveryInfo(branchDetail)),
-
-              // ─── Promos ─────────────────────────────────────────
-              if (_promos.isNotEmpty)
-                SliverToBoxAdapter(child: _buildPromos()),
-
-              // ─── Popular Items ──────────────────────────────────
-              if (_popularItems.isNotEmpty)
-                SliverToBoxAdapter(child: _buildPopularItems()),
-
-              // Spacing
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-              // ─── Category Tabs ──────────────────────────────────
-              if (_menuCategories.isNotEmpty)
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _CategoryTabsDelegate(
-                    categories: _menuCategories,
-                    selectedIndex: _selectedCategoryIndex,
-                    onSelected: _scrollToSection,
-                  ),
-                ),
-
-              // ─── All Menu Items grouped by category ──────────
-              ..._buildAllMenuSections(),
-
-              // Bottom spacing
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
+    ref.read(cartProvider.notifier).addItem(
+          CartItemModel(
+            id: item.id,
+            imageUrl: item.imageUrl,
+            name: item.name,
+            priceAmount: priceAmount,
+            priceDisplay: item.price,
+            quantity: quantity,
           ),
-          // ─── Floating Cart Bar ─────────────────────────────────
-          bottomNavigationBar: cartItemCount > 0 ? _buildCartBar(branchDetail) : null,
         );
-      },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, st) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
-    );
   }
 
-  // ─── Cart Bar ──────────────────────────────────────────────────────────
-  Widget _buildCartBar(BranchDetailModel branchDetail) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        boxShadow: [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
-        ],
-      ),
-      child: SafeArea(
-        child: GestureDetector(
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => CheckoutPage(
-                storeId: branchDetail.id,
-                storeName: branchDetail.name,
-                itemCount: ref.read(cartProvider).totalItems,
-                distance: branchDetail.distance,
-                icon: widget.icon,
-              ),
-            ));
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
-                const SizedBox(width: 10),
-                Text(
-                  'Giỏ hàng - ${ref.watch(cartProvider).totalItems} món',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${_formatCartPrice(ref.watch(cartProvider).total)}đ',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+  void _openCheckout(BranchDetailModel branchDetail) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CheckoutPage(
+          storeId: branchDetail.id,
+          storeName: branchDetail.name,
+          itemCount: ref.read(cartProvider).totalItems,
+          distance: branchDetail.distance,
+          icon: widget.icon,
         ),
       ),
     );
-  }
-
-  String _formatCartPrice(int price) {
-    return price.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
-  }
-
-  void _handleCartResult(dynamic result, Map<String, dynamic> item) {
-    if (result != null && result is Map<String, dynamic>) {
-      final quantity = result['quantity'] as int;
-      final priceStr = item['price'] as String;
-      final priceAmount = int.tryParse(priceStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      
-      final cartItem = CartItemModel(
-        id: item['id'] as String,
-        imageUrl: item['imageUrl'] as String? ?? '',
-        name: item['name'] as String,
-        priceAmount: priceAmount,
-        priceDisplay: priceStr,
-        quantity: quantity,
-      );
-      
-      ref.read(cartProvider.notifier).addItem(cartItem);
-    }
-  }
-
-  // ─── Build all menu sections (category title + items) ───────────────────
-  List<Widget> _buildAllMenuSections() {
-    final List<Widget> slivers = [];
-
-    for (int i = 0; i < _menuCategories.length; i++) {
-      final category = _menuCategories[i];
-      final items = _menuItems[i];
-
-      // Category title
-      slivers.add(
-        SliverToBoxAdapter(
-          child: Padding(
-            key: _sectionKeys[i],
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text(
-              '$category (${items.length})',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // Category items
-      slivers.add(
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => _buildMenuItem(items[index]),
-            childCount: items.length,
-          ),
-        ),
-      );
-    }
-
-    return slivers;
-  }
-
-  // ─── Sliver App Bar ──────────────────────────────────────────────────────
-  Widget _buildSliverAppBar(BuildContext context, BranchDetailModel branchDetail) {
-    return SliverAppBar(
-      expandedHeight: 200,
-      pinned: true,
-      backgroundColor: AppColors.primary,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: (_isCollapsed || _isSearchActive)
-          ? Container(
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  const Icon(Icons.search, size: 18, color: Colors.white70),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.trim();
-                          _isSearchActive = _searchQuery.isNotEmpty;
-                          _findFirstMatchingFood();
-                        });
-                        if (_isSearchActive) {
-                          _activateTabForHighlightedItem();
-                          _scrollToHighlightedItem();
-                        }
-                      },
-                      onSubmitted: (value) {
-                        _scrollToHighlightedItem();
-                      },
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white,
-                      ),
-                      cursorColor: Colors.white,
-                      decoration: const InputDecoration(
-                        filled: false,
-                        fillColor: Colors.transparent,
-                        hintText: 'Tìm món trong quán',
-                        hintStyle: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ),
-                  if (_searchController.text.isNotEmpty) ...[
-                    GestureDetector(
-                      onTap: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                          _isSearchActive = false;
-                          _firstMatchingFoodName = null;
-                        });
-                      },
-                      child: const Icon(Icons.close, size: 18, color: Colors.white70),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                ],
-              ),
-            )
-          : null,
-      actions: [
-        if (!_isCollapsed && !_isSearchActive)
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                _isSearchActive = true;
-              });
-            },
-          ),
-        Consumer(
-          builder: (context, ref, child) {
-            final favorites = ref.watch(favoriteShopsProvider);
-            final isFav = favorites.contains(widget.storeName);
-            return IconButton(
-              icon: Icon(
-                isFav ? Icons.favorite : Icons.favorite_border,
-                color: isFav ? const Color(0xFFFF2A55) : Colors.white,
-              ),
-              onPressed: () {
-                ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isFav
-                          ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
-                          : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
-                    ),
-                    duration: const Duration(seconds: 1),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-        IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: branchDetail.imageUrl.isNotEmpty 
-            ? Image.network(branchDetail.imageUrl, fit: BoxFit.cover)
-            : Container(
-                color: AppColors.bgWarm,
-                child: Icon(widget.icon, size: 80, color: AppColors.textTertiary),
-              ),
-      ),
-    );
-  }
-
-
-  // ─── Store Info Section ──────────────────────────────────────────────────
-  Widget _buildStoreInfo(BranchDetailModel branchDetail) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Badge + Name
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // "Yêu thích" badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Yêu thích',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Verified icon
-              const Icon(Icons.verified, color: AppColors.success, size: 18),
-              const SizedBox(width: 6),
-              // Store name
-              Expanded(
-                child: Text(
-                  branchDetail.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Rating + Reviews + Time + Favorite
-          Row(
-            children: [
-              // Stars (compact)
-              ...List.generate(5, (i) {
-                if (i < widget.rating.floor()) {
-                  return const Icon(Icons.star, size: 14, color: AppColors.star);
-                } else if (i < widget.rating) {
-                  return const Icon(Icons.star_half, size: 14, color: AppColors.star);
-                }
-                return const Icon(Icons.star_border, size: 14, color: AppColors.star);
-              }),
-              const SizedBox(width: 4),
-              // Rating + reviews (flexible to prevent overflow)
-              Flexible(
-                child: Text(
-                  '${widget.rating} (${widget.reviews}+ Bình luận) >',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Divider
-              Container(width: 1, height: 14, color: AppColors.outlineVariant),
-              const SizedBox(width: 8),
-              // Delivery time
-              const Icon(Icons.access_time, size: 13, color: AppColors.textSecondary),
-              const SizedBox(width: 3),
-              Text(
-                branchDetail.deliveryTime.isNotEmpty ? branchDetail.deliveryTime : "15-20 phút",
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 12),
-              // Distance
-              const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                'Cách bạn ${branchDetail.distance.isNotEmpty ? branchDetail.distance : "3.0 km"} - 15k phí giao',
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 12),
-              // Favorite
-              Consumer(
-                builder: (context, ref, child) {
-                  final isFav = ref.watch(favoriteShopsProvider).contains(widget.storeName);
-                  return GestureDetector(
-                    onTap: () {
-                      ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isFav
-                                ? 'Đã xóa "${widget.storeName}" khỏi yêu thích'
-                                : 'Đã thêm "${widget.storeName}" vào yêu thích',
-                          ),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      );
-                    },
-                    child: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      size: 20,
-                      color: isFav ? const Color(0xFFFF2A55) : AppColors.textSecondary,
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Delivery Info Section ──────────────────────────────────────────────
-  Widget _buildDeliveryInfo(BranchDetailModel branchDetail) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          // Delivery row
-          Row(
-            children: [
-              const Icon(Icons.delivery_dining, size: 18, color: AppColors.success),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text.rich(
-                  TextSpan(children: [
-                    TextSpan(
-                      text: 'Giao ngay  ',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                    ),
-                    TextSpan(
-                      text: 'Dự kiến giao lúc 16:05',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ]),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: const Text(
-                  'Thay đổi >',
-                  style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Promo row
-          Row(
-            children: [
-              const Icon(Icons.local_offer, size: 18, color: AppColors.accent),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Ưu đãi dành cho bạn',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: const Text(
-                  'Xem thêm >',
-                  style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Promos Section ─────────────────────────────────────────────────────
-  Widget _buildPromos() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: SizedBox(
-        height: 34,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _promos.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (_, index) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F8F5),
-                border: Border.all(color: const Color(0xFF80CBC4)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _promos[index],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF00897B),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF00897B)),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  // ─── Popular Items Section ──────────────────────────────────────────────
-  Widget _buildPopularItems() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Món phổ biến',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 160,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _popularItems.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, index) {
-                final item = _popularItems[index];
-                return _buildPopularItemCard(item);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPopularItemCard(Map<String, dynamic> item) {
-    return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(context, MaterialPageRoute(
-          builder: (_) => FoodDetailPage(
-            id: item['id'] as String,
-            name: item['name'] as String,
-            price: item['price'] as String,
-            sold: item['sold'] as String,
-            likes: 0,
-            icon: item['icon'] as IconData,
-            imageUrl: item['imageUrl'] as String?,
-          ),
-        ));
-        _handleCartResult(result, item);
-      },
-      child: Container(
-        width: 130,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image with sold badge
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-              child: Stack(
-                children: [
-                  Container(
-                    height: 80,
-                    width: double.infinity,
-                    color: AppColors.bgWarm,
-                    child: Icon(item['icon'] as IconData, size: 32, color: AppColors.textTertiary),
-                  ),
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${item['sold']} đã bán',
-                      style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['name'] as String,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          item['price'] as String,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
-                        ),
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.add, size: 16, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Menu Item Card ─────────────────────────────────────────────────────
-  Widget _buildMenuItem(Map<String, dynamic> item) {
-    final isHighlighted = _firstMatchingFoodName != null &&
-        item['name'].toString().toLowerCase() == _firstMatchingFoodName!.toLowerCase();
-
-    return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(context, MaterialPageRoute(
-          builder: (_) => FoodDetailPage(
-            id: item['id'] as String,
-            name: item['name'] as String,
-            price: item['price'] as String,
-            sold: item['sold'] as String,
-            likes: item['likes'] as int,
-            icon: item['icon'] as IconData,
-            imageUrl: item['imageUrl'] as String?,
-          ),
-        ));
-        _handleCartResult(result, item);
-      },
-      child: Container(
-        key: isHighlighted ? _highlightedItemKey : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isHighlighted ? AppColors.bgSoft : Colors.transparent,
-          border: isHighlighted
-              ? Border.all(color: AppColors.secondary.withValues(alpha: 0.5), width: 1.5)
-              : null,
-          borderRadius: isHighlighted ? BorderRadius.circular(12) : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: AppColors.bgWarm,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(item['icon'] as IconData, size: 28, color: AppColors.textTertiary),
-            ),
-            const SizedBox(width: 12),
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['name'] as String,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '${item['sold']} đã bán',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${item['likes']} lượt thích',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item['price'] as String,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Add button
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.add, size: 18, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Category Tabs Persistent Header Delegate ──────────────────────────────
-class _CategoryTabsDelegate extends SliverPersistentHeaderDelegate {
-  final List<String> categories;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  _CategoryTabsDelegate({
-    required this.categories,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  @override
-  double get minExtent => 48;
-
-  @override
-  double get maxExtent => 48;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.background,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 20),
-              itemBuilder: (_, index) {
-                final isSelected = index == selectedIndex;
-                return GestureDetector(
-                  onTap: () => onSelected(index),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        categories[index],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: 2,
-                        width: 30,
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.outlineVariant),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _CategoryTabsDelegate oldDelegate) {
-    return oldDelegate.selectedIndex != selectedIndex;
   }
 }

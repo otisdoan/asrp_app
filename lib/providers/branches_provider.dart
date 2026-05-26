@@ -26,8 +26,8 @@ final menuCurrentPageProvider = StateProvider<int>(
   (ref) => 1,
 );
 
-// ===== Product Detail Provider =====
-// Holds the slug of the currently opened product (null = closed)
-final selectedProductSlugProvider = StateProvider<String?>(
+// ===== Menu Item Detail Provider =====
+// Holds the slug of the currently opened menu item (null = closed)
+final selectedMenuItemSlugProvider = StateProvider<String?>(
   (ref) => null,
 );

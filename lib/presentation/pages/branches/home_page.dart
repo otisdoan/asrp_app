@@ -58,7 +58,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  void _openProductDetail(String name) {
+  void _openMenuItemDetail(String name) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -90,7 +90,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         );
       default:
-        return HomeTabContent(onItemTap: _openProductDetail);
+        return HomeTabContent(onItemTap: _openMenuItemDetail);
     }
   }
 

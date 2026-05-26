@@ -1,6 +1,6 @@
 import '../models/menu_item_model.dart';
 import '../models/cart_item_model.dart';
-import '../models/product_detail_model.dart';
+import '../models/menu_item_detail_model.dart';
 import '../models/category_model.dart';
 
 class MockData {
@@ -503,10 +503,9 @@ class MockData {
         ),
       ];
 
-  // ===== MOCK PRODUCT DETAIL =====
-  // ===== MOCK PRODUCT DETAIL =====
-  static ProductDetailModel getProductDetail(String slug) {
-    return ProductDetailModel(
+  // ===== MOCK MENU ITEM DETAIL =====
+  static MenuItemDetailModel getMenuItemDetail(String slug) {
+    return MenuItemDetailModel(
       slug: slug,
       imageUrl: 'assets/images/pho.jpg',
       name: 'Phở bò đặc biệt',
@@ -517,18 +516,18 @@ class MockData {
       soldCount: '1240',
       likesCount: 128,
       sizes: const [
-        ProductSizeModel(name: 'Nhỏ', price: 80000),
-        ProductSizeModel(name: 'Vừa', price: 95000),
-        ProductSizeModel(name: 'Lớn', price: 120000),
+        MenuItemSizeModel(name: 'Nhỏ', price: 80000),
+        MenuItemSizeModel(name: 'Vừa', price: 95000),
+        MenuItemSizeModel(name: 'Lớn', price: 120000),
       ],
       toppings: const [
-        ProductToppingModel(name: 'Thêm thịt bò', price: 25000),
-        ProductToppingModel(name: 'Thêm gầu bò', price: 20000),
-        ProductToppingModel(name: 'Thêm trứng chần', price: 10000),
-        ProductToppingModel(name: 'Thêm bánh quẩy', price: 8000),
+        MenuItemToppingModel(name: 'Thêm thịt bò', price: 25000),
+        MenuItemToppingModel(name: 'Thêm gầu bò', price: 20000),
+        MenuItemToppingModel(name: 'Thêm trứng chần', price: 10000),
+        MenuItemToppingModel(name: 'Thêm bánh quẩy', price: 8000),
       ],
       reviews: const [
-        ProductReviewModel(
+        MenuItemReviewModel(
           user: 'N.T.H',
           rating: 5,
           date: '3 ngày trước',
@@ -539,7 +538,7 @@ class MockData {
           reply:
               'Cảm ơn bạn đã ủng hộ nhà hàng. Rất mong được phục vụ bạn lần sau!',
         ),
-        ProductReviewModel(
+        MenuItemReviewModel(
           user: 'Trần Văn B.',
           rating: 4,
           date: '1 tuần trước',
