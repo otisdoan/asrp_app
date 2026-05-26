@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../providers/branches/branch_provider.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../data/models/cart_item_model.dart';
+import '../../../data/models/branch_model.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
 
 /// Store Detail Page — shows store info, promos, popular items, and full menu.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class StoreDetailPage extends StatefulWidget {
+class StoreDetailPage extends ConsumerStatefulWidget {
+  final String storeId;
   final String storeName;
   final String category;
   final double rating;
@@ -19,6 +24,7 @@ class StoreDetailPage extends StatefulWidget {
 
   const StoreDetailPage({
     super.key,
+    required this.storeId,
     required this.storeName,
     required this.category,
     required this.rating,
@@ -30,19 +36,15 @@ class StoreDetailPage extends StatefulWidget {
   });
 
   @override
-  State<StoreDetailPage> createState() => _StoreDetailPageState();
+  ConsumerState<StoreDetailPage> createState() => _StoreDetailPageState();
 }
 
-class _StoreDetailPageState extends State<StoreDetailPage> {
+class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   int _selectedCategoryIndex = 0;
   bool _isCollapsed = false;
   bool _isTabTapping = false;
   late ScrollController _scrollController;
   late List<GlobalKey> _sectionKeys;
-
-  // Cart state
-  int _cartItemCount = 0;
-  int _cartTotal = 0;
 
   // Search state
   late TextEditingController _searchController;
@@ -221,118 +223,93 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     });
   }
 
-  // Mock menu categories
-  static const _menuCategories = [
-    'Món phổ biến',
-    'Phở & Bún',
-    'Cơm',
-    'Đồ uống',
-    'Combo',
-    'Tráng miệng',
-  ];
-
-  // Mock menu items per category
-  static const _menuItems = [
-    // Món phổ biến
-    [
-      {'name': 'Combo 1: Phần gà + khoai', 'sold': '200+', 'likes': 3, 'price': '40.000đ', 'icon': Icons.fastfood},
-      {'name': 'Set sum vầy (4 người)', 'sold': '600+', 'likes': 12, 'price': '53.000đ', 'icon': Icons.dinner_dining},
-      {'name': 'Gà rán truyền thống (2 miếng)', 'sold': '500+', 'likes': 8, 'price': '45.000đ', 'icon': Icons.lunch_dining},
-      {'name': 'Gà sốt cay Hàn Quốc', 'sold': '150+', 'likes': 5, 'price': '55.000đ', 'icon': Icons.local_fire_department},
-    ],
-    // Phở & Bún
-    [
-      {'name': 'Phở bò tái chín', 'sold': '300+', 'likes': 15, 'price': '65.000đ', 'icon': Icons.ramen_dining},
-      {'name': 'Phở gà ta', 'sold': '180+', 'likes': 7, 'price': '60.000đ', 'icon': Icons.ramen_dining},
-      {'name': 'Bún bò Huế đặc biệt', 'sold': '250+', 'likes': 10, 'price': '70.000đ', 'icon': Icons.soup_kitchen},
-    ],
-    // Cơm
-    [
-      {'name': 'Cơm gà xối mỡ', 'sold': '400+', 'likes': 20, 'price': '55.000đ', 'icon': Icons.rice_bowl},
-      {'name': 'Cơm tấm sườn bì chả', 'sold': '350+', 'likes': 18, 'price': '50.000đ', 'icon': Icons.rice_bowl},
-    ],
-    // Đồ uống
-    [
-      {'name': 'Trà đào cam sả', 'sold': '600+', 'likes': 25, 'price': '35.000đ', 'icon': Icons.local_drink},
-      {'name': 'Cà phê sữa đá', 'sold': '800+', 'likes': 30, 'price': '29.000đ', 'icon': Icons.coffee},
-      {'name': 'Nước ép cam tươi', 'sold': '200+', 'likes': 8, 'price': '32.000đ', 'icon': Icons.local_drink},
-    ],
-    // Combo
-    [
-      {'name': 'Combo A: 2 gà + 1 nước', 'sold': '150+', 'likes': 6, 'price': '89.000đ', 'icon': Icons.fastfood},
-      {'name': 'Combo B: 3 gà + khoai + nước', 'sold': '100+', 'likes': 4, 'price': '119.000đ', 'icon': Icons.fastfood},
-    ],
-    // Tráng miệng
-    [
-      {'name': 'Kem vani socola', 'sold': '80+', 'likes': 3, 'price': '25.000đ', 'icon': Icons.icecream},
-      {'name': 'Bánh flan caramel', 'sold': '120+', 'likes': 5, 'price': '20.000đ', 'icon': Icons.cake},
-    ],
-  ];
-
-  // Mock promos
-  static const _promos = [
-    'Giảm 50% · Đơn từ 55k',
-    'Giảm 50% · Đơn từ 55k',
-    'Giảm 50% · Đơn từ 99k',
-    'Freeship · Đơn từ 30k',
-  ];
-
-  // Mock popular items (horizontal scroll)
-  static const _popularItems = [
-    {'name': 'Set sum vầy', 'sold': '600+', 'price': '53.000đ', 'icon': Icons.dinner_dining},
-    {'name': 'Gà rán combo', 'sold': '200+', 'price': '89.000đ', 'icon': Icons.fastfood},
-    {'name': 'Gà sốt cay', 'sold': '150+', 'price': '55.000đ', 'icon': Icons.local_fire_department},
-  ];
+  List<String> _menuCategories = [];
+  List<List<Map<String, dynamic>>> _menuItems = [];
+  List<String> _promos = [];
+  List<Map<String, dynamic>> _popularItems = [];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // ─── App Bar with image ─────────────────────────────
-          _buildSliverAppBar(context),
+    final asyncBranch = ref.watch(branchDetailProvider(widget.storeId));
+    
+    // Watch cart state
+    final cartState = ref.watch(cartProvider);
+    final cartItemCount = cartState.totalItems;
 
-          // ─── Store Info ─────────────────────────────────────
-          SliverToBoxAdapter(child: _buildStoreInfo()),
+    return asyncBranch.when(
+      data: (branchDetail) {
+        // Map data from BE
+        _menuCategories = branchDetail.menu?.map((m) => m.name).toList() ?? [];
+        _menuItems = branchDetail.menu?.map((m) => m.items.map((i) => {
+          'id': i.slug,
+          'name': i.name,
+          'price': '${i.price}đ',
+          'sold': '${i.soldCount ?? 0}+',
+          'likes': i.likesCount ?? 0,
+          'icon': Icons.fastfood, // Fallback icon
+          'imageUrl': i.imageUrl,
+        }).toList()).toList() ?? [];
+        _promos = branchDetail.promos ?? [];
+        _popularItems = []; // For demo, could extract from menu
+        
+        if (_sectionKeys.length != _menuCategories.length) {
+          _sectionKeys = List.generate(_menuCategories.length, (_) => GlobalKey());
+        }
 
-          // ─── Delivery Info ──────────────────────────────────
-          SliverToBoxAdapter(child: _buildDeliveryInfo()),
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // ─── App Bar with image ─────────────────────────────
+              _buildSliverAppBar(context, branchDetail),
 
-          // ─── Promos ─────────────────────────────────────────
-          SliverToBoxAdapter(child: _buildPromos()),
+              // ─── Store Info ─────────────────────────────────────
+              SliverToBoxAdapter(child: _buildStoreInfo(branchDetail)),
 
-          // ─── Popular Items ──────────────────────────────────
-          SliverToBoxAdapter(child: _buildPopularItems()),
+              // ─── Delivery Info ──────────────────────────────────
+              SliverToBoxAdapter(child: _buildDeliveryInfo(branchDetail)),
 
-          // Spacing
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              // ─── Promos ─────────────────────────────────────────
+              if (_promos.isNotEmpty)
+                SliverToBoxAdapter(child: _buildPromos()),
 
-          // ─── Category Tabs ──────────────────────────────────
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _CategoryTabsDelegate(
-              categories: _menuCategories,
-              selectedIndex: _selectedCategoryIndex,
-              onSelected: _scrollToSection,
-            ),
+              // ─── Popular Items ──────────────────────────────────
+              if (_popularItems.isNotEmpty)
+                SliverToBoxAdapter(child: _buildPopularItems()),
+
+              // Spacing
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              // ─── Category Tabs ──────────────────────────────────
+              if (_menuCategories.isNotEmpty)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _CategoryTabsDelegate(
+                    categories: _menuCategories,
+                    selectedIndex: _selectedCategoryIndex,
+                    onSelected: _scrollToSection,
+                  ),
+                ),
+
+              // ─── All Menu Items grouped by category ──────────
+              ..._buildAllMenuSections(),
+
+              // Bottom spacing
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
           ),
-
-          // ─── All Menu Items grouped by category ──────────
-          ..._buildAllMenuSections(),
-
-          // Bottom spacing
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
-        ],
-      ),
-      // ─── Floating Cart Bar ─────────────────────────────────
-      bottomNavigationBar: _cartItemCount > 0 ? _buildCartBar() : null,
+          // ─── Floating Cart Bar ─────────────────────────────────
+          bottomNavigationBar: cartItemCount > 0 ? _buildCartBar(branchDetail) : null,
+        );
+      },
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
     );
   }
 
   // ─── Cart Bar ──────────────────────────────────────────────────────────
-  Widget _buildCartBar() {
+  Widget _buildCartBar(BranchDetailModel branchDetail) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: const BoxDecoration(
@@ -346,9 +323,10 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
           onTap: () {
             Navigator.push(context, MaterialPageRoute(
               builder: (_) => CheckoutPage(
-                storeName: widget.storeName,
-                itemCount: _cartItemCount,
-                distance: widget.distance,
+                storeId: branchDetail.id,
+                storeName: branchDetail.name,
+                itemCount: ref.read(cartProvider).totalItems,
+                distance: branchDetail.distance,
                 icon: widget.icon,
               ),
             ));
@@ -364,7 +342,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
                 const SizedBox(width: 10),
                 Text(
-                  'Giỏ hàng - $_cartItemCount món',
+                  'Giỏ hàng - ${ref.watch(cartProvider).totalItems} món',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -373,7 +351,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
                 ),
                 const Spacer(),
                 Text(
-                  '${_formatCartPrice(_cartTotal)}đ',
+                  '${_formatCartPrice(ref.watch(cartProvider).total)}đ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -395,12 +373,22 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     );
   }
 
-  void _handleCartResult(dynamic result) {
+  void _handleCartResult(dynamic result, Map<String, dynamic> item) {
     if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _cartItemCount += result['quantity'] as int;
-        _cartTotal += result['total'] as int;
-      });
+      final quantity = result['quantity'] as int;
+      final priceStr = item['price'] as String;
+      final priceAmount = int.tryParse(priceStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      
+      final cartItem = CartItemModel(
+        id: item['id'] as String,
+        imageUrl: item['imageUrl'] as String? ?? '',
+        name: item['name'] as String,
+        priceAmount: priceAmount,
+        priceDisplay: priceStr,
+        quantity: quantity,
+      );
+      
+      ref.read(cartProvider.notifier).addItem(cartItem);
     }
   }
 
@@ -445,7 +433,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Sliver App Bar ──────────────────────────────────────────────────────
-  Widget _buildSliverAppBar(BuildContext context) {
+  Widget _buildSliverAppBar(BuildContext context, BranchDetailModel branchDetail) {
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,
@@ -563,17 +551,19 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
         IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          color: AppColors.bgWarm,
-          child: Icon(widget.icon, size: 80, color: AppColors.textTertiary),
-        ),
+        background: branchDetail.imageUrl.isNotEmpty 
+            ? Image.network(branchDetail.imageUrl, fit: BoxFit.cover)
+            : Container(
+                color: AppColors.bgWarm,
+                child: Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+              ),
       ),
     );
   }
 
 
   // ─── Store Info Section ──────────────────────────────────────────────────
-  Widget _buildStoreInfo() {
+  Widget _buildStoreInfo(BranchDetailModel branchDetail) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Column(
@@ -602,7 +592,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               // Store name
               Expanded(
                 child: Text(
-                  widget.storeName,
+                  branchDetail.name,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -643,7 +633,15 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               const Icon(Icons.access_time, size: 13, color: AppColors.textSecondary),
               const SizedBox(width: 3),
               Text(
-                widget.deliveryTime,
+                branchDetail.deliveryTime.isNotEmpty ? branchDetail.deliveryTime : "15-20 phút",
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              // Distance
+              const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                'Cách bạn ${branchDetail.distance.isNotEmpty ? branchDetail.distance : "3.0 km"} - 15k phí giao',
                 style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(width: 12),
@@ -683,7 +681,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
   }
 
   // ─── Delivery Info Section ──────────────────────────────────────────────
-  Widget _buildDeliveryInfo() {
+  Widget _buildDeliveryInfo(BranchDetailModel branchDetail) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
@@ -831,14 +829,16 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
+            id: item['id'] as String,
             name: item['name'] as String,
             price: item['price'] as String,
             sold: item['sold'] as String,
             likes: 0,
             icon: item['icon'] as IconData,
+            imageUrl: item['imageUrl'] as String?,
           ),
         ));
-        _handleCartResult(result);
+        _handleCartResult(result, item);
       },
       child: Container(
         width: 130,
@@ -935,14 +935,16 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
+            id: item['id'] as String,
             name: item['name'] as String,
             price: item['price'] as String,
             sold: item['sold'] as String,
             likes: item['likes'] as int,
             icon: item['icon'] as IconData,
+            imageUrl: item['imageUrl'] as String?,
           ),
         ));
-        _handleCartResult(result);
+        _handleCartResult(result, item);
       },
       child: Container(
         key: isHighlighted ? _highlightedItemKey : null,

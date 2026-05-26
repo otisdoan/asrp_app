@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/favorite_shops_provider.dart';
-import 'store_detail_page.dart';
+import 'branches_detail_page.dart';
 
 class FavoriteShopsPage extends ConsumerWidget {
   const FavoriteShopsPage({super.key});
@@ -290,7 +290,7 @@ class FavoriteShopsPage extends ConsumerWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => StoreDetailPage(
+            builder: (_) => StoreDetailPage(storeId: '00000000-0000-0000-0000-000000000000',
               storeName: name,
               category: category,
               rating: rating,

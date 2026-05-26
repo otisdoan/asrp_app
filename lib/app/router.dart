@@ -11,9 +11,9 @@ import '../presentation/pages/auth/profile_page.dart';
 import '../presentation/pages/auth/edit_profile_page.dart';
 import '../presentation/pages/staff/staff_home_page.dart';
 import '../presentation/pages/staff/cashier_page.dart';
-import '../presentation/pages/shop/home_page.dart';
-import '../presentation/pages/shop/search_page.dart';
-import '../presentation/pages/shop/favorite_shops_page.dart';
+import '../presentation/pages/branches/home_page.dart';
+import '../presentation/pages/branches/search_page.dart';
+import '../presentation/pages/branches/favorite_branches_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {

@@ -1,7 +1,8 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'http://api.asrp.io.vn/api'; // Change for production
+  static const String baseUrl =
+      'http://api.asrp.io.vn/api';
 
   // Auth
   static const String login = '/auth/login';

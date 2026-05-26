@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
-import '../../../providers/shop_provider.dart';
+import '../../../providers/branches_provider.dart';
 import '../../../providers/category_provider.dart';
 
 class ShopDrawer extends ConsumerWidget {

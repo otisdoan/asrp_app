@@ -73,7 +73,7 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   void clearCart() {
-    state = const CartState();
+    state = state.copyWith(items: []);
   }
 }
 
@@ -90,3 +90,4 @@ final cartItemCountProvider = Provider<int>(
 final cartTotalProvider = Provider<int>(
   (ref) => ref.watch(cartProvider).total,
 );
+

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
-import '../../../providers/shop_provider.dart';
+import '../../../providers/branches_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
 

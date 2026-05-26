@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/mock_data.dart';
-import 'store_detail_page.dart';
-import '../../../providers/shop_provider.dart';
+import 'branches_detail_page.dart';
+import '../../../providers/branches_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
 
@@ -710,7 +710,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           GestureDetector(
             onTap: () {
               Navigator.push(context, MaterialPageRoute(
-                builder: (_) => StoreDetailPage(
+                builder: (_) => StoreDetailPage(storeId: '00000000-0000-0000-0000-000000000000',
                   storeName: store.name,
                   category: 'Đồ ăn · Đồ uống',
                   rating: store.rating,
@@ -740,7 +740,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 GestureDetector(
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => StoreDetailPage(
+                      builder: (_) => StoreDetailPage(storeId: '00000000-0000-0000-0000-000000000000',
                         storeName: store.name,
                         category: 'Đồ ăn · Đồ uống',
                         rating: store.rating,
@@ -820,7 +820,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => StoreDetailPage(
+                            builder: (_) => StoreDetailPage(storeId: '00000000-0000-0000-0000-000000000000',
                               storeName: store.name,
                               category: 'Đồ ăn · Đồ uống',
                               rating: store.rating,

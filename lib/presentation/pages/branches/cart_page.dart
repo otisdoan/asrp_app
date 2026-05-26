@@ -164,7 +164,7 @@ class _CartPageState extends State<CartPage> {
     return GestureDetector(
       onTap: _isManaging ? null : () {
         Navigator.push(context, MaterialPageRoute(
-          builder: (_) => CheckoutPage(
+          builder: (_) => CheckoutPage(storeId: '00000000-0000-0000-0000-000000000000',
             storeName: store['name'] as String,
             itemCount: store['items'] as int,
             distance: store['distance'] as String,

@@ -5,19 +5,23 @@ import 'add_to_cart_page.dart';
 /// Food Item Detail Page — shows food image, info, price, and reviews.
 /// Follows RULE: UI-only, uses AppColors, responsive.
 class FoodDetailPage extends StatelessWidget {
+  final String id;
   final String name;
   final String price;
   final String sold;
   final int likes;
   final IconData icon;
+  final String? imageUrl;
 
   const FoodDetailPage({
     super.key,
+    required this.id,
     required this.name,
     required this.price,
     required this.sold,
     required this.likes,
     required this.icon,
+    this.imageUrl,
   });
 
   // Mock description
@@ -139,10 +143,19 @@ class FoodDetailPage extends StatelessWidget {
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          color: AppColors.bgWarm,
-          child: Icon(icon, size: 100, color: AppColors.textTertiary),
-        ),
+        background: imageUrl != null && imageUrl!.isNotEmpty
+            ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: AppColors.bgWarm,
+                  child: Icon(icon, size: 100, color: AppColors.textTertiary),
+                ),
+              )
+            : Container(
+                color: AppColors.bgWarm,
+                child: Icon(icon, size: 100, color: AppColors.textTertiary),
+              ),
       ),
     );
   }

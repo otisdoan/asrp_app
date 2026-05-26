@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../providers/orders/order_provider.dart';
+import '../../../data/orders/models/order_api_model.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
 /// Business: No delivery. Customer orders online, picks up at store.
 /// Only payment method: QR code at restaurant.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class CheckoutPage extends StatefulWidget {
+class CheckoutPage extends ConsumerStatefulWidget {
+  final String storeId;
   final String storeName;
   final int itemCount;
   final String distance;
@@ -13,6 +18,7 @@ class CheckoutPage extends StatefulWidget {
 
   const CheckoutPage({
     super.key,
+    required this.storeId,
     required this.storeName,
     required this.itemCount,
     required this.distance,
@@ -20,29 +26,12 @@ class CheckoutPage extends StatefulWidget {
   });
 
   @override
-  State<CheckoutPage> createState() => _CheckoutPageState();
+  ConsumerState<CheckoutPage> createState() => _CheckoutPageState();
 }
 
-class _CheckoutPageState extends State<CheckoutPage> {
+class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   int _selectedTimeIndex = 0;
 
-  // Mock order items
-  static const _orderItems = [
-    {
-      'name': 'Combo 1: Phần gà + khoai',
-      'extras': 'Thêm Kem muối\n1 Gà sốt cay',
-      'price': 53000,
-      'quantity': 1,
-    },
-    {
-      'name': 'Gà rán truyền thống (2 miếng)',
-      'extras': '',
-      'price': 45000,
-      'quantity': 1,
-    },
-  ];
-
-  // Mock pickup time slots (based on food prep time)
   static const _timeSlots = [
     {'label': 'Sớm nhất', 'time': '15 phút', 'note': 'Món hoàn thành nhanh nhất'},
     {'label': 'Sau 30 phút', 'time': '30 phút', 'note': ''},
@@ -50,16 +39,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     {'label': 'Hẹn giờ khác', 'time': '', 'note': ''},
   ];
 
-  int get _subtotal {
-    int total = 0;
-    for (final item in _orderItems) {
-      total += (item['price'] as int) * (item['quantity'] as int);
-    }
-    return total;
-  }
-
   int get _serviceFee => 3000;
-  int get _total => _subtotal + _serviceFee;
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
@@ -172,8 +152,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
         const SizedBox(height: 12),
         // Order items
-        ...List.generate(_orderItems.length, (index) {
-          final item = _orderItems[index];
+        ...List.generate(ref.watch(cartProvider).items.length, (index) {
+          final item = ref.watch(cartProvider).items[index];
           return _buildOrderItem(item);
         }),
         const SizedBox(height: 12),
@@ -182,8 +162,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildOrderItem(Map<String, dynamic> item) {
-    final extras = item['extras'] as String;
+  Widget _buildOrderItem(dynamic item) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -206,7 +185,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'] as String,
+                  item.name,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -215,17 +194,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (extras.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    extras,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      height: 1.4,
+                  if (item.note != null && item.note!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.note!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
                 const SizedBox(height: 4),
                 GestureDetector(
                   onTap: () {},
@@ -247,7 +226,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${_formatPrice(item['price'] as int)}đ',
+                '${_formatPrice(item.priceAmount)}đ',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -265,7 +244,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
                 child: Center(
                   child: Text(
-                    '${item['quantity']}',
+                    '${item.quantity}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -293,12 +272,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
             children: [
               Icon(Icons.access_time_filled, size: 20, color: AppColors.primary),
               const SizedBox(width: 8),
-              const Text(
-                'Thời gian nhận hàng tại quán',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+              const Expanded(
+                child: Text(
+                  'Thời gian nhận hàng tại quán',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -506,7 +487,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       child: Column(
         children: [
           // Subtotal
-          _buildPriceRow('Tổng tạm tính', _subtotal),
+          _buildPriceRow('Tổng tạm tính', ref.watch(cartProvider).subtotal),
           const SizedBox(height: 10),
           // Service fee
           _buildPriceRow('Phí dịch vụ', _serviceFee),
@@ -526,7 +507,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
               ),
               Text(
-                '${_formatPrice(_total)}đ',
+                '${_formatPrice(ref.watch(cartProvider).total + _serviceFee)}đ',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -610,7 +591,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                 ),
                 Text(
-                  '${_formatPrice(_total)}đ',
+                  '${_formatPrice(ref.watch(cartProvider).total + _serviceFee)}đ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -624,15 +605,55 @@ class _CheckoutPageState extends State<CheckoutPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // Show confirmation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Đơn hàng đã được xác nhận! Vui lòng đến quán nhận hàng.'),
-                      backgroundColor: AppColors.primary,
-                    ),
+                onPressed: () async {
+                  final cartItems = ref.read(cartProvider).items;
+                  
+                  DateTime pickupTime;
+                  switch (_selectedTimeIndex) {
+                    case 0:
+                      pickupTime = DateTime.now().add(const Duration(minutes: 15));
+                      break;
+                    case 1:
+                      pickupTime = DateTime.now().add(const Duration(minutes: 30));
+                      break;
+                    case 2:
+                      pickupTime = DateTime.now().add(const Duration(minutes: 45));
+                      break;
+                    case 3:
+                    default:
+                      pickupTime = DateTime.now().add(const Duration(minutes: 60));
+                      break;
+                  }
+
+                  final request = CreateOnlineOrderRequest(
+                    branchId: widget.storeId,
+                    pickupTime: pickupTime.toIso8601String(),
+                    items: cartItems.map((item) => OrderItemRequest(
+                      menuItemId: item.id,
+                      quantity: item.quantity,
+                      note: item.note,
+                    )).toList(),
                   );
-                  Navigator.pop(context);
+                  
+                  final success = await ref.read(orderProvider.notifier).createOnlineOrder(request, useCash: true);
+                  
+                  if (success && context.mounted) {
+                    ref.read(cartProvider.notifier).clearCart(); // We should add clearCart method to CartNotifier
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đơn hàng đã được xác nhận! Vui lòng đến quán nhận hàng.'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                    Navigator.pop(context);
+                  } else if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đặt hàng thất bại. Vui lòng thử lại.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
