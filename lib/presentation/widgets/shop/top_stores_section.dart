@@ -67,41 +67,52 @@ class TopStoresSection extends ConsumerWidget {
         // Lọc quán đỉnh trên 4.5
         final topBranches = branches.where((b) => b.rating >= 4.5).toList();
         if (topBranches.isEmpty) {
-          return _buildContent(context, ref, _stores.map((s) => BranchListItemModel(
-            id: '',
-            name: s['name'] as String,
-            imageUrl: s['image'] as String,
-            rating: s['rating'] as double,
-            distance: s['distance'] as String,
-            deliveryTime: s['time'] as String,
-            promo: s['promo'] as String,
-            discount: s['discount'] as String,
-            tag: s['tag'] as String,
-            adLabel: s['adLabel'] as String,
-          )).toList());
+          return _buildContent(
+              context,
+              ref,
+              _stores
+                  .map((s) => BranchListItemModel(
+                        id: '',
+                        name: s['name'] as String,
+                        imageUrl: s['image'] as String,
+                        rating: s['rating'] as double,
+                        distance: s['distance'] as String,
+                        deliveryTime: s['time'] as String,
+                        promo: s['promo'] as String,
+                        discount: s['discount'] as String,
+                        tag: s['tag'] as String,
+                        adLabel: s['adLabel'] as String,
+                      ))
+                  .toList());
         }
         return _buildContent(context, ref, topBranches);
       },
       loading: () => const _LoadingSection(),
       error: (err, stack) {
         print('[TopStoresSection] Lỗi tải chi nhánh: $err');
-        return _buildContent(context, ref, _stores.map((s) => BranchListItemModel(
-          id: '',
-          name: s['name'] as String,
-          imageUrl: s['image'] as String,
-          rating: s['rating'] as double,
-          distance: s['distance'] as String,
-          deliveryTime: s['time'] as String,
-          promo: s['promo'] as String,
-          discount: s['discount'] as String,
-          tag: s['tag'] as String,
-          adLabel: s['adLabel'] as String,
-        )).toList());
+        return _buildContent(
+            context,
+            ref,
+            _stores
+                .map((s) => BranchListItemModel(
+                      id: '',
+                      name: s['name'] as String,
+                      imageUrl: s['image'] as String,
+                      rating: s['rating'] as double,
+                      distance: s['distance'] as String,
+                      deliveryTime: s['time'] as String,
+                      promo: s['promo'] as String,
+                      discount: s['discount'] as String,
+                      tag: s['tag'] as String,
+                      adLabel: s['adLabel'] as String,
+                    ))
+                .toList());
       },
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, List<BranchListItemModel> branches) {
+  Widget _buildContent(
+      BuildContext context, WidgetRef ref, List<BranchListItemModel> branches) {
     final userLocation = ref.watch(userLocationProvider);
 
     return Column(
@@ -116,7 +127,7 @@ class TopStoresSection extends ConsumerWidget {
               const SizedBox(width: 6),
               const Expanded(
                 child: Text(
-                  'Top quán đỉnh trên 4.5',
+                  'Top quán trên 4.5 sao',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -152,8 +163,11 @@ class TopStoresSection extends ConsumerWidget {
 
               // Calculate dynamic distance if user location is available
               String displayDistance = branch.distance;
-              print('[TopStoresSection] Branch: ${branch.name}, lat: ${branch.latitude}, lng: ${branch.longitude}, userLocation: ${userLocation?.latitude}, ${userLocation?.longitude}');
-              if (userLocation != null && branch.latitude != null && branch.longitude != null) {
+              print(
+                  '[TopStoresSection] Branch: ${branch.name}, lat: ${branch.latitude}, lng: ${branch.longitude}, userLocation: ${userLocation?.latitude}, ${userLocation?.longitude}');
+              if (userLocation != null &&
+                  branch.latitude != null &&
+                  branch.longitude != null) {
                 final meters = LocationService.distanceTo(
                   userLocation.latitude,
                   userLocation.longitude,
@@ -161,7 +175,8 @@ class TopStoresSection extends ConsumerWidget {
                   branch.longitude!,
                 );
                 displayDistance = LocationService.formatDistance(meters);
-                print('[TopStoresSection] Calculated distance: $displayDistance');
+                print(
+                    '[TopStoresSection] Calculated distance: $displayDistance');
               } else if (displayDistance.isEmpty) {
                 displayDistance = 'Gần đây';
               }
@@ -221,18 +236,20 @@ class _StoreCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => StoreDetailPage(
-            storeName: name,
-            category: 'Đồ ăn · Đồ uống',
-            rating: rating,
-            reviews: 100,
-            deliveryTime: time,
-            distance: distance,
-            icon: Icons.store,
-            branchId: branchId,
-          ),
-        ));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StoreDetailPage(
+                storeName: name,
+                category: 'Đồ ăn · Đồ uống',
+                rating: rating,
+                reviews: 100,
+                deliveryTime: time,
+                distance: distance,
+                icon: Icons.store,
+                branchId: branchId,
+              ),
+            ));
       },
       child: Container(
         width: 160,
@@ -269,7 +286,8 @@ class _StoreCard extends StatelessWidget {
                             width: double.infinity,
                             height: 110,
                             errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.store, color: AppColors.textTertiary, size: 30),
+                              child: Icon(Icons.store,
+                                  color: AppColors.textTertiary, size: 30),
                             ),
                           )
                         : Image.asset(
@@ -278,7 +296,8 @@ class _StoreCard extends StatelessWidget {
                             width: double.infinity,
                             height: 110,
                             errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.store, color: AppColors.textTertiary, size: 30),
+                              child: Icon(Icons.store,
+                                  color: AppColors.textTertiary, size: 30),
                             ),
                           ),
                   ),
@@ -289,7 +308,8 @@ class _StoreCard extends StatelessWidget {
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.success,
                         borderRadius: BorderRadius.circular(4),
@@ -310,7 +330,8 @@ class _StoreCard extends StatelessWidget {
                     bottom: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(4),
@@ -320,7 +341,8 @@ class _StoreCard extends StatelessWidget {
                         children: [
                           const Text(
                             'Ưu đãi\n',
-                            style: TextStyle(fontSize: 8, color: Colors.white, height: 1),
+                            style: TextStyle(
+                                fontSize: 8, color: Colors.white, height: 1),
                           ),
                           Text(
                             discount,
@@ -347,7 +369,8 @@ class _StoreCard extends StatelessWidget {
                     if (promo.isNotEmpty)
                       Row(
                         children: [
-                          const Icon(Icons.local_offer, size: 12, color: AppColors.primary),
+                          const Icon(Icons.local_offer,
+                              size: 12, color: AppColors.primary),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -388,7 +411,9 @@ class _StoreCard extends StatelessWidget {
                               color: AppColors.textTertiary,
                             ),
                           ),
-                          const Text(' · ', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                          const Text(' · ',
+                              style: TextStyle(
+                                  fontSize: 10, color: AppColors.textTertiary)),
                         ],
                         Flexible(
                           child: Text(
