@@ -216,15 +216,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const SizedBox(height: 20),
 
                   // Group 4: Special Admin / Staff controls (Hiển thị có điều kiện)
-                  if (user.role == 'admin' || user.role == 'manager' || user.role == 'staff') ...[
-                    _buildSectionHeader('Đặc quyền ${(user.role == 'admin' || user.role == 'manager') ? 'Quản lý' : 'Nhân viên'}'),
+                  if (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'manager' || user.role.toLowerCase() == 'staff') ...[
+                    _buildSectionHeader(
+                      user.role.toLowerCase() == 'admin'
+                          ? 'Đặc quyền Admin'
+                          : (user.role.toLowerCase() == 'manager' ? 'Đặc quyền Quản lý' : 'Đặc quyền Nhân viên'),
+                    ),
+                    if (user.role.toLowerCase() == 'admin')
+                      _buildMenuItem(
+                        icon: Icons.dashboard_customize_outlined,
+                        title: 'Bảng điều khiển Admin',
+                        subtitle: 'Xem doanh thu và thống kê hoạt động',
+                        onTap: () => context.push('/admin/dashboard'),
+                      ),
                     _buildMenuItem(
                       icon: Icons.point_of_sale_rounded,
                       title: 'Màn hình POS Nhân viên',
                       subtitle: 'Đặt món tại bàn cho khách chi nhánh',
                       onTap: () => context.push(AppConstants.routeStaffHome),
                     ),
-                    if (user.role == 'admin' || user.role == 'manager')
+                    if (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'manager')
                       _buildMenuItem(
                         icon: Icons.account_balance_wallet_outlined,
                         title: 'Màn hình Cashier Thu ngân',
@@ -829,10 +840,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget _buildRoleBadge(String role) {
     Color badgeColor;
     String label;
-    if (role == 'admin' || role == 'manager') {
-      badgeColor = const Color(0xFFF3B844);
+    final r = role.toLowerCase();
+    if (r == 'admin') {
+      badgeColor = AppColors.badgeNewText; // Premium royal brand color
+      label = 'Admin';
+    } else if (r == 'manager') {
+      badgeColor = const Color(0xFFF3B844); // Golden
       label = 'Quản lý';
-    } else if (role == 'staff') {
+    } else if (r == 'staff') {
       badgeColor = AppColors.secondary;
       label = 'Nhân viên';
     } else {

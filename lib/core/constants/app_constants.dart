@@ -14,6 +14,7 @@ class AppConstants {
   static const String routeProfile = '/profile';
   static const String routeEditProfile = '/profile/edit';
   static const String routeFavoriteShops = '/shops/favorite';
+  static const String routeSuperAdminDashboard = '/superadmin/dashboard';
 
   // Storage keys
   static const String storageKeyAccessToken = 'access_token';

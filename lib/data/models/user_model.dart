@@ -7,7 +7,7 @@ class UserModel {
   final String? avatar;
   final String? gender;
   final String? birthday;
-  final String role; // 'admin' | 'staff' | 'customer'
+  final String role; // 'Admin' | 'Staff' | 'Customer'
   final bool isActive;
   final int points;
   final String? tier;
@@ -34,6 +34,26 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    String resolvedRole = 'Customer';
+    if (json['role'] != null) {
+      resolvedRole = json['role'].toString();
+    } else if (json['roles'] != null) {
+      if (json['roles'] is List && (json['roles'] as List).isNotEmpty) {
+        final firstRole = (json['roles'] as List).first;
+        if (firstRole is Map) {
+          resolvedRole = (firstRole['name'] ?? firstRole['roleName'] ?? firstRole['role'] ?? '').toString();
+        } else {
+          resolvedRole = firstRole.toString();
+        }
+      } else {
+        resolvedRole = json['roles'].toString();
+      }
+    }
+
+    if (resolvedRole.trim().isEmpty) {
+      resolvedRole = 'Customer';
+    }
+
     return UserModel(
       id: (json['id'] ?? json['_id'])?.toString() ?? '',
       username: json['username']?.toString() ?? '',
@@ -43,7 +63,7 @@ class UserModel {
       avatar: json['avatar']?.toString(),
       gender: json['gender']?.toString(),
       birthday: json['birthday']?.toString(),
-      role: json['role']?.toString() ?? 'customer',
+      role: resolvedRole,
       isActive: json['isActive'] is bool ? json['isActive'] as bool : (json['isActive']?.toString() == 'true'),
       points: json['points'] is int
           ? json['points'] as int
@@ -65,6 +85,7 @@ class UserModel {
         'gender': gender,
         'birthday': birthday,
         'role': role,
+        'roles': [role],
         'isActive': isActive,
         'points': points,
         'tier': tier,

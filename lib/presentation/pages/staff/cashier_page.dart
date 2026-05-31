@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/category_provider.dart';
+import '../../../data/models/category_model.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../core/constants/app_constants.dart';
 
 /// Cashier Page — receives orders from staff + creates takeaway orders.
 /// Two tabs: "Đơn chờ" (pending from staff) and "Tạo đơn mang đi".
@@ -15,7 +20,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
   late TabController _tabController;
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  int _selectedCategory = 0;
+  String _selectedCategoryName = 'Tất cả';
 
   // Takeaway order
   final List<_OrderItem> _takeawayItems = [];
@@ -53,16 +58,6 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
     ),
   ];
 
-  // Menu for takeaway
-  static const _categories = [
-    {'name': 'Tất cả', 'imageUrl': ''},
-    {'name': 'Phở', 'imageUrl': 'assets/images/pho.jpg'},
-    {'name': 'Cơm', 'imageUrl': 'assets/images/com.webp'},
-    {'name': 'Bún', 'imageUrl': 'assets/images/pho_bo.png'},
-    {'name': 'Nước', 'imageUrl': 'assets/images/tra_sua.jpg'},
-    {'name': 'Tráng miệng', 'imageUrl': 'assets/images/tra_sua.jpg'},
-  ];
-
   static final _menuItems = [
     _MenuItem(name: 'Phở bò tái', price: 45000, imageUrl: 'assets/images/pho.jpg', category: 'Phở'),
     _MenuItem(name: 'Phở bò viên', price: 45000, imageUrl: 'assets/images/pho.jpg', category: 'Phở'),
@@ -80,9 +75,8 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 
   List<_MenuItem> get _filteredItems {
     var items = _menuItems;
-    if (_selectedCategory > 0) {
-      final cat = _categories[_selectedCategory]['name'] as String;
-      items = items.where((i) => i.category == cat).toList();
+    if (_selectedCategoryName != 'Tất cả') {
+      items = items.where((i) => i.category == _selectedCategoryName).toList();
     }
     if (_searchQuery.isNotEmpty) {
       items = items.where((i) => i.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
@@ -166,106 +160,239 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 
   // ─── Header ────────────────────────────────────────────────────────────
   Widget _buildHeader() {
+    final user = ref.watch(currentUserProvider);
+    final displayName = user?.displayName ?? 'Quản lý';
+    final initialChar = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'M';
+    final newPendingCount = _pendingOrders.where((o) => o.isNew).length;
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primaryActive, AppColors.primary],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
+        child: Column(
+          children: [
+            // Top Row (Profile + Actions)
+            Row(
+              children: [
+                // Clickable profile area (Avatar)
+                GestureDetector(
+                  onTap: () => context.push(AppConstants.routeProfile),
+                  child: Container(
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.onPrimary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white30, width: 1.5),
                     ),
-                    padding: const EdgeInsets.all(6),
-                    child: Image.asset('assets/logo.png', fit: BoxFit.contain),
+                    child: Center(
+                      child: Text(
+                        initialChar,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => context.push(AppConstants.routeProfile),
+                    behavior: HitTestBehavior.opaque,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Thu ngân',
-                          style: TextStyle(
+                          displayName,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.onPrimary,
+                            color: Colors.white,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          'DineX · Chi nhánh Q1',
-                          style: TextStyle(fontSize: 12, color: Color(0xCCFFFFFF)),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'DineX Cashier · Thu ngân',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  // Pending count
-                  if (_pendingOrders.where((o) => o.isNew).isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.onPrimary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.notifications_active, size: 14, color: AppColors.onPrimary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_pendingOrders.where((o) => o.isNew).length}',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onPrimary),
+                ),
+                const SizedBox(width: 12),
+                // Actions: Notification bell and the exact Admin Logout button
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            _tabController.animateTo(0);
+                            setState(() {});
+                          },
+                          icon: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                            size: 20,
                           ),
-                        ],
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(36, 36),
+                          ),
+                          tooltip: 'Đơn chờ',
+                        ),
+                        if (newPendingCount > 0)
+                          Positioned(
+                            top: -3,
+                            right: -3,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.error,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.primary, width: 1.5),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 18,
+                                minHeight: 18,
+                              ),
+                              child: Text(
+                                '$newPendingCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 22),
+                      onPressed: _confirmLogout,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              // Tabs
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.onPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.all(3),
-                child: TabBar(
-                  controller: _tabController,
-                  onTap: (_) => setState(() {}),
-                  indicator: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.onPrimary,
-                  labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  tabs: [
-                    Tab(text: 'Đơn chờ (${_pendingOrders.length})'),
-                    const Tab(text: 'Tạo đơn mang đi'),
                   ],
                 ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            // TabBar section
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 12),
-            ],
-          ),
+              padding: const EdgeInsets.all(3),
+              child: TabBar(
+                controller: _tabController,
+                onTap: (_) => setState(() {}),
+                indicator: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: Colors.white,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                tabs: [
+                  Tab(text: 'Đơn chờ (${_pendingOrders.length})'),
+                  const Tab(text: 'Tạo đơn mang đi'),
+                ],
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 24),
+            SizedBox(width: 10),
+            Text(
+              'Đăng xuất tài khoản?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn đăng xuất khỏi màn hình quản lý thu ngân không?',
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go(AppConstants.routeLogin);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
       ),
     );
   }
@@ -435,8 +562,9 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
     );
   }
 
-  // ─── Takeaway Tab ──────────────────────────────────────────────────────
   Widget _buildTakeawayTab() {
+    final categoriesAsync = ref.watch(categoriesFutureProvider);
+
     return Column(
       children: [
         // Search
@@ -464,59 +592,10 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
           ),
         ),
         // Categories
-        SizedBox(
-          height: 42,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _categories.length,
-            itemBuilder: (_, index) {
-              final selected = _selectedCategory == index;
-              final cat = _categories[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.primary : AppColors.surfaceContainerLowest,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: selected ? AppColors.primary : AppColors.outlineVariant),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: const BoxDecoration(shape: BoxShape.circle),
-                          child: ClipOval(
-                            child: (cat['imageUrl'] as String).isNotEmpty
-                                ? Image.asset(cat['imageUrl'] as String, fit: BoxFit.cover)
-                                : Icon(
-                                    Icons.restaurant_menu_rounded,
-                                    size: 12,
-                                    color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          cat['name'] as String,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                            color: selected ? AppColors.onPrimary : AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+        categoriesAsync.when(
+          data: (categories) => _buildCategories(categories),
+          loading: () => _buildCategories(const []),
+          error: (_, __) => _buildCategories(const []),
         ),
         const SizedBox(height: 8),
         // Menu list
@@ -671,6 +750,99 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Categories list builder helper
+  Widget _buildCategories(List<CategoryModel> categories) {
+    final list = [
+      const CategoryModel(id: 'all', name: 'Tất cả', imageUrl: ''),
+      ...categories,
+    ];
+
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: list.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          final cat = list[index];
+          final name = cat.name;
+          final imageUrl = cat.imageUrl;
+          final selected = _selectedCategoryName == name;
+
+          return GestureDetector(
+            onTap: () => setState(() => _selectedCategoryName = name),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? AppColors.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: imageUrl.isNotEmpty
+                        ? (imageUrl.startsWith('http')
+                            ? Image.network(
+                                imageUrl,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.restaurant_menu_rounded,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : Image.asset(
+                                imageUrl,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.restaurant_menu_rounded,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ))
+                        : Container(
+                            color: selected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                            child: Icon(
+                              Icons.restaurant_menu_rounded,
+                              color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                              size: 24,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
