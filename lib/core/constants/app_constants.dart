@@ -13,8 +13,11 @@ class AppConstants {
   static const String routeHome = '/home';
   static const String routeProfile = '/profile';
   static const String routeEditProfile = '/profile/edit';
+  static const String routeBranchRegistration = '/profile/branch-registration';
   static const String routeFavoriteShops = '/shops/favorite';
   static const String routeSuperAdminDashboard = '/superadmin/dashboard';
+  static const String routeStoreSetup = '/merchant/store-setup';
+  static const String routeMenuBuilder = '/merchant/menu-builder';
 
   // Storage keys
   static const String storageKeyAccessToken = 'access_token';

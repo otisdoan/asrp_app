@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
+import '../../../providers/branch_registration_provider.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -29,10 +30,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final double offset = _scrollController.offset;
       const double scrollThresholdStart = 40.0;
       const double scrollThresholdEnd = 120.0;
-      
+
       double opacity = 0.0;
       if (offset > scrollThresholdStart) {
-        opacity = ((offset - scrollThresholdStart) / (scrollThresholdEnd - scrollThresholdStart)).clamp(0.0, 1.0);
+        opacity = ((offset - scrollThresholdStart) /
+                (scrollThresholdEnd - scrollThresholdStart))
+            .clamp(0.0, 1.0);
       }
 
       // Only update when the calculated opacity actually changes
@@ -53,6 +56,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final isLoggedIn = ref.watch(isAuthenticatedProvider);
+    final registration = ref.watch(branchRegistrationProvider);
 
     // Fallback if not logged in (though app bar filters, we add extra guard)
     if (!isLoggedIn || user == null) {
@@ -94,7 +98,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -123,186 +128,250 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 // 1. Premium Gradient Header Section
                 _buildHeader(context, user),
 
-            // 2. Profile Details & Menu Actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Overlapping Rewards Card inside Column with top transform or normal margin
-                  _buildRewardsCard(context, user),
-                  const SizedBox(height: 24),
+                // 2. Profile Details & Menu Actions
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Overlapping Rewards Card inside Column with top transform or normal margin
+                      _buildRewardsCard(context, user),
+                      const SizedBox(height: 24),
 
-                  // Special Promo Highlight for Birthdays
-                  _buildBirthdayPromo(context),
-                  const SizedBox(height: 24),
+                      // Special Promo Highlight for Birthdays
+                      _buildBirthdayPromo(context),
+                      const SizedBox(height: 24),
 
-                  // Group 1: Loyalty & Savings (Ưu đãi & Tiết kiệm)
-                  _buildSectionHeader('Ưu đãi & Tiết kiệm'),
-                  _buildMenuItem(
-                    icon: Icons.confirmation_number_outlined,
-                    title: 'Ví ưu đãi của tôi',
-                    subtitle: '2 voucher giảm 15% đang khả dụng',
-                    trailing: _buildBadge('2 mới', AppColors.primary, AppColors.bgSoft),
-                    onTap: () {
-                      _showSnackBar(context, 'Chức năng Ví ưu đãi đang được tích hợp.');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.wine_bar_outlined,
-                    title: 'Thử thách nhận PhoXu',
-                    subtitle: 'Ăn phở tích điểm, nhận quà cực to',
-                    onTap: () {
-                      _showSnackBar(context, 'Thử thách ăn Phở sắp ra mắt trong tháng này!');
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Group 2: Account & Utilities (Tài khoản & Tiện ích)
-                  _buildSectionHeader('Tài khoản & Tiện ích'),
-                  _buildMenuItem(
-                    icon: Icons.favorite_border_rounded,
-                    title: 'Món ăn yêu thích',
-                    subtitle: 'Đặt nhanh tô Phở bò yêu quý của bạn',
-                    onTap: () {
-                      _showSnackBar(context, 'Danh sách món ăn yêu thích.');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.storefront_outlined,
-                    title: 'Chi nhánh thường đặt',
-                    subtitle: 'Quận 1 · Tầng 1 (Tự đến lấy)',
-                    onTap: () {
-                      _showSnackBar(context, 'Danh sách các chi nhánh của BMC Phở Express.');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.qr_code_scanner_outlined,
-                    title: 'Phương thức thanh toán',
-                    subtitle: 'Ví QR Code liên kết',
-                    onTap: () {
-                      _showSnackBar(context, 'Quản lý phương thức thanh toán.');
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Group 3: App Settings (Cấu hình hệ thống)
-                  _buildSectionHeader('Thiết lập & Cá nhân hóa'),
-                  _buildMenuItem(
-                    icon: Icons.psychology_outlined,
-                    title: 'Khảo sát sở thích ăn uống',
-                    subtitle: 'Cập nhật Onboarding để AI gợi ý món ăn chuẩn nhất',
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textTertiary),
-                    onTap: () => context.push(AppConstants.routeOnboarding),
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Cài đặt thông báo',
-                    onTap: () {
-                      _showSnackBar(context, 'Cài đặt nhận thông báo khuyến mãi.');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.language_rounded,
-                    title: 'Ngôn ngữ',
-                    trailing: const Text(
-                      'Tiếng Việt',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    onTap: () {
-                      _showSnackBar(context, 'Ứng dụng hiện hỗ trợ Tiếng Việt.');
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Group 4: Special Admin / Staff controls (Hiển thị có điều kiện)
-                  if (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'manager' || user.role.toLowerCase() == 'staff') ...[
-                    _buildSectionHeader(
-                      user.role.toLowerCase() == 'admin'
-                          ? 'Đặc quyền Admin'
-                          : (user.role.toLowerCase() == 'manager' ? 'Đặc quyền Quản lý' : 'Đặc quyền Nhân viên'),
-                    ),
-                    if (user.role.toLowerCase() == 'admin')
+                      // Group 1: Loyalty & Savings (Ưu đãi & Tiết kiệm)
+                      _buildSectionHeader('Ưu đãi & Tiết kiệm'),
                       _buildMenuItem(
-                        icon: Icons.dashboard_customize_outlined,
-                        title: 'Bảng điều khiển Admin',
-                        subtitle: 'Xem doanh thu và thống kê hoạt động',
-                        onTap: () => context.push('/admin/dashboard'),
+                        icon: Icons.confirmation_number_outlined,
+                        title: 'Ví ưu đãi của tôi',
+                        subtitle: '2 voucher giảm 15% đang khả dụng',
+                        trailing: _buildBadge(
+                            '2 mới', AppColors.primary, AppColors.bgSoft),
+                        onTap: () {
+                          _showSnackBar(context,
+                              'Chức năng Ví ưu đãi đang được tích hợp.');
+                        },
                       ),
-                    _buildMenuItem(
-                      icon: Icons.point_of_sale_rounded,
-                      title: 'Màn hình POS Nhân viên',
-                      subtitle: 'Đặt món tại bàn cho khách chi nhánh',
-                      onTap: () => context.push(AppConstants.routeStaffHome),
-                    ),
-                    if (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'manager')
                       _buildMenuItem(
-                        icon: Icons.account_balance_wallet_outlined,
-                        title: 'Màn hình Cashier Thu ngân',
-                        subtitle: 'Duyệt đơn hàng và quản lý doanh thu',
-                        onTap: () => context.push(AppConstants.routeCashier),
+                        icon: Icons.wine_bar_outlined,
+                        title: 'Thử thách nhận PhoXu',
+                        subtitle: 'Ăn phở tích điểm, nhận quà cực to',
+                        onTap: () {
+                          _showSnackBar(context,
+                              'Thử thách ăn Phở sắp ra mắt trong tháng này!');
+                        },
                       ),
-                    const SizedBox(height: 20),
-                  ],
+                      const SizedBox(height: 20),
 
-                  // Group 5: Support (Hỗ trợ)
-                  _buildSectionHeader('Hỗ trợ'),
-                  _buildMenuItem(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Trung tâm trợ giúp',
-                    onTap: () {
-                      _showSnackBar(context, 'Kết nối với bộ phận chăm sóc khách hàng.');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.feedback_outlined,
-                    title: 'Gửi ý kiến phản hồi',
-                    onTap: () {
-                      _showFeedbackDialog(context);
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.info_outline_rounded,
-                    title: 'Về BMC Phở Express',
-                    subtitle: 'Phiên bản 1.0.0 (Smart Dining)',
-                    onTap: () {
-                      _showAboutDialog(context);
-                    },
-                  ),
-                  const SizedBox(height: 32),
+                      // Group 2: Account & Utilities (Tài khoản & Tiện ích)
+                      _buildSectionHeader('Tài khoản & Tiện ích'),
+                      _buildMenuItem(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'Món ăn yêu thích',
+                        subtitle: 'Đặt nhanh tô Phở bò yêu quý của bạn',
+                        onTap: () {
+                          _showSnackBar(context, 'Danh sách món ăn yêu thích.');
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.storefront_outlined,
+                        title: 'Chi nhánh thường đặt',
+                        subtitle: 'Quận 1 · Tầng 1 (Tự đến lấy)',
+                        onTap: () {
+                          _showSnackBar(context,
+                              'Danh sách các chi nhánh của BMC Phở Express.');
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.add_business_outlined,
+                        title: 'Đăng ký chi nhánh',
+                        subtitle: registration.status == 'pending'
+                            ? 'Hồ sơ thương hiệu đang chờ SuperAdmin duyệt'
+                            : (registration.status == 'approved'
+                                ? 'Thương hiệu đã hoạt động · Đăng ký thêm chi nhánh'
+                                : 'Hợp tác mở rộng kinh doanh cùng DineX'),
+                        trailing: registration.status == 'pending'
+                            ? _buildBadge(
+                                'Chờ duyệt', AppColors.accent, AppColors.bgSoft)
+                            : (registration.status == 'approved'
+                                ? _buildBadge('Đã duyệt', AppColors.success,
+                                    AppColors.successContainer)
+                                : null),
+                        onTap: () {
+                          context.push(AppConstants.routeBranchRegistration);
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.qr_code_scanner_outlined,
+                        title: 'Phương thức thanh toán',
+                        subtitle: 'Ví QR Code liên kết',
+                        onTap: () {
+                          _showSnackBar(
+                              context, 'Quản lý phương thức thanh toán.');
+                        },
+                      ),
 
-                  // Logout Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _confirmLogout(context),
-                      icon: const Icon(Icons.logout_rounded, color: AppColors.primary, size: 18),
-                      label: const Text(
-                        'Đăng xuất tài khoản',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                      // Group 2.5: Merchant Portal (Only if approved)
+                      if (registration.status == 'approved') ...[
+                        const SizedBox(height: 20),
+                        _buildSectionHeader('Quản lý cửa hàng'),
+                        _buildMenuItem(
+                          icon: Icons.store_mall_directory_outlined,
+                          title: 'Thiết lập cửa hàng',
+                          subtitle:
+                              'Cập nhật ảnh đại diện, ảnh bìa, hotline, giờ hoạt động',
+                          onTap: () {
+                            context.push(AppConstants.routeStoreSetup);
+                          },
+                        ),
+                        _buildMenuItem(
+                          icon: Icons.restaurant_menu_rounded,
+                          title: 'Quản lý thực đơn & Topping',
+                          subtitle:
+                              'Thiết lập danh mục, món ăn và tùy chọn topping chuẩn GrabFood',
+                          onTap: () {
+                            context.push(AppConstants.routeMenuBuilder);
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+
+                      // Group 3: App Settings (Cấu hình hệ thống)
+                      _buildSectionHeader('Thiết lập & Cá nhân hóa'),
+                      _buildMenuItem(
+                        icon: Icons.psychology_outlined,
+                        title: 'Khảo sát sở thích ăn uống',
+                        subtitle:
+                            'Cập nhật Onboarding để AI gợi ý món ăn chuẩn nhất',
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: AppColors.textTertiary),
+                        onTap: () => context.push(AppConstants.routeOnboarding),
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Cài đặt thông báo',
+                        onTap: () {
+                          _showSnackBar(
+                              context, 'Cài đặt nhận thông báo khuyến mãi.');
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.language_rounded,
+                        title: 'Ngôn ngữ',
+                        trailing: const Text(
+                          'Tiếng Việt',
+                          style: TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                        onTap: () {
+                          _showSnackBar(
+                              context, 'Ứng dụng hiện hỗ trợ Tiếng Việt.');
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Group 4: Special Admin / Staff controls (Hiển thị có điều kiện)
+                      if (user.role.toLowerCase() == 'admin' ||
+                          user.role.toLowerCase() == 'manager' ||
+                          user.role.toLowerCase() == 'staff') ...[
+                        _buildSectionHeader(
+                          user.role.toLowerCase() == 'admin'
+                              ? 'Đặc quyền Admin'
+                              : (user.role.toLowerCase() == 'manager'
+                                  ? 'Đặc quyền Quản lý'
+                                  : 'Đặc quyền Nhân viên'),
+                        ),
+                        if (user.role.toLowerCase() == 'admin')
+                          _buildMenuItem(
+                            icon: Icons.dashboard_customize_outlined,
+                            title: 'Bảng điều khiển Admin',
+                            subtitle: 'Xem doanh thu và thống kê hoạt động',
+                            onTap: () => context.push('/admin/dashboard'),
+                          ),
+                        _buildMenuItem(
+                          icon: Icons.point_of_sale_rounded,
+                          title: 'Màn hình POS Nhân viên',
+                          subtitle: 'Đặt món tại bàn cho khách chi nhánh',
+                          onTap: () =>
+                              context.push(AppConstants.routeStaffHome),
+                        ),
+                        if (user.role.toLowerCase() == 'admin' ||
+                            user.role.toLowerCase() == 'manager')
+                          _buildMenuItem(
+                            icon: Icons.account_balance_wallet_outlined,
+                            title: 'Màn hình Cashier Thu ngân',
+                            subtitle: 'Duyệt đơn hàng và quản lý doanh thu',
+                            onTap: () =>
+                                context.push(AppConstants.routeCashier),
+                          ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // Group 5: Support (Hỗ trợ)
+                      _buildSectionHeader('Hỗ trợ'),
+                      _buildMenuItem(
+                        icon: Icons.help_outline_rounded,
+                        title: 'Trung tâm trợ giúp',
+                        onTap: () {
+                          _showSnackBar(context,
+                              'Kết nối với bộ phận chăm sóc khách hàng.');
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.feedback_outlined,
+                        title: 'Gửi ý kiến phản hồi',
+                        onTap: () {
+                          _showFeedbackDialog(context);
+                        },
+                      ),
+                      _buildMenuItem(
+                        icon: Icons.info_outline_rounded,
+                        title: 'Về BMC Phở Express',
+                        subtitle: 'Phiên bản 1.0.0 (Smart Dining)',
+                        onTap: () {
+                          _showAboutDialog(context);
+                        },
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Logout Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _confirmLogout(context),
+                          icon: const Icon(Icons.logout_rounded,
+                              color: AppColors.primary, size: 18),
+                          label: const Text(
+                            'Đăng xuất tài khoản',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                                color: AppColors.primary, width: 1.2),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            backgroundColor: AppColors.bgSoft,
+                          ),
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary, width: 1.2),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        backgroundColor: AppColors.bgSoft,
-                      ),
-                    ),
+                      const SizedBox(height: 48),
+                    ],
                   ),
-                  const SizedBox(height: 48),
-                ],
-              ),
-            ),
+                ),
               ],
             ),
           ),
-          
+
           // Sticky Morphing AppBar
           Positioned(
             top: 0,
@@ -313,7 +382,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               builder: (context, opacity, child) {
                 Widget titleWidget;
                 if (opacity < 0.5) {
-                  final double textOpacity = (1.0 - (opacity * 2)).clamp(0.0, 1.0);
+                  final double textOpacity =
+                      (1.0 - (opacity * 2)).clamp(0.0, 1.0);
                   titleWidget = Text(
                     'Hồ sơ của tôi',
                     style: TextStyle(
@@ -323,7 +393,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                   );
                 } else {
-                  final double textOpacity = ((opacity - 0.5) * 2).clamp(0.0, 1.0);
+                  final double textOpacity =
+                      ((opacity - 0.5) * 2).clamp(0.0, 1.0);
                   titleWidget = Text(
                     user.displayName,
                     style: TextStyle(
@@ -342,7 +413,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     boxShadow: opacity > 0.1
                         ? [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15 * opacity),
+                              color: Colors.black
+                                  .withValues(alpha: 0.15 * opacity),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             )
@@ -353,7 +425,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     children: [
                       const SizedBox(width: 4),
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 20),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: iconColor, size: 20),
                         onPressed: () => context.pop(),
                       ),
                       Expanded(
@@ -396,7 +469,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ),
       child: Column(
         children: [
-
           // User Avatar & Badges
           Row(
             children: [
@@ -504,11 +576,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               child: GestureDetector(
                 onTap: () => context.push(AppConstants.routeEditProfile),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3), width: 1),
                   ),
                   child: const Row(
                     children: [
@@ -545,7 +619,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF3B844).withValues(alpha: 0.6), width: 1.2),
+        border: Border.all(
+            color: const Color(0xFFF3B844).withValues(alpha: 0.6), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -587,11 +662,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3B844).withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF3B844), width: 0.8),
+                  border:
+                      Border.all(color: const Color(0xFFF3B844), width: 0.8),
                 ),
                 child: const Text(
                   'Hạng Vàng',
@@ -665,7 +742,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => _showSnackBar(context, 'Chức năng xem lịch sử giao dịch điểm.'),
+                onTap: () => _showSnackBar(
+                    context, 'Chức năng xem lịch sử giao dịch điểm.'),
                 child: const Text(
                   'Xem lịch sử >',
                   style: TextStyle(
@@ -690,7 +768,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       decoration: BoxDecoration(
         color: AppColors.bgSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1),
+        border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.15), width: 1),
       ),
       child: Row(
         children: [
@@ -762,7 +841,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.6), width: 0.8),
+        border: Border.all(
+            color: AppColors.outlineVariant.withValues(alpha: 0.6), width: 0.8),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -777,43 +857,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         // Removed Clip.antiAlias to avoid Canvas.saveLayer offscreen rasterization bottlenecks during list scroll
         child: ListTile(
           onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            color: AppColors.bgSoft,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            color: AppColors.primary,
-            size: 20,
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: subtitle != null
-            ? Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              )
-            : null,
-        trailing: trailing ??
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textTertiary,
-              size: 22,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: AppColors.bgSoft,
+              shape: BoxShape.circle,
             ),
+            child: Icon(
+              icon,
+              color: AppColors.primary,
+              size: 20,
+            ),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          subtitle: subtitle != null
+              ? Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              : null,
+          trailing: trailing ??
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+                size: 22,
+              ),
         ),
       ),
     );
@@ -863,7 +945,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_user_rounded, color: Colors.white, size: 10),
+          const Icon(Icons.verified_user_rounded,
+              color: Colors.white, size: 10),
           const SizedBox(width: 4),
           Text(
             label,
@@ -890,7 +973,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-
   // ─── Feedback Dialog ─────────────────────────────────────────────────────
   void _showFeedbackDialog(BuildContext context) {
     final controller = TextEditingController();
@@ -901,7 +983,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Gửi phản hồi cho chúng tôi',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -917,7 +1002,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Nhập nội dung góp ý tại đây...',
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                hintStyle: const TextStyle(
+                    fontSize: 13, color: AppColors.textTertiary),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.outlineVariant),
@@ -927,14 +1013,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   borderSide: const BorderSide(color: AppColors.primary),
                 ),
               ),
-              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+              style:
+                  const TextStyle(fontSize: 14, color: AppColors.textPrimary),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -944,7 +1032,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
             child: const Text('Gửi đi'),
           ),
@@ -969,7 +1058,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               decoration: BoxDecoration(
                 color: AppColors.bgSoft,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
+                border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    width: 1.5),
               ),
               child: const Icon(
                 Icons.restaurant_rounded,
@@ -1014,7 +1105,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: const Text('Đóng'),
@@ -1035,11 +1127,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 24),
+            Icon(Icons.warning_amber_rounded,
+                color: AppColors.primary, size: 24),
             SizedBox(width: 10),
             Text(
               'Đăng xuất tài khoản?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
           ],
         ),
@@ -1050,7 +1146,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1065,7 +1162,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
             child: const Text('Đăng xuất'),
           ),

@@ -9,6 +9,7 @@ import '../presentation/pages/auth/reset_password_page.dart';
 import '../presentation/pages/auth/onboarding_survey_page.dart';
 import '../presentation/pages/auth/profile_page.dart';
 import '../presentation/pages/auth/edit_profile_page.dart';
+import '../presentation/pages/auth/branch_registration_page.dart';
 import '../presentation/pages/staff/staff_home_page.dart';
 import '../presentation/pages/staff/cashier_page.dart';
 import '../presentation/pages/admin/admin_dashboard_page.dart';
@@ -16,6 +17,8 @@ import '../presentation/pages/admin/superadmin_dashboard_page.dart';
 import '../presentation/pages/shop/home_page.dart';
 import '../presentation/pages/shop/search_page.dart';
 import '../presentation/pages/shop/favorite_shops_page.dart';
+import '../presentation/pages/merchant/store_setup_page.dart';
+import '../presentation/pages/merchant/menu_builder_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -46,7 +49,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Staff only allowed in staff pos page and profile pages
           if (path != AppConstants.routeStaffHome &&
               path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile) {
+              path != AppConstants.routeEditProfile &&
+              path != AppConstants.routeBranchRegistration &&
+              path != AppConstants.routeStoreSetup &&
+              path != AppConstants.routeMenuBuilder) {
             return AppConstants.routeStaffHome;
           }
         } else if (role == 'manager') {
@@ -54,7 +60,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (path != AppConstants.routeCashier &&
               path != AppConstants.routeStaffHome &&
               path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile) {
+              path != AppConstants.routeEditProfile &&
+              path != AppConstants.routeBranchRegistration &&
+              path != AppConstants.routeStoreSetup &&
+              path != AppConstants.routeMenuBuilder) {
             return AppConstants.routeCashier;
           }
         } else if (role == 'admin') {
@@ -63,14 +72,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               path != AppConstants.routeCashier &&
               path != AppConstants.routeStaffHome &&
               path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile) {
+              path != AppConstants.routeEditProfile &&
+              path != AppConstants.routeBranchRegistration &&
+              path != AppConstants.routeStoreSetup &&
+              path != AppConstants.routeMenuBuilder) {
             return '/admin/dashboard';
           }
         } else if (role == 'superadmin') {
           // SuperAdmins allowed in superadmin dashboard, and profile pages
           if (path != AppConstants.routeSuperAdminDashboard &&
               path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile) {
+              path != AppConstants.routeEditProfile &&
+              path != AppConstants.routeBranchRegistration &&
+              path != AppConstants.routeStoreSetup &&
+              path != AppConstants.routeMenuBuilder) {
             return AppConstants.routeSuperAdminDashboard;
           }
         } else if (role == 'customer') {
@@ -160,8 +175,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const EditProfilePage(),
       ),
       GoRoute(
+        path: AppConstants.routeBranchRegistration,
+        builder: (context, state) => const BranchRegistrationPage(),
+      ),
+      GoRoute(
         path: AppConstants.routeFavoriteShops,
         builder: (context, state) => const FavoriteShopsPage(),
+      ),
+      GoRoute(
+        path: AppConstants.routeStoreSetup,
+        builder: (context, state) => const StoreSetupPage(),
+      ),
+      GoRoute(
+        path: AppConstants.routeMenuBuilder,
+        builder: (context, state) => const MenuBuilderPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

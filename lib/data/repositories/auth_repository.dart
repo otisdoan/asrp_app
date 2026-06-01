@@ -102,6 +102,27 @@ class AuthRepository {
       );
     }
 
+    // Intercept and return mock Customer account
+    if (phone.trim() == '0666666666' && password == 'customer123456') {
+      final mockCustomerUser = UserModel(
+        id: 'mock-customer-id',
+        username: 'customer',
+        phone: '+84666666666',
+        fullName: 'Khách hàng DineX',
+        role: 'Customer',
+        isActive: true,
+        points: 150,
+        tier: 'Hạng Vàng',
+        createdAt: DateTime.now().toIso8601String(),
+        updatedAt: DateTime.now().toIso8601String(),
+      );
+      return AuthResponseModel(
+        user: mockCustomerUser,
+        accessToken: 'mock-customer-access-token',
+        refreshToken: 'mock-customer-refresh-token',
+      );
+    }
+
     String formattedPhone = phone;
     if (phone.startsWith('0')) {
       formattedPhone = '+84${phone.substring(1)}';
