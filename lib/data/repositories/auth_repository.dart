@@ -82,6 +82,26 @@ class AuthRepository {
       );
     }
 
+    // Intercept and return mock Staff account
+    if (phone.trim() == '0777777777' && password == 'staff123456') {
+      final mockStaffUser = UserModel(
+        id: 'mock-staff-id',
+        username: 'staff',
+        phone: '+84777777777',
+        fullName: 'Nhân viên ASRP',
+        role: 'Staff',
+        isActive: true,
+        points: 500,
+        createdAt: DateTime.now().toIso8601String(),
+        updatedAt: DateTime.now().toIso8601String(),
+      );
+      return AuthResponseModel(
+        user: mockStaffUser,
+        accessToken: 'mock-staff-access-token',
+        refreshToken: 'mock-staff-refresh-token',
+      );
+    }
+
     String formattedPhone = phone;
     if (phone.startsWith('0')) {
       formattedPhone = '+84${phone.substring(1)}';

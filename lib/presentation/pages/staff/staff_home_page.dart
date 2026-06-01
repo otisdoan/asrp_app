@@ -35,25 +35,101 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
 
   // Mock menu items
   static final _menuItems = [
-    _MenuItem(name: 'Phở bò tái', price: 45000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
-    _MenuItem(name: 'Phở bò viên', price: 45000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
-    _MenuItem(name: 'Phở bò tái nạm', price: 50000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
-    _MenuItem(name: 'Phở gà', price: 45000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
-    _MenuItem(name: 'Phở đặc biệt', price: 60000, category: 'Phở', imageUrl: 'assets/images/pho.jpg'),
-    _MenuItem(name: 'Cơm sườn nướng', price: 55000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
-    _MenuItem(name: 'Cơm gà xối mỡ', price: 50000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
-    _MenuItem(name: 'Cơm tấm bì chả', price: 45000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
-    _MenuItem(name: 'Cơm chiên dương châu', price: 50000, category: 'Cơm', imageUrl: 'assets/images/com.webp'),
-    _MenuItem(name: 'Bún bò Huế', price: 50000, category: 'Bún', imageUrl: 'assets/images/pho_bo.png'),
-    _MenuItem(name: 'Bún chả Hà Nội', price: 48000, category: 'Bún', imageUrl: 'assets/images/pho_bo.png'),
-    _MenuItem(name: 'Bún riêu cua', price: 45000, category: 'Bún', imageUrl: 'assets/images/pho_bo.png'),
-    _MenuItem(name: 'Trà đào cam sả', price: 29000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
-    _MenuItem(name: 'Cà phê sữa đá', price: 25000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
-    _MenuItem(name: 'Nước ép cam', price: 30000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
-    _MenuItem(name: 'Sinh tố bơ', price: 35000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
-    _MenuItem(name: 'Trà sữa trân châu', price: 35000, category: 'Nước', imageUrl: 'assets/images/tra_sua.jpg'),
-    _MenuItem(name: 'Chè khúc bạch', price: 25000, category: 'Tráng miệng', imageUrl: 'assets/images/tra_sua.jpg'),
-    _MenuItem(name: 'Bánh flan', price: 20000, category: 'Tráng miệng', imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Phở bò tái',
+        price: 45000,
+        category: 'Phở',
+        imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(
+        name: 'Phở bò viên',
+        price: 45000,
+        category: 'Phở',
+        imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(
+        name: 'Phở bò tái nạm',
+        price: 50000,
+        category: 'Phở',
+        imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(
+        name: 'Phở gà',
+        price: 45000,
+        category: 'Phở',
+        imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(
+        name: 'Phở đặc biệt',
+        price: 60000,
+        category: 'Phở',
+        imageUrl: 'assets/images/pho.jpg'),
+    _MenuItem(
+        name: 'Cơm sườn nướng',
+        price: 55000,
+        category: 'Cơm',
+        imageUrl: 'assets/images/com.webp'),
+    _MenuItem(
+        name: 'Cơm gà xối mỡ',
+        price: 50000,
+        category: 'Cơm',
+        imageUrl: 'assets/images/com.webp'),
+    _MenuItem(
+        name: 'Cơm tấm bì chả',
+        price: 45000,
+        category: 'Cơm',
+        imageUrl: 'assets/images/com.webp'),
+    _MenuItem(
+        name: 'Cơm chiên dương châu',
+        price: 50000,
+        category: 'Cơm',
+        imageUrl: 'assets/images/com.webp'),
+    _MenuItem(
+        name: 'Bún bò Huế',
+        price: 50000,
+        category: 'Bún',
+        imageUrl: 'assets/images/pho_bo.png'),
+    _MenuItem(
+        name: 'Bún chả Hà Nội',
+        price: 48000,
+        category: 'Bún',
+        imageUrl: 'assets/images/pho_bo.png'),
+    _MenuItem(
+        name: 'Bún riêu cua',
+        price: 45000,
+        category: 'Bún',
+        imageUrl: 'assets/images/pho_bo.png'),
+    _MenuItem(
+        name: 'Trà đào cam sả',
+        price: 29000,
+        category: 'Nước',
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Cà phê sữa đá',
+        price: 25000,
+        category: 'Nước',
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Nước ép cam',
+        price: 30000,
+        category: 'Nước',
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Sinh tố bơ',
+        price: 35000,
+        category: 'Nước',
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Trà sữa trân châu',
+        price: 35000,
+        category: 'Nước',
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Chè khúc bạch',
+        price: 25000,
+        category: 'Tráng miệng',
+        imageUrl: 'assets/images/tra_sua.jpg'),
+    _MenuItem(
+        name: 'Bánh flan',
+        price: 20000,
+        category: 'Tráng miệng',
+        imageUrl: 'assets/images/tra_sua.jpg'),
   ];
 
   List<_MenuItem> get _filteredItems {
@@ -64,17 +140,23 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
     }
     // Filter by search
     if (_searchQuery.isNotEmpty) {
-      items = items.where((i) => i.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      items = items
+          .where(
+              (i) => i.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
     return items;
   }
 
-  int get _totalItems => _orderItems.fold(0, (sum, item) => sum + item.quantity);
-  int get _totalPrice => _orderItems.fold(0, (sum, item) => sum + (item.menuItem.price * item.quantity));
+  int get _totalItems =>
+      _orderItems.fold(0, (sum, item) => sum + item.quantity);
+  int get _totalPrice => _orderItems.fold(
+      0, (sum, item) => sum + (item.menuItem.price * item.quantity));
 
   void _addItem(_MenuItem menuItem) {
     setState(() {
-      final existing = _orderItems.where((i) => i.menuItem.name == menuItem.name);
+      final existing =
+          _orderItems.where((i) => i.menuItem.name == menuItem.name);
       if (existing.isNotEmpty) {
         existing.first.quantity++;
       } else {
@@ -85,7 +167,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
 
   void _removeItem(_MenuItem menuItem) {
     setState(() {
-      final existing = _orderItems.where((i) => i.menuItem.name == menuItem.name);
+      final existing =
+          _orderItems.where((i) => i.menuItem.name == menuItem.name);
       if (existing.isNotEmpty) {
         if (existing.first.quantity > 1) {
           existing.first.quantity--;
@@ -166,10 +249,14 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      color: selected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: selected ? AppColors.primary : AppColors.outlineVariant,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.outlineVariant,
                         width: selected ? 2 : 1,
                       ),
                     ),
@@ -179,7 +266,9 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: selected ? AppColors.onPrimary : AppColors.textPrimary,
+                          color: selected
+                              ? AppColors.onPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
                     ),
@@ -208,21 +297,32 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          // ─── Orange Header ─────────────────────────────────────
-          _buildHeader(),
-          // ─── Categories ──────────────────────────────────────
-          _buildCategoriesWidget(),
-          const SizedBox(height: 12),
-          // ─── Menu Items ──────────────────────────────────────
-          Expanded(child: _buildMenuList()),
-        ],
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            // ─── Orange Header ─────────────────────────────────────
+            _buildHeader(),
+            const SizedBox(height: 10),
+
+            // ─── Table Selector & Search Bar (Placed above categories list) ───
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: _buildTableAndSearchRow(),
+            ),
+            const SizedBox(height: 10),
+            // ─── Categories ──────────────────────────────────────
+            _buildCategoriesWidget(),
+            const SizedBox(height: 12),
+            // ─── Menu Items ──────────────────────────────────────
+            Expanded(child: _buildMenuList()),
+          ],
+        ),
+        // ─── Bottom Order Bar ────────────────────────────────────
+        bottomNavigationBar: _orderItems.isNotEmpty ? _buildOrderBar() : null,
       ),
-      // ─── Bottom Order Bar ────────────────────────────────────
-      bottomNavigationBar: _orderItems.isNotEmpty ? _buildOrderBar() : null,
     );
   }
 
@@ -230,7 +330,9 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
   Widget _buildHeader() {
     final user = ref.watch(currentUserProvider);
     final displayName = user?.displayName ?? 'Nhân viên';
-    final initialChar = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'S';
+    final initialChar = displayName.isNotEmpty
+        ? displayName.substring(0, 1).toUpperCase()
+        : 'S';
 
     return Container(
       decoration: const BoxDecoration(
@@ -254,171 +356,105 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       child: SafeArea(
         bottom: false,
-        child: Column(
+        child: Row(
           children: [
-            // Top Row (Profile + Actions)
-            Row(
-              children: [
-                // Clickable profile area (Avatar)
-                GestureDetector(
-                  onTap: () => context.push(AppConstants.routeProfile),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white30, width: 1.5),
-                    ),
-                    child: Center(
-                      child: Text(
-                        initialChar,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+            // Clickable profile area (Avatar)
+            GestureDetector(
+              onTap: () => context.push(AppConstants.routeProfile),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white30, width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    initialChar,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => context.push(AppConstants.routeProfile),
-                    behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'DineX Staff · Nhân viên',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Actions: Active Receipt badge and the exact Admin Logout button
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => context.push(AppConstants.routeProfile),
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_orderItems.isNotEmpty) ...[
-                      GestureDetector(
-                        onTap: _showOrderDetail,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white30, width: 1.2),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.receipt_long_rounded, size: 14, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$_totalItems',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
-                      const SizedBox(width: 8),
-                    ],
-                    IconButton(
-                      icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 22),
-                      onPressed: _confirmLogout,
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'DineX Staff · Nhân viên',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 18),
-            // Bottom row: Table Selector & Search Bar
+            const SizedBox(width: 12),
+            // Actions: Active Receipt badge and the exact Admin Logout button
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Table Selector
-                GestureDetector(
-                  onTap: _showTableSelector,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white30, width: 1.5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.table_restaurant_rounded, size: 16, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                          _selectedTable != null ? 'Bàn $_selectedTable' : 'Chọn bàn',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                if (_orderItems.isNotEmpty) ...[
+                  GestureDetector(
+                    onTap: _showOrderDetail,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white30, width: 1.2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.receipt_long_rounded,
+                              size: 14, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$_totalItems',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white70),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                // Search Bar
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Tìm món nhanh...',
-                      hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 14),
-                      prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textTertiary),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close, size: 18, color: AppColors.textTertiary),
-                              onPressed: () {
-                                _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: AppColors.surfaceContainerLowest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
+                  const SizedBox(width: 8),
+                ],
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded,
+                      color: Colors.white, size: 22),
+                  onPressed: _confirmLogout,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ],
@@ -426,6 +462,126 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
           ],
         ),
       ),
+    );
+  }
+
+  // ─── Table Selector & Search Bar Widget ────────────────────────────────
+  Widget _buildTableAndSearchRow() {
+    return Row(
+      children: [
+        // Search Bar (On the left)
+        Expanded(
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) => setState(() => _searchQuery = value),
+            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Tìm món nhanh...',
+              hintStyle: const TextStyle(
+                  color: AppColors.textPlaceholder, fontSize: 14),
+              prefixIcon: const Icon(Icons.search,
+                  size: 20, color: AppColors.textTertiary),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close,
+                          size: 18, color: AppColors.textTertiary),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    BorderSide(color: AppColors.divider.withValues(alpha: 0.8)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    BorderSide(color: AppColors.divider.withValues(alpha: 0.8)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 1.5),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Table Selector Icon Button (On the right)
+        GestureDetector(
+          onTap: _showTableSelector,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _selectedTable != null
+                        ? AppColors.primary.withValues(alpha: 0.8)
+                        : AppColors.divider.withValues(alpha: 0.8),
+                    width: _selectedTable != null ? 1.5 : 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.table_restaurant_rounded,
+                    color: _selectedTable != null
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    size: 22,
+                  ),
+                ),
+              ),
+              if (_selectedTable != null)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_selectedTable',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -437,11 +593,15 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 24),
+            Icon(Icons.warning_amber_rounded,
+                color: AppColors.primary, size: 24),
             SizedBox(width: 10),
             Text(
               'Đăng xuất tài khoản?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
           ],
         ),
@@ -452,7 +612,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -465,7 +626,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
             child: const Text('Đăng xuất'),
           ),
@@ -491,7 +653,7 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
     ];
 
     return SizedBox(
-      height: 90,
+      height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -549,10 +711,14 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                                 ),
                               ))
                         : Container(
-                            color: selected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.surfaceContainerLowest,
                             child: Icon(
                               Icons.restaurant_menu_rounded,
-                              color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                              color: selected
+                                  ? AppColors.onPrimary
+                                  : AppColors.textSecondary,
                               size: 24,
                             ),
                           ),
@@ -564,7 +730,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? AppColors.primary : AppColors.textSecondary,
+                    color:
+                        selected ? AppColors.primary : AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -613,7 +780,9 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(12),
-        border: qty > 0 ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
+        border: qty > 0
+            ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
+            : null,
       ),
       child: Row(
         children: [
@@ -667,7 +836,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                   color: AppColors.bgSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.remove, size: 16, color: AppColors.textPrimary),
+                child: const Icon(Icons.remove,
+                    size: 16, color: AppColors.textPrimary),
               ),
             ),
             Padding(
@@ -692,7 +862,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.add, size: 16, color: AppColors.onPrimary),
+              child:
+                  const Icon(Icons.add, size: 16, color: AppColors.onPrimary),
             ),
           ),
         ],
@@ -731,7 +902,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.receipt_long, size: 14, color: AppColors.primary),
+                        const Icon(Icons.receipt_long,
+                            size: 14, color: AppColors.primary),
                         const SizedBox(width: 4),
                         const Text(
                           'Xem chi tiết đơn',
@@ -744,7 +916,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                           ),
                         ),
                         const SizedBox(width: 2),
-                        const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                        const Icon(Icons.chevron_right,
+                            size: 16, color: AppColors.primary),
                       ],
                     ),
                   ],
@@ -757,8 +930,10 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),
               child: const Text(
@@ -778,210 +953,236 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        maxChildSize: 0.85,
-        minChildSize: 0.4,
-        builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      enableDrag: false, // Fix the sheet so it cannot be dragged to close
+      builder: (ctx) => Container(
+        height: MediaQuery.of(ctx).size.height * 0.75, // Fixed height (75% of screen height)
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle decoration (represents visual affordance but is static)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
               ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Đơn hiện tại',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            _clearOrder();
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text(
-                            'Xóa tất cả',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.error,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.table_restaurant, size: 14, color: AppColors.textSecondary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Bàn $_selectedTable · Chi nhánh Quận 1',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: AppColors.divider),
-              // Items
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  itemCount: _orderItems.length,
-                  itemBuilder: (_, index) {
-                    final item = _orderItems[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.menuItem.name,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _formatPrice(item.menuItem.price * item.quantity),
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Qty controls
-                          GestureDetector(
-                            onTap: () {
-                              _removeItem(item.menuItem);
-                              if (_orderItems.isEmpty) Navigator.pop(ctx);
-                            },
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: AppColors.bgSoft,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(Icons.remove, size: 16, color: AppColors.textPrimary),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              '${item.quantity}',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => _addItem(item.menuItem),
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(Icons.add, size: 16, color: AppColors.onPrimary),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Total
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.divider)),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Row(
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const Text(
+                        'Đơn hiện tại',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Tổng cộng',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          GestureDetector(
+                            onTap: () {
+                              _clearOrder();
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text(
+                              'Xóa tất cả',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.error,
+                              ),
+                            ),
                           ),
-                          Text(
-                            _formatPrice(_totalPrice),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                          const SizedBox(width: 14),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(ctx),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.divider.withValues(alpha: 0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _confirmOrder();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Xác nhận đơn',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.table_restaurant,
+                          size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Bàn $_selectedTable · Chi nhánh Quận 1',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
                   ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.divider),
+            // Items list (scrolling internally, no controller needed)
+            Expanded(
+              child: ListView.builder(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                itemCount: _orderItems.length,
+                itemBuilder: (_, index) {
+                  final item = _orderItems[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.menuItem.name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _formatPrice(
+                                    item.menuItem.price * item.quantity),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Qty controls
+                        GestureDetector(
+                          onTap: () {
+                            _removeItem(item.menuItem);
+                            if (_orderItems.isEmpty) Navigator.pop(ctx);
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSoft,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.remove,
+                                size: 16, color: AppColors.textPrimary),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            '${item.quantity}',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _addItem(item.menuItem),
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.add,
+                                size: 16, color: AppColors.onPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Total & Action Button
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.divider)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tổng cộng',
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        Text(
+                          _formatPrice(_totalPrice),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _confirmOrder();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Xác nhận đơn',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1003,7 +1204,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                 color: AppColors.successContainer,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle, size: 36, color: AppColors.success),
+              child: const Icon(Icons.check_circle,
+                  size: 36, color: AppColors.success),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -1043,10 +1245,12 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),
-              child: const Text('Tạo đơn mới', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text('Tạo đơn mới',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -1063,7 +1267,11 @@ class _MenuItem {
   final String category;
   final String imageUrl;
 
-  _MenuItem({required this.name, required this.price, required this.category, required this.imageUrl});
+  _MenuItem(
+      {required this.name,
+      required this.price,
+      required this.category,
+      required this.imageUrl});
 }
 
 class _OrderItem {
