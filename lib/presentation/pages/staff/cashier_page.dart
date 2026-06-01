@@ -301,7 +301,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 22),
+                      icon: const Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 22),
                       onPressed: _confirmLogout,
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.white.withValues(alpha: 0.12),
@@ -360,16 +360,16 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 24),
+            Icon(Icons.swap_horiz_rounded, color: AppColors.primary, size: 24),
             SizedBox(width: 10),
             Text(
-              'Đăng xuất tài khoản?',
+              'Về trang Khách hàng?',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
           ],
         ),
         content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất khỏi màn hình quản lý thu ngân không?',
+          'Bạn có chắc chắn muốn quay lại giao diện đặt món của Khách hàng không?',
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         actions: [
@@ -378,19 +378,16 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
             child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                context.go(AppConstants.routeLogin);
-              }
+              context.go(AppConstants.routeProfile);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
-            child: const Text('Đăng xuất'),
+            child: const Text('Đồng ý'),
           ),
         ],
       ),

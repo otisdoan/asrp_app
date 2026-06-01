@@ -24,7 +24,22 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  int _selectedTimeIndex = 0;
+  late int _selectedMinutes;
+
+  int get _minPrepTime {
+    final travelTime = _calculateTravelTime(widget.distance);
+    const basePrepTime = 12; // Base preparation time of mock items (mins)
+    const buffer = 3; // Buffer time (mins)
+    final maxVal = basePrepTime > travelTime ? basePrepTime : travelTime;
+    return maxVal + buffer;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Mặc định chọn chính xác mốc thời gian tối thiểu khả thi (ASAP) để khách lấy đồ nhanh nhất có thể
+    _selectedMinutes = _minPrepTime;
+  }
 
   // Mock order items
   static const _orderItems = [
@@ -40,14 +55,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
       'price': 45000,
       'quantity': 1,
     },
-  ];
-
-  // Mock pickup time slots (based on food prep time)
-  static const _timeSlots = [
-    {'label': 'Sớm nhất', 'time': '15 phút', 'note': 'Món hoàn thành nhanh nhất'},
-    {'label': 'Sau 30 phút', 'time': '30 phút', 'note': ''},
-    {'label': 'Sau 45 phút', 'time': '45 phút', 'note': ''},
-    {'label': 'Hẹn giờ khác', 'time': '', 'note': ''},
   ];
 
   int get _subtotal {
@@ -282,7 +289,30 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ─── Pickup Time ───────────────────────────────────────────────────────
+  int _calculateTravelTime(String distanceStr) {
+    final cleaned = distanceStr.toLowerCase().replaceAll(RegExp(r'[^0-9.]'), '');
+    final val = double.tryParse(cleaned) ?? 1.0;
+    if (distanceStr.toLowerCase().contains('m') && !distanceStr.toLowerCase().contains('k')) {
+      return (val / 80).ceil(); // ~80m per minute walking
+    } else {
+      return (val * 5).ceil(); // ~5 mins per km driving
+    }
+  }
+
   Widget _buildPickupTime() {
+    final travelTime = _calculateTravelTime(widget.distance);
+    
+    // Calculate expected ready time
+    final now = DateTime.now();
+    final readyTime = now.add(Duration(minutes: _selectedMinutes));
+    final readyTimeStr = '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
+
+    final lockedFlex = _minPrepTime;
+    final selectedFlex = _selectedMinutes - _minPrepTime;
+    final unselectedFlex = 120 - _selectedMinutes;
+
+    final isOnTime = _selectedMinutes >= travelTime;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(
@@ -305,116 +335,188 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Chọn thời gian bạn đến quán lấy đồ',
+            'Kéo thanh trượt để hẹn giờ bạn đến quán lấy đồ',
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 14),
-          // Time slots
-          ...List.generate(_timeSlots.length, (index) {
-            final slot = _timeSlots[index];
-            final isSelected = _selectedTimeIndex == index;
-            return _buildTimeSlot(
-              label: slot['label'] as String,
-              time: slot['time'] as String,
-              note: slot['note'] as String,
-              isSelected: isSelected,
-              onTap: () => setState(() => _selectedTimeIndex = index),
-            );
-          }),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.outlineVariant),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildTimeSlot({
-    required String label,
-    required String time,
-    required String note,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryContainer : AppColors.background,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.outlineVariant,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                        ),
-                      ),
-                      if (time.isNotEmpty) ...[
-                        Text(
-                          ' • $time',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+          // Custom Stacked Slider
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // Custom Colored Background Track
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    // 1. Locked portion (always gray)
+                    Expanded(
+                      flex: lockedFlex,
+                      child: Container(
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: AppColors.outlineVariant,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(3),
+                            bottomLeft: Radius.circular(3),
                           ),
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
+                    // 2. Selected active portion (solid primary color)
+                    if (selectedFlex > 0)
+                      Expanded(
+                        flex: selectedFlex,
+                        child: Container(
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: unselectedFlex == 0
+                                ? const BorderRadius.only(
+                                    topRight: Radius.circular(3),
+                                    bottomRight: Radius.circular(3),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    // 3. Unselected active portion (light primary color)
+                    if (unselectedFlex > 0)
+                      Expanded(
+                        flex: unselectedFlex,
+                        child: Container(
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFEAE3), // Light primary color background
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(3),
+                              bottomRight: Radius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              
+              // Transparent-track Flutter Slider
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 12,
+                  activeTrackColor: Colors.transparent,
+                  inactiveTrackColor: Colors.transparent,
+                  thumbColor: Colors.white,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 10,
+                    elevation: 3,
+                    pressedElevation: 6,
                   ),
-                  if (note.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      note,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                  overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                  activeTickMarkColor: Colors.transparent,
+                  inactiveTickMarkColor: Colors.transparent,
+                ),
+                child: Slider(
+                  min: 0,
+                  max: 120,
+                  value: _selectedMinutes.toDouble(),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val < _minPrepTime) {
+                        _selectedMinutes = _minPrepTime;
+                      } else {
+                        _selectedMinutes = val.toInt();
+                      }
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // Custom scale labels below slider
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('0m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                Text('${_minPrepTime}m (Tối thiểu)', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                const Text('45m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                const Text('90m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                const Text('120m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Expected Ready Time Display Card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(
+                              text: 'Dự kiến sẵn sàng: ',
+                              style: TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                            ),
+                            TextSpan(
+                              text: readyTimeStr,
+                              style: const TextStyle(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(
+                              text: ' (sau $_selectedMinutes phút)',
+                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
-            ),
-            // Radio indicator
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.textTertiary,
-                  width: 2,
                 ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(
+                      isOnTime ? Icons.directions_walk_rounded : Icons.warning_amber_rounded,
+                      color: isOnTime ? AppColors.success : AppColors.accent,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isOnTime
+                            ? 'Thời gian bạn di chuyển đến quán: ~$travelTime phút (Kịp chuẩn bị)'
+                            : 'Thời gian di chuyển là ~$travelTime phút. Bạn sẽ phải đợi thêm ở quán.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isOnTime ? AppColors.success : AppColors.accent,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    )
-                  : null,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+
+          const SizedBox(height: 20),
+          const Divider(height: 1, color: AppColors.outlineVariant),
+        ],
       ),
     );
   }
@@ -625,10 +727,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
+                  final now = DateTime.now();
+                  final readyTime = now.add(Duration(minutes: _selectedMinutes));
+                  final readyTimeStr = '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
+
                   // Show confirmation
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Đơn hàng đã được xác nhận! Vui lòng đến quán nhận hàng.'),
+                    SnackBar(
+                      content: Text('Đơn hàng đã được xác nhận! Món ăn dự kiến sẵn sàng lúc $readyTimeStr (sau $_selectedMinutes phút).'),
                       backgroundColor: AppColors.primary,
                     ),
                   );

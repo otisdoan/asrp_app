@@ -275,36 +275,63 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       const SizedBox(height: 20),
 
                       // Group 4: Special Admin / Staff controls (Hiển thị có điều kiện)
-                      if (user.role.toLowerCase() == 'admin' ||
+                      if (user.role.toLowerCase() == 'superadmin' ||
+                          user.role.toLowerCase() == 'admin' ||
                           user.role.toLowerCase() == 'manager' ||
                           user.role.toLowerCase() == 'staff') ...[
                         _buildSectionHeader(
-                          user.role.toLowerCase() == 'admin'
-                              ? 'Đặc quyền Admin'
-                              : (user.role.toLowerCase() == 'manager'
-                                  ? 'Đặc quyền Quản lý'
-                                  : 'Đặc quyền Nhân viên'),
+                          user.role.toLowerCase() == 'superadmin'
+                              ? 'Đặc quyền SuperAdmin (Chủ Chuỗi)'
+                              : (user.role.toLowerCase() == 'admin'
+                                  ? 'Đặc quyền Admin (Chi Nhánh)'
+                                  : (user.role.toLowerCase() == 'manager'
+                                      ? 'Đặc quyền Quản lý'
+                                      : 'Đặc quyền Nhân viên')),
                         ),
-                        if (user.role.toLowerCase() == 'admin')
+                        if (user.role.toLowerCase() == 'superadmin') ...[
+                          _buildMenuItem(
+                            icon: Icons.admin_panel_settings_outlined,
+                            title: 'Bảng điều khiển SuperAdmin',
+                            subtitle: 'Quản lý toàn bộ chuỗi chi nhánh & điều phối kho',
+                            onTap: () => context.push(AppConstants.routeSuperAdminDashboard),
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.people_alt_outlined,
+                            title: 'Quản lý nhân sự chuỗi',
+                            subtitle: 'Bổ nhiệm Admin chi nhánh và điều phối nhân sự',
+                            onTap: () => context.push(AppConstants.routeStaffManagement),
+                          ),
+                        ],
+                        if (user.role.toLowerCase() == 'admin') ...[
                           _buildMenuItem(
                             icon: Icons.dashboard_customize_outlined,
                             title: 'Bảng điều khiển Admin',
-                            subtitle: 'Xem doanh thu và thống kê hoạt động',
+                            subtitle: 'Xem doanh thu và thống kê hoạt động chi nhánh',
                             onTap: () => context.push('/admin/dashboard'),
                           ),
-                        _buildMenuItem(
-                          icon: Icons.point_of_sale_rounded,
-                          title: 'Màn hình POS Nhân viên',
-                          subtitle: 'Đặt món tại bàn cho khách chi nhánh',
-                          onTap: () =>
-                              context.push(AppConstants.routeStaffHome),
-                        ),
+                          _buildMenuItem(
+                            icon: Icons.people_outline_rounded,
+                            title: 'Quản lý nhân viên chi nhánh',
+                            subtitle: 'Tuyển dụng, cấp tài khoản cho Thu ngân & POS',
+                            onTap: () => context.push(AppConstants.routeStaffManagement),
+                          ),
+                        ],
+                        if (user.role.toLowerCase() == 'admin' ||
+                            user.role.toLowerCase() == 'manager' ||
+                            user.role.toLowerCase() == 'staff')
+                          _buildMenuItem(
+                            icon: Icons.point_of_sale_rounded,
+                            title: 'Màn hình POS Nhân viên',
+                            subtitle: 'Đặt món tại bàn cho khách chi nhánh',
+                            onTap: () =>
+                                context.push(AppConstants.routeStaffHome),
+                          ),
                         if (user.role.toLowerCase() == 'admin' ||
                             user.role.toLowerCase() == 'manager')
                           _buildMenuItem(
                             icon: Icons.account_balance_wallet_outlined,
                             title: 'Màn hình Cashier Thu ngân',
-                            subtitle: 'Duyệt đơn hàng và quản lý doanh thu',
+                            subtitle: 'Duyệt đơn hàng và quản lý doanh thu chi nhánh',
                             onTap: () =>
                                 context.push(AppConstants.routeCashier),
                           ),
@@ -427,7 +454,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded,
                             color: iconColor, size: 20),
-                        onPressed: () => context.pop(),
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(AppConstants.routeHome);
+                          }
+                        },
                       ),
                       Expanded(
                         child: Center(

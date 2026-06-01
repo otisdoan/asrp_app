@@ -100,11 +100,11 @@ class _SuperAdminDashboardPageState
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded,
+            Icon(Icons.swap_horiz_rounded,
                 color: AppColors.primary, size: 24),
             SizedBox(width: 10),
             Text(
-              'Đăng xuất tài khoản?',
+              'Về trang Khách hàng?',
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -113,7 +113,7 @@ class _SuperAdminDashboardPageState
           ],
         ),
         content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất khỏi màn hình SuperAdmin không?',
+          'Bạn có chắc chắn muốn quay lại giao diện đặt món của Khách hàng không?',
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         actions: [
@@ -123,12 +123,9 @@ class _SuperAdminDashboardPageState
                 style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              await ref.read(authProvider.notifier).logout();
-              if (mounted) {
-                context.go(AppConstants.routeLogin);
-              }
+              context.go(AppConstants.routeProfile);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -136,7 +133,7 @@ class _SuperAdminDashboardPageState
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
             ),
-            child: const Text('Đăng xuất'),
+            child: const Text('Đồng ý'),
           ),
         ],
       ),
@@ -668,7 +665,7 @@ class _SuperAdminDashboardPageState
             const SizedBox(width: 12),
             // Quick logout button
             IconButton(
-              icon: const Icon(Icons.logout_rounded,
+              icon: const Icon(Icons.swap_horiz_rounded,
                   color: Colors.white, size: 22),
               onPressed: _confirmLogout,
               style: IconButton.styleFrom(

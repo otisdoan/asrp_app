@@ -18,6 +18,7 @@ class AppConstants {
   static const String routeSuperAdminDashboard = '/superadmin/dashboard';
   static const String routeStoreSetup = '/merchant/store-setup';
   static const String routeMenuBuilder = '/merchant/menu-builder';
+  static const String routeStaffManagement = '/merchant/staff-management';
 
   // Storage keys
   static const String storageKeyAccessToken = 'access_token';

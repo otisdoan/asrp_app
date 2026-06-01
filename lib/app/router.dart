@@ -19,6 +19,7 @@ import '../presentation/pages/shop/search_page.dart';
 import '../presentation/pages/shop/favorite_shops_page.dart';
 import '../presentation/pages/merchant/store_setup_page.dart';
 import '../presentation/pages/merchant/menu_builder_page.dart';
+import '../presentation/pages/merchant/staff_management_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -37,63 +38,35 @@ final routerProvider = Provider<GoRouter>((ref) {
 
         // Prevent going to login/register if already logged in
         if (path == AppConstants.routeLogin || path == AppConstants.routeRegister) {
-          if (role == 'staff') return AppConstants.routeStaffHome;
-          if (role == 'manager') return AppConstants.routeCashier;
-          if (role == 'admin') return '/admin/dashboard';
-          if (role == 'superadmin') return AppConstants.routeSuperAdminDashboard;
           return AppConstants.routeHome;
         }
 
-        // Role-based route protection
-        if (role == 'staff') {
-          // Staff only allowed in staff pos page and profile pages
-          if (path != AppConstants.routeStaffHome &&
-              path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile &&
-              path != AppConstants.routeBranchRegistration &&
-              path != AppConstants.routeStoreSetup &&
-              path != AppConstants.routeMenuBuilder) {
-            return AppConstants.routeStaffHome;
-          }
-        } else if (role == 'manager') {
-          // Managers allowed in cashier page, staff pos page, and profile pages
-          if (path != AppConstants.routeCashier &&
-              path != AppConstants.routeStaffHome &&
-              path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile &&
-              path != AppConstants.routeBranchRegistration &&
-              path != AppConstants.routeStoreSetup &&
-              path != AppConstants.routeMenuBuilder) {
-            return AppConstants.routeCashier;
-          }
-        } else if (role == 'admin') {
-          // Admins allowed in admin dashboard page, cashier page, staff pos page, and profile pages
-          if (path != '/admin/dashboard' &&
-              path != AppConstants.routeCashier &&
-              path != AppConstants.routeStaffHome &&
-              path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile &&
-              path != AppConstants.routeBranchRegistration &&
-              path != AppConstants.routeStoreSetup &&
-              path != AppConstants.routeMenuBuilder) {
-            return '/admin/dashboard';
-          }
-        } else if (role == 'superadmin') {
-          // SuperAdmins allowed in superadmin dashboard, and profile pages
-          if (path != AppConstants.routeSuperAdminDashboard &&
-              path != AppConstants.routeProfile &&
-              path != AppConstants.routeEditProfile &&
-              path != AppConstants.routeBranchRegistration &&
-              path != AppConstants.routeStoreSetup &&
-              path != AppConstants.routeMenuBuilder) {
-            return AppConstants.routeSuperAdminDashboard;
-          }
-        } else if (role == 'customer') {
-          // Customers not allowed in staff, cashier, admin, or superadmin pages
+        // Protect admin and staff routes from unauthorized users
+        if (role == 'customer') {
+          // Customers not allowed in POS, Cashier, Admin dashboards, or Staff Management
           if (path == AppConstants.routeStaffHome || 
               path == AppConstants.routeCashier ||
               path == '/admin/dashboard' ||
+              path == AppConstants.routeSuperAdminDashboard ||
+              path == AppConstants.routeStaffManagement) {
+            return AppConstants.routeHome;
+          }
+        } else if (role == 'staff') {
+          // Staff not allowed in Cashier or Admin dashboards
+          if (path == AppConstants.routeCashier ||
+              path == '/admin/dashboard' ||
               path == AppConstants.routeSuperAdminDashboard) {
+            return AppConstants.routeHome;
+          }
+        } else if (role == 'manager') {
+          // Managers not allowed in Admin or SuperAdmin dashboards
+          if (path == '/admin/dashboard' ||
+              path == AppConstants.routeSuperAdminDashboard) {
+            return AppConstants.routeHome;
+          }
+        } else if (role == 'admin') {
+          // Admins not allowed in SuperAdmin dashboard
+          if (path == AppConstants.routeSuperAdminDashboard) {
             return AppConstants.routeHome;
           }
         }
@@ -101,11 +74,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       
       // 2. If NOT logged in:
       else {
-        // Guests not allowed in staff, cashier, admin, or superadmin pages
+        // Guests not allowed in staff, cashier, admin, superadmin, or staff management pages
         if (path == AppConstants.routeStaffHome || 
             path == AppConstants.routeCashier ||
             path == '/admin/dashboard' ||
-            path == AppConstants.routeSuperAdminDashboard) {
+            path == AppConstants.routeSuperAdminDashboard ||
+            path == AppConstants.routeStaffManagement) {
           return AppConstants.routeLogin;
         }
       }
@@ -189,6 +163,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppConstants.routeMenuBuilder,
         builder: (context, state) => const MenuBuilderPage(),
+      ),
+      GoRoute(
+        path: AppConstants.routeStaffManagement,
+        builder: (context, state) => const StaffManagementPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

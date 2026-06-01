@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/branch_registration_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../data/models/user_model.dart';
+
 
 class BranchRegistrationPage extends ConsumerStatefulWidget {
   const BranchRegistrationPage({super.key});
@@ -150,6 +153,29 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             address: _addressCtrl.text,
             gps: _gpsCtrl.text,
           );
+
+          // Tự động nâng cấp vai trò thành SuperAdmin (Chủ chuỗi) do hệ thống đã có từ 2 chi nhánh trở lên
+          final user = ref.read(currentUserProvider);
+          if (user != null) {
+            final updatedUser = UserModel(
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              phone: user.phone,
+              fullName: user.fullName,
+              avatar: user.avatar,
+              gender: user.gender,
+              birthday: user.birthday,
+              role: 'SuperAdmin',
+              isActive: user.isActive,
+              points: user.points,
+              tier: user.tier,
+              address: user.address,
+              createdAt: user.createdAt,
+              updatedAt: DateTime.now().toIso8601String(),
+            );
+            ref.read(authProvider.notifier).setUser(updatedUser);
+          }
         } else {
           // First branch registration
           ref.read(branchRegistrationProvider.notifier).submitFirstBranch(
@@ -356,11 +382,37 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    final isAlreadyApproved = registration.status == 'approved';
+                    final newRole = isAlreadyApproved ? 'SuperAdmin' : 'Admin';
+
                     ref.read(branchRegistrationProvider.notifier).approveBrand();
+
+                    final user = ref.read(currentUserProvider);
+                    if (user != null) {
+                      final updatedUser = UserModel(
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        phone: user.phone,
+                        fullName: user.fullName,
+                        avatar: user.avatar,
+                        gender: user.gender,
+                        birthday: user.birthday,
+                        role: newRole,
+                        isActive: user.isActive,
+                        points: user.points,
+                        tier: user.tier,
+                        address: user.address,
+                        createdAt: user.createdAt,
+                        updatedAt: DateTime.now().toIso8601String(),
+                      );
+                      await ref.read(authProvider.notifier).setUser(updatedUser);
+                    }
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('🚨 [MOCK] Đã phê duyệt thương hiệu! Bây giờ bạn đã có thể đăng ký thêm nhiều chi nhánh tiếp theo.'),
+                        content: Text('🚨 [MOCK] Đã phê duyệt thương hiệu! Tài khoản của bạn được nâng cấp thành $newRole.'),
                         backgroundColor: AppColors.success,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
