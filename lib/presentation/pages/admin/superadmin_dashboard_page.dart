@@ -165,16 +165,17 @@ class _SuperAdminDashboardPageState
                   topRight: Radius.circular(24),
                 ),
               ),
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 left: 20,
                 right: 20,
                 top: 14,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: _KeyboardAvoidPadding(
+                extraBottom: 24,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Center(
                     child: Container(
                       width: 40,
@@ -461,6 +462,7 @@ class _SuperAdminDashboardPageState
                   ),
                 ],
               ),
+             ),
             );
           },
         );
@@ -1500,6 +1502,22 @@ class _SuperAdminDashboardPageState
           ),
         ],
       ),
+    );
+  }
+}
+
+class _KeyboardAvoidPadding extends StatelessWidget {
+  final Widget child;
+  final double extraBottom;
+  const _KeyboardAvoidPadding({required this.child, this.extraBottom = 0.0});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + extraBottom,
+      ),
+      child: child,
     );
   }
 }

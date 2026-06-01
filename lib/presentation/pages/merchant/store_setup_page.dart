@@ -187,8 +187,7 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
-      // keyboard jank resolution: Scaffold does not resize, padding handled by SingleChildScrollView
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text(
           'Thiết lập cửa hàng',
@@ -209,12 +208,12 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
           SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              // Safe keyboard inset padding at the bottom
-              padding: EdgeInsets.only(
+              // Safe padding at the bottom (chừa trống cho Save Button dính ở dưới)
+              padding: const EdgeInsets.only(
                 left: 16.0,
                 right: 16.0,
                 top: 16.0,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 100.0,
+                bottom: 100.0,
               ),
               child: Form(
                 key: _formKey,

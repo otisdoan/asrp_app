@@ -13,7 +13,7 @@ class StaffManagementPage extends ConsumerStatefulWidget {
       _StaffManagementPageState();
 }
 
-class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
+class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with WidgetsBindingObserver {
   // Lọc chi nhánh dành cho SuperAdmin: 'Tất cả' | 'Quận 1' | 'Quận 3' | 'Phú Nhuận'
   String _selectedBranchTab = 'Tất cả';
   final List<String> _branchOptions = ['Quận 1', 'Quận 3', 'Phú Nhuận'];
@@ -24,22 +24,29 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
   final FocusNode _searchFocusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Tự động nhả focus của thanh tìm kiếm khi bàn phím hệ thống đóng (ví dụ: ấn nút back phần cứng)
-    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    if (!isKeyboardOpen && _searchFocusNode.hasFocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _searchFocusNode.unfocus();
-      });
+  void didChangeMetrics() {
+    final bottomInset = View.of(context).viewInsets.bottom;
+    if (bottomInset == 0 && _searchFocusNode.hasFocus) {
+      _searchFocusNode.unfocus();
     }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final isSuperAdmin = user?.role.toLowerCase() == 'superadmin';
     final isAdmin = user?.role.toLowerCase() == 'admin';

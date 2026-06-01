@@ -211,8 +211,6 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
 
   @override
   Widget build(BuildContext context) {
-    // Dynamic padding for keyboard avoidance
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final registration = ref.watch(branchRegistrationProvider);
 
     // If brand registration is pending approval, immediately intercept and show pending screen
@@ -221,7 +219,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
     }
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.bgMain,
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -249,11 +247,11 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             // Body Form
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.only(
+                padding: const EdgeInsets.only(
                   left: 20,
                   right: 20,
                   top: 16,
-                  bottom: bottomInset + 32,
+                  bottom: 32,
                 ),
                 child: _buildCurrentStepContent(),
               ),

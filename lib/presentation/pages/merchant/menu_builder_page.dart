@@ -965,13 +965,12 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final maxSheetHeight = MediaQuery.of(context).size.height * 0.85;
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxSheetHeight),
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Column(
+      child: _KeyboardAvoidPadding(
+        child: Column(
         children: [
           // Drag handle indicator
           Container(
@@ -1233,6 +1232,7 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
           ),
         ],
       ),
+     ),
     );
   }
 
@@ -1492,6 +1492,19 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
           ],
         );
       },
+    );
+  }
+}
+
+class _KeyboardAvoidPadding extends StatelessWidget {
+  final Widget child;
+  const _KeyboardAvoidPadding({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: child,
     );
   }
 }
