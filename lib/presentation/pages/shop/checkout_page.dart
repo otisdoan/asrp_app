@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/order_provider.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
 /// Business: No delivery. Customer orders online, picks up at store.
 /// Only payment method: QR code at restaurant.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class CheckoutPage extends StatefulWidget {
+class CheckoutPage extends ConsumerStatefulWidget {
   final String storeName;
   final int itemCount;
   final String distance;
@@ -20,10 +22,10 @@ class CheckoutPage extends StatefulWidget {
   });
 
   @override
-  State<CheckoutPage> createState() => _CheckoutPageState();
+  ConsumerState<CheckoutPage> createState() => _CheckoutPageState();
 }
 
-class _CheckoutPageState extends State<CheckoutPage> {
+class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   late int _selectedMinutes;
 
   int get _minPrepTime {
@@ -731,10 +733,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   final readyTime = now.add(Duration(minutes: _selectedMinutes));
                   final readyTimeStr = '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
 
+                  // 1. Tạo đơn hàng Self-Pickup mock
+                  final newOrder = MockOrder(
+                    id: '#SP${(100 + (ref.read(orderProvider).length) * 7).toString()}',
+                    storeName: widget.storeName,
+                    items: _orderItems.map((item) {
+                      return MockOrderItem(
+                        name: item['name'] as String,
+                        price: item['price'] as int,
+                        quantity: item['quantity'] as int,
+                        extras: item['extras'] as String?,
+                      );
+                    }).toList(),
+                    totalAmount: 53000, // Combo 1 price
+                    status: MockOrderStatus.pendingConfirm, // Ban đầu: Chờ xác nhận
+                    orderTime: now,
+                    pickupTime: readyTime,
+                    originalMinutes: _selectedMinutes,
+                    timeline: [
+                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} - Khách hàng tạo đơn hàng và chọn thời gian chuẩn bị $_selectedMinutes phút (dự kiến $readyTimeStr).'
+                    ],
+                  );
+
+                  // 2. Thêm vào provider quản lý đơn hàng
+                  ref.read(orderProvider.notifier).addOrder(newOrder);
+
                   // Show confirmation
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đơn hàng đã được xác nhận! Món ăn dự kiến sẵn sàng lúc $readyTimeStr (sau $_selectedMinutes phút).'),
+                      content: Text('Đơn hàng đã được gửi! Chờ thu ngân xác nhận thời gian chuẩn bị.'),
                       backgroundColor: AppColors.primary,
                     ),
                   );

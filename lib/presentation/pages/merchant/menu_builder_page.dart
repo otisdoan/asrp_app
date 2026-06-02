@@ -634,20 +634,29 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
     );
   }
 
-  // Dialog: Add / Edit Category
+  // Bottom Sheet: Add / Edit Category
   void _showCategoryDialog(BuildContext context, MerchantCategory? category) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return _CategoryDialogContent(
-          category: category,
-          onSave: (name) {
-            if (category != null) {
-              ref.read(merchantMenuProvider.notifier).updateCategory(category.id, name);
-            } else {
-              ref.read(merchantMenuProvider.notifier).addCategory(name);
-            }
-          },
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: _CategorySheetContent(
+            category: category,
+            onSave: (name) {
+              if (category != null) {
+                ref.read(merchantMenuProvider.notifier).updateCategory(category.id, name);
+              } else {
+                ref.read(merchantMenuProvider.notifier).addCategory(name);
+              }
+              Navigator.pop(ctx);
+            },
+          ),
         );
       },
     );
@@ -725,23 +734,24 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
 }
 
 // ==========================================
-// Isolated Stateful Content for Category Add/Edit Dialog
+// Isolated Stateful Content for Category Add/Edit Bottom Sheet
 // ==========================================
-class _CategoryDialogContent extends StatefulWidget {
+class _CategorySheetContent extends StatefulWidget {
   final MerchantCategory? category;
   final void Function(String) onSave;
 
-  const _CategoryDialogContent({
+  const _CategorySheetContent({
     this.category,
     required this.onSave,
   });
 
   @override
-  State<_CategoryDialogContent> createState() => _CategoryDialogContentState();
+  State<_CategorySheetContent> createState() => _CategorySheetContentState();
 }
 
-class _CategoryDialogContentState extends State<_CategoryDialogContent> {
+class _CategorySheetContentState extends State<_CategorySheetContent> {
   late TextEditingController _controller;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -758,50 +768,154 @@ class _CategoryDialogContentState extends State<_CategoryDialogContent> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.category != null;
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        isEdit ? 'Sửa tên danh mục' : 'Thêm danh mục mới',
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+
+    return _KeyboardAvoidPadding(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle indicator
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Container(
+              width: 40,
+              height: 4.5,
+              decoration: BoxDecoration(
+                color: AppColors.textTertiary.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isEdit ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.divider),
+
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Tên danh mục thực đơn *',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _controller,
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    decoration: InputDecoration(
+                      hintText: 'Ví dụ: Đồ ăn vặt, Đồ uống, Tráng miệng...',
+                      hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
+                      prefixIcon: const Icon(Icons.category_outlined, color: AppColors.primary, size: 20),
+                      filled: true,
+                      fillColor: AppColors.bgSoft,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.error, width: 1.0),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                      ),
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Vui lòng nhập tên danh mục';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Bottom buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: const BorderSide(color: AppColors.outlineVariant),
+                          ),
+                          child: const Text(
+                            'Hủy bỏ',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              widget.onSave(_controller.text.trim());
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            isEdit ? 'Lưu Thay Đổi' : 'Thêm Mới',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        style: const TextStyle(fontSize: 15),
-        decoration: InputDecoration(
-          labelText: 'Tên danh mục',
-          hintText: 'Ví dụ: Đồ ăn vặt, Đồ uống...',
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.outlineVariant),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            final name = _controller.text.trim();
-            if (name.isNotEmpty) {
-              widget.onSave(name);
-              Navigator.pop(context);
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          child: Text(isEdit ? 'Cập nhật' : 'Thêm mới'),
-        ),
-      ],
     );
   }
 }

@@ -535,6 +535,7 @@ class _SuperAdminDashboardPageState
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(

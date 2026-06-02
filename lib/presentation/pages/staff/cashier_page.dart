@@ -5,7 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/order_provider.dart';
 import '../../../core/constants/app_constants.dart';
+
 
 /// Cashier Page — receives orders from staff + creates takeaway orders.
 /// Two tabs: "Đơn chờ" (pending from staff) and "Tạo đơn mang đi".
@@ -396,7 +398,9 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 
   // ─── Pending Orders Tab ────────────────────────────────────────────────
   Widget _buildPendingOrdersTab() {
-    if (_pendingOrders.isEmpty) {
+    final customerOrders = ref.watch(orderProvider);
+
+    if (_pendingOrders.isEmpty && customerOrders.isEmpty) {
       return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -409,10 +413,349 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
       );
     }
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: _pendingOrders.length,
-      itemBuilder: (_, index) => _buildPendingOrderCard(_pendingOrders[index], index),
+      children: [
+        // 1. Phân hệ đơn hàng Self-Pickup từ Khách trực tuyến
+        if (customerOrders.isNotEmpty) ...[
+          Row(
+            children: [
+              const Icon(Icons.takeout_dining_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'ĐƠN SELF-PICKUP KHÁCH ĐẶT',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${customerOrders.length}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...customerOrders.map((order) => _buildCustomerPickupOrderCard(order)),
+          const SizedBox(height: 20),
+          const Divider(height: 1, color: AppColors.divider),
+          const SizedBox(height: 20),
+        ],
+
+        // 2. Đơn phục vụ tại bàn của Nhân viên gửi lên
+        if (_pendingOrders.isNotEmpty) ...[
+          const Row(
+            children: [
+              Icon(Icons.table_restaurant_rounded, color: AppColors.textSecondary, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'ĐƠN PHỤC VỤ TẠI BÀN',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...List.generate(
+            _pendingOrders.length,
+            (index) => _buildPendingOrderCard(_pendingOrders[index], index),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCustomerPickupOrderCard(MockOrder order) {
+    Color statusBgColor;
+    Color statusTextColor;
+    String statusText;
+
+    switch (order.status) {
+      case MockOrderStatus.pendingConfirm:
+        statusBgColor = const Color(0xFFFFF3CD);
+        statusTextColor = const Color(0xFF856404);
+        statusText = 'Chờ xác nhận';
+        break;
+      case MockOrderStatus.preparing:
+        statusBgColor = const Color(0xFFFFE8D6);
+        statusTextColor = const Color(0xFFD35400);
+        statusText = 'Đang chuẩn bị';
+        break;
+      case MockOrderStatus.ready:
+        statusBgColor = const Color(0xFFD4EDDA);
+        statusTextColor = const Color(0xFF155724);
+        statusText = 'Chờ nhận món';
+        break;
+      case MockOrderStatus.completed:
+        statusBgColor = const Color(0xFFE2E3E5);
+        statusTextColor = const Color(0xFF383D41);
+        statusText = 'Đã lấy món';
+        break;
+      case MockOrderStatus.cancelled:
+        statusBgColor = const Color(0xFFF8D7DA);
+        statusTextColor = const Color(0xFF721C24);
+        statusText = 'Đã hủy đơn';
+        break;
+    }
+
+    final total = order.items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+    final formattedPickupTime =
+        '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
+        border: order.status == MockOrderStatus.pendingConfirm
+            ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5)
+            : Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.takeout_dining_rounded, size: 12, color: AppColors.primary),
+                    SizedBox(width: 4),
+                    Text('SELF-PICKUP', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                order.id,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusBgColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusTextColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Items preview
+          ...order.items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.fastfood_outlined, size: 16, color: AppColors.textTertiary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${item.name} x${item.quantity}',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      ),
+                    ),
+                    Text(
+                      _formatPrice(item.price * item.quantity),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              )),
+
+          if (order.items.isNotEmpty && order.items[0].extras != null) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 24),
+              child: Text(
+                order.items[0].extras!,
+                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.divider),
+          const SizedBox(height: 12),
+
+          // Time & Total Price
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Khách hẹn lấy lúc: $formattedPickupTime',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: order.extraMinutes > 0 ? Colors.red : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (order.extraMinutes > 0)
+                    Text(
+                      'Đã cộng thêm +${order.extraMinutes} phút',
+                      style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w500),
+                    )
+                  else
+                    Text(
+                      'Thời gian gốc: ${order.originalMinutes}p',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                    )
+                ],
+              ),
+              Text(
+                '${(total / 1000).toStringAsFixed(0)}k đ',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // Interactive Action Buttons
+          if (order.status != MockOrderStatus.completed)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 1. Nút "Xin thêm phút"
+                if (order.status == MockOrderStatus.pendingConfirm || order.status == MockOrderStatus.preparing) ...[
+                  OutlinedButton.icon(
+                    onPressed: () => _showRequestMinutesDialog(order),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade800,
+                      side: BorderSide(color: Colors.orange.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                    icon: const Icon(Icons.more_time_rounded, size: 16),
+                    label: const Text('Xin thêm phút', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+
+                // 2. Nút hành động chính theo trạng thái
+                ElevatedButton(
+                  onPressed: () {
+                    final notifier = ref.read(orderProvider.notifier);
+                    if (order.status == MockOrderStatus.pendingConfirm) {
+                      notifier.confirmOrder(order.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã xác nhận đơn hàng và bắt đầu chuẩn bị món!')),
+                      );
+                    } else if (order.status == MockOrderStatus.preparing) {
+                      notifier.makeReady(order.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã hoàn thành món! Đã gửi thông báo cho khách hàng.')),
+                      );
+                    } else if (order.status == MockOrderStatus.ready) {
+                      notifier.completeOrder(order.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã hoàn thành giao hàng cho khách!')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: order.status == MockOrderStatus.pendingConfirm
+                        ? AppColors.primary
+                        : (order.status == MockOrderStatus.preparing ? Colors.green : Colors.blue),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    order.status == MockOrderStatus.pendingConfirm
+                        ? 'Xác nhận đơn'
+                        : (order.status == MockOrderStatus.preparing ? 'Xong & Báo khách' : 'Khách đã lấy món'),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showRequestMinutesDialog(MockOrder order) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.more_time_rounded, color: Colors.orange.shade800, size: 24),
+            const SizedBox(width: 8),
+            const Text('Xin thêm phút chuẩn bị', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Do đơn hàng tại quán đang quá tải, bạn muốn xin thêm bao nhiêu phút để chuẩn bị đơn ${order.id}?',
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [5, 10, 15].map((mins) {
+              return ElevatedButton(
+                onPressed: () {
+                  ref.read(orderProvider.notifier).requestExtraMinutes(order.id, mins);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Đã xin thêm $mins phút! Hệ thống đã gửi thông báo đến khách hàng.'),
+                      backgroundColor: Colors.orange.shade800,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade50,
+                  foregroundColor: Colors.orange.shade900,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  elevation: 0,
+                ),
+                child: Text('+$mins phút', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+          )
+        ],
+      ),
     );
   }
 
