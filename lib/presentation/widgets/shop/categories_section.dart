@@ -15,52 +15,37 @@ class CategoriesSection extends ConsumerWidget {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final categoriesAsync = ref.watch(categoriesFutureProvider);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (selectedCategory != 'Tất cả')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    ref.read(selectedCategoryProvider.notifier).state = 'Tất cả';
-                    ref.read(menuCurrentPageProvider.notifier).state = 1;
-                  },
-                  child: const Text(
-                    'Xóa lọc',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (selectedCategory != 'Tất cả')
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () {
+                  ref.read(selectedCategoryProvider.notifier).state = 'Tất cả';
+                  ref.read(menuCurrentPageProvider.notifier).state = 1;
+                },
+                child: const Text(
+                  'Xóa lọc',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-          if (selectedCategory != 'Tất cả') const SizedBox(height: 8),
-          categoriesAsync.when(
-            data: (categories) => _buildList(context, ref, categories.isEmpty ? MockData.categories : categories, selectedCategory),
-            loading: () => _buildList(context, ref, MockData.categories, selectedCategory), // smooth loading fallback
-            error: (err, stack) => _buildList(context, ref, MockData.categories, selectedCategory), // robust error fallback
           ),
-        ],
-      ),
+        const SizedBox(height: 12),
+        categoriesAsync.when(
+          data: (categories) => _buildList(context, ref, categories.isEmpty ? MockData.categories : categories, selectedCategory),
+          loading: () => _buildList(context, ref, MockData.categories, selectedCategory), // smooth loading fallback
+          error: (err, stack) => _buildList(context, ref, MockData.categories, selectedCategory), // robust error fallback
+        ),
+      ],
     );
   }
 
@@ -85,7 +70,6 @@ class CategoriesSection extends ConsumerWidget {
               context.push('/search?category=$name');
             },
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(

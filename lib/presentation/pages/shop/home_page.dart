@@ -27,7 +27,6 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
-  final _scrollController = ScrollController();
   int _currentTabIndex = 0;
 
   @override
@@ -195,7 +194,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -328,7 +326,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         return Column(children: [
           Expanded(
               child: SingleChildScrollView(
-            controller: _scrollController,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -355,8 +352,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               // All Stores
               Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: AllStoresSection(scrollController: _scrollController)),
-              const SizedBox(height: 24),
+                  child: const AllStoresSection()),
+              const SizedBox(height: 100),
             ]),
           )),
         ]);
