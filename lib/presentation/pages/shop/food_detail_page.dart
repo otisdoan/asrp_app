@@ -4,7 +4,7 @@ import 'add_to_cart_page.dart';
 
 /// Food Item Detail Page — shows food image, info, price, and reviews.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class FoodDetailPage extends StatelessWidget {
+class FoodDetailPage extends StatefulWidget {
   final String name;
   final String price;
   final String sold;
@@ -22,9 +22,41 @@ class FoodDetailPage extends StatelessWidget {
     this.imageUrl,
   });
 
+  @override
+  State<FoodDetailPage> createState() => _FoodDetailPageState();
+}
+
+class _FoodDetailPageState extends State<FoodDetailPage> {
+  late ScrollController _scrollController;
+  bool _isCollapsed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    const collapsedThreshold = 260.0 - kToolbarHeight;
+    final collapsed = _scrollController.hasClients &&
+        _scrollController.offset > collapsedThreshold;
+    if (collapsed != _isCollapsed) {
+      setState(() {
+        _isCollapsed = collapsed;
+      });
+    }
+  }
+
   // Mock description
   String get _description {
-    switch (name) {
+    switch (widget.name) {
       case 'Combo 1: Phần gà + khoai':
         return 'Gà rán giòn rụm kèm khoai tây chiên. Phần ăn vừa đủ cho 1 người.';
       case 'Set sum vầy (4 người)':
@@ -81,6 +113,7 @@ class FoodDetailPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           // ─── Image Header ───────────────────────────────────
           _buildImageHeader(context),
@@ -115,47 +148,78 @@ class FoodDetailPage extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 260,
       pinned: true,
-      backgroundColor: AppColors.primary,
-      leading: IconButton(
-        icon: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: const BoxDecoration(
-            color: Colors.black26,
-            shape: BoxShape.circle,
+      backgroundColor: _isCollapsed ? Colors.white : AppColors.primary,
+      elevation: 0,
+      centerTitle: true,
+      title: _isCollapsed
+          ? Text(
+              widget.name,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _isCollapsed ? Colors.transparent : Colors.black26,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: _isCollapsed ? const Color(0xFFE55333) : Colors.white,
+                size: _isCollapsed ? 24 : 20,
+              ),
+            ),
           ),
-          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
         ),
-        onPressed: () => Navigator.pop(context),
       ),
       actions: [
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Colors.black26,
-              shape: BoxShape.circle,
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _isCollapsed ? Colors.transparent : Colors.black26,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.share_outlined,
+                color: _isCollapsed ? const Color(0xFFE55333) : Colors.white,
+                size: _isCollapsed ? 22 : 18,
+              ),
             ),
-            child: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
           ),
-          onPressed: () {},
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           color: AppColors.bgWarm,
-          child: (imageUrl != null && imageUrl!.isNotEmpty)
-              ? (imageUrl!.startsWith('http')
+          child: (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
+              ? (widget.imageUrl!.startsWith('http')
                   ? Image.network(
-                      imageUrl!,
+                      widget.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(icon, size: 100, color: AppColors.textTertiary),
+                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 100, color: AppColors.textTertiary),
                     )
                   : Image.asset(
-                      imageUrl!,
+                      widget.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(icon, size: 100, color: AppColors.textTertiary),
+                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 100, color: AppColors.textTertiary),
                     ))
-              : Icon(icon, size: 100, color: AppColors.textTertiary),
+              : Icon(widget.icon, size: 100, color: AppColors.textTertiary),
         ),
       ),
     );
@@ -170,7 +234,7 @@ class FoodDetailPage extends StatelessWidget {
         children: [
           // Food name
           Text(
-            name,
+            widget.name,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -193,7 +257,7 @@ class FoodDetailPage extends StatelessWidget {
           Row(
             children: [
               Text(
-                '$sold đã bán',
+                '${widget.sold} đã bán',
                 style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.textTertiary,
@@ -203,7 +267,7 @@ class FoodDetailPage extends StatelessWidget {
               Container(width: 1, height: 12, color: AppColors.outlineVariant),
               const SizedBox(width: 12),
               Text(
-                '$likes lượt thích',
+                '${widget.likes} lượt thích',
                 style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.textTertiary,
@@ -216,7 +280,7 @@ class FoodDetailPage extends StatelessWidget {
           Row(
             children: [
               Text(
-                price,
+                widget.price,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -229,9 +293,9 @@ class FoodDetailPage extends StatelessWidget {
                 onTap: () async {
                   final result = await Navigator.push(context, MaterialPageRoute(
                     builder: (_) => AddToCartPage(
-                      name: name,
-                      price: price,
-                      icon: icon,
+                      name: widget.name,
+                      price: widget.price,
+                      icon: widget.icon,
                     ),
                   ));
                   if (result != null && context.mounted) {
@@ -542,7 +606,7 @@ class FoodDetailPage extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                   Text(
-                    price,
+                    widget.price,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -558,9 +622,9 @@ class FoodDetailPage extends StatelessWidget {
                 onPressed: () async {
                   final result = await Navigator.push(context, MaterialPageRoute(
                     builder: (_) => AddToCartPage(
-                      name: name,
-                      price: price,
-                      icon: icon,
+                      name: widget.name,
+                      price: widget.price,
+                      icon: widget.icon,
                     ),
                   ));
                   if (result != null && context.mounted) {
