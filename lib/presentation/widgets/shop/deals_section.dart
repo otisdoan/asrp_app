@@ -16,19 +16,19 @@ class DealsSection extends ConsumerWidget {
   static const _mockDeals = [
     {
       'id': 'mock-1',
-      'name': 'Bếp Nhà Thái Hạ - Trà Sữa, Chè Thái & Ăn Vặt',
+      'name': 'Bếp Nhà Thái Hạ',
       'promo': 'Mã giảm 40k',
       'image': 'assets/images/com.webp',
     },
     {
       'id': 'mock-2',
-      'name': 'UMê Café - Tiệm Trà Sữa - 797 Hùng Vương',
+      'name': 'UMê Café',
       'promo': 'Mã giảm 11%',
       'image': 'assets/images/tra_sua.jpg',
     },
     {
       'id': 'mock-3',
-      'name': 'Bánh Xèo Giòn A Tốt - Bánh Xèo Hoài Nhơn',
+      'name': 'Bánh Xèo Giòn A Tốt',
       'promo': 'Mã giảm 11%',
       'image': 'assets/images/pho.jpg',
     },
@@ -160,7 +160,8 @@ class DealsSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => context.push('/section-detail?type=deals&title=Quán Mới Lên Sàn, Giảm 50.000Đ'),
+                onTap: () => context.push(
+                    '/section-detail?type=deals&title=Quán Mới Lên Sàn, Giảm 50.000Đ'),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

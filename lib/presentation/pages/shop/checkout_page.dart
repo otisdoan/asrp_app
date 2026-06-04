@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import 'order_success_page.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
 /// Business: No delivery. Customer orders online, picks up at store.
@@ -772,15 +773,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   // 2. Thêm vào provider quản lý đơn hàng
                   ref.read(orderProvider.notifier).addOrder(newOrder);
 
-                  // Show confirmation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'Đơn hàng đã được gửi! Chờ thu ngân xác nhận thời gian chuẩn bị.'),
-                      backgroundColor: AppColors.primary,
+                  // Chuyển hướng đến trang đặt hàng thành công
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderSuccessPage(orderId: newOrder.id),
                     ),
                   );
-                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,

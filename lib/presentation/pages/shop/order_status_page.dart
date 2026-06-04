@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import 'cancel_success_page.dart';
+import 'order_detail_page.dart';
 
 /// Order Status Page — shows orders filtered by status.
 /// Navigated to when tapping a status category on the Orders page.
@@ -226,12 +228,15 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
 
     return GestureDetector(
       onTap: () {
-        if (order.status != MockOrderStatus.cancelled && order.status != MockOrderStatus.completed) {
-          if (order.hasNotification) {
-            ref.read(orderProvider.notifier).clearNotification(order.id);
-          }
-          _showOrderProgressSheet(order);
+        if (order.hasNotification) {
+          ref.read(orderProvider.notifier).clearNotification(order.id);
         }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderDetailPage(orderId: order.id),
+          ),
+        );
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
@@ -423,7 +428,7 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton(
-                      onPressed: () => _confirmCancelOrder(order.id),
+                      onPressed: () => _showCancelReasonsSheet(order.id),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.outlineVariant),
@@ -445,412 +450,159 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
     );
   }
 
-  void _confirmCancelOrder(String id) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'Hủy đơn hàng này?',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Bạn có chắc chắn muốn hủy đơn hàng tự đến lấy này không? Hành động này không thể hoàn tác.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Không', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(orderProvider.notifier).cancelOrder(id);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đơn hàng đã được hủy thành công!'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
-              child: const Text('Đồng ý hủy'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // ─── Order Progress and Timeline Bottom Sheet ───────────────────────────
-  void _showOrderProgressSheet(MockOrder order) {
+  void _showCancelReasonsSheet(String id) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
+        String? selectedReason;
+        final reasons = [
+          'Không cần nữa',
+          'Cần thay đổi phương thức thanh toán',
+          'Chi phí giao hàng cao',
+          'Có giá tốt hơn',
+          'Cần thay đổi địa chỉ giao hàng',
+          'Người bán yêu cầu hủy đơn',
+          'Người bán không trả lời thắc mắc',
+        ];
+
         return StatefulBuilder(
-          builder: (stContext, setStateSheet) {
-            // Xem lại danh sách đơn hàng mới nhất từ provider để cập nhật Bottom Sheet thời gian thực
-            final currentOrders = ref.watch(orderProvider);
-            final currentOrder = currentOrders.firstWhere((o) => o.id == order.id, orElse: () => order);
-
-            String statusTitle = '';
-            IconData statusIcon = Icons.hourglass_top_rounded;
-            Color statusColor = AppColors.primary;
-            String statusSubtitle = '';
-
-            switch (currentOrder.status) {
-              case MockOrderStatus.pendingConfirm:
-                statusTitle = 'Đơn hàng đang chờ xác nhận';
-                statusIcon = Icons.hourglass_top_rounded;
-                statusColor = Colors.orange;
-                statusSubtitle = 'Thu ngân đang kiểm tra thực đơn và chuẩn bị xác nhận.';
-                break;
-              case MockOrderStatus.preparing:
-                statusTitle = 'Đang chuẩn bị món ăn';
-                statusIcon = Icons.soup_kitchen_outlined;
-                statusColor = AppColors.primary;
-                statusSubtitle = 'Quán đang chế biến đồ ăn nóng hổi cho bạn.';
-                break;
-              case MockOrderStatus.ready:
-                statusTitle = 'Món ăn đã sẵn sàng!';
-                statusIcon = Icons.check_circle_outline_rounded;
-                statusColor = Colors.green;
-                statusSubtitle = 'Mời bạn đến quầy nhận món và thanh toán QR.';
-                break;
-              case MockOrderStatus.completed:
-                statusTitle = 'Đơn hàng hoàn tất';
-                statusIcon = Icons.celebration_outlined;
-                statusColor = Colors.blue;
-                statusSubtitle = 'Cảm ơn bạn đã ủng hộ quán! Chúc ngon miệng!';
-                break;
-              case MockOrderStatus.cancelled:
-                statusTitle = 'Đơn hàng đã bị hủy';
-                statusIcon = Icons.cancel_outlined;
-                statusColor = Colors.red;
-                statusSubtitle = 'Đơn hàng tự đến lấy này đã bị hủy thành công.';
-                break;
-            }
-
-            final formattedPickupTime =
-                '${currentOrder.pickupTime.hour.toString().padLeft(2, '0')}:${currentOrder.pickupTime.minute.toString().padLeft(2, '0')}';
-
+          builder: (sheetContext, setSheetState) {
             return Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pull bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4.5,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-
-                  // Header details
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Tiến độ đơn hàng ${currentOrder.id}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            currentOrder.storeName,
-                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24, color: AppColors.outlineVariant),
-
-                  // Alert note (If store requested extra minutes or confirmed)
-                  if (currentOrder.storeNote != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: currentOrder.extraMinutes > 0
-                            ? Colors.red.shade50
-                            : AppColors.primaryContainer.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: currentOrder.extraMinutes > 0 ? Colors.red.shade200 : AppColors.primary.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            currentOrder.extraMinutes > 0 ? Icons.error_outline : Icons.notifications_active_outlined,
-                            color: currentOrder.extraMinutes > 0 ? Colors.red : AppColors.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  currentOrder.extraMinutes > 0 ? 'Quán xin thêm phút chuẩn bị' : 'Thông báo từ cửa hàng',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: currentOrder.extraMinutes > 0 ? Colors.red.shade900 : AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  currentOrder.storeNote!,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: currentOrder.extraMinutes > 0 ? Colors.red.shade800 : AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Massive status info
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(statusIcon, color: statusColor, size: 32),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          statusTitle,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          statusSubtitle,
-                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Giant ETA Box
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSoft,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.outlineVariant),
-                    ),
+                  // Header / Close button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'THỜI GIAN NHẬN MÓN',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textTertiary, letterSpacing: 0.8),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Nhận hàng tại quầy',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                            ),
-                          ],
+                        const SizedBox(width: 24),
+                        const Text(
+                          'Chọn lý do',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              formattedPickupTime,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: currentOrder.extraMinutes > 0 ? Colors.red : AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              currentOrder.extraMinutes > 0
-                                  ? 'Trễ thêm ${currentOrder.extraMinutes} phút'
-                                  : 'Dự kiến đúng giờ',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: currentOrder.extraMinutes > 0 ? Colors.red : Colors.green,
-                              ),
-                            ),
-                          ],
+                        GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: const Icon(Icons.close_rounded,
+                              color: AppColors.textSecondary, size: 22),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Timeline section title
                   const Text(
-                    'Tiến trình thực tế',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    'Chọn lý do để hủy đơn ngay',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 12),
+                  const Divider(height: 1, color: AppColors.outlineVariant),
 
-                  // Interactive Vertical Timeline logs
-                  Container(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Column(
-                      children: List.generate(currentOrder.timeline.length, (index) {
-                        final log = currentOrder.timeline[currentOrder.timeline.length - 1 - index]; // Đảo ngược để sự kiện mới ở trên cùng
-                        final isNewest = index == 0;
-
-                        return IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Column(
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: isNewest ? statusColor : Colors.grey.shade300,
-                                      shape: BoxShape.circle,
-                                      border: isNewest
-                                          ? Border.all(color: statusColor.withValues(alpha: 0.3), width: 3)
-                                          : null,
-                                    ),
-                                  ),
-                                  if (index != currentOrder.timeline.length - 1)
-                                    Expanded(
-                                      child: Container(
-                                        width: 2,
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 14),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        log.substring(0, 5), // Time hh:mm
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: isNewest ? statusColor : AppColors.textTertiary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        log.substring(8), // Event details
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: isNewest ? AppColors.textPrimary : AppColors.textSecondary,
-                                          fontWeight: isNewest ? FontWeight.bold : FontWeight.normal,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  
-                  // Summary items inside sheet
-                  const Text(
-                    'Chi tiết sản phẩm',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSoft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        ...currentOrder.items.map((i) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
+                  // Reasons List
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: reasons.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.outlineVariant),
+                      itemBuilder: (context, index) {
+                        final reason = reasons[index];
+                        final isSelected = selectedReason == reason;
+                        return InkWell(
+                          onTap: () {
+                            setSheetState(() {
+                              selectedReason = reason;
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('${i.name} x ${i.quantity}', style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
-                                Text('${(i.price * i.quantity / 1000).toStringAsFixed(0)}k đ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                Expanded(
+                                  child: Text(
+                                    reason,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked_rounded
+                                      : Icons.radio_button_off_rounded,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.textTertiary,
+                                  size: 20,
+                                ),
                               ],
                             ),
-                          );
-                        }),
-                        const Divider(height: 16, color: AppColors.outlineVariant),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Tổng tiền', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                            Text('${(currentOrder.totalAmount / 1000).toStringAsFixed(0)}k đ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary)),
-                          ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1, color: AppColors.outlineVariant),
+                  const SizedBox(height: 16),
+
+                  // Button at the bottom
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: selectedReason == null
+                            ? null
+                            : () {
+                                // 1. Cancel order in provider
+                                ref.read(orderProvider.notifier).cancelOrder(id);
+                                // 2. Dismiss bottom sheet
+                                Navigator.pop(ctx);
+                                // 3. Navigate to CancelSuccessPage
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CancelSuccessPage(orderId: id),
+                                  ),
+                                );
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor:
+                              AppColors.primary.withValues(alpha: 0.3),
+                          foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          elevation: 0,
                         ),
-                      ],
+                        child: const Text(
+                          'Hủy đơn hàng',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
                   ),
                 ],
