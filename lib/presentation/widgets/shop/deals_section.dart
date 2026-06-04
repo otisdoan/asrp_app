@@ -1,30 +1,127 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/branch_model.dart';
+import '../../../providers/branch_provider.dart';
+import '../../pages/shop/store_detail_page.dart';
 
-/// Section "Trùm Deal Ngon" — grid layout: 1 large left card + 2 small right cards.
-/// Matches the ShopeeFood-style design reference.
-class DealsSection extends StatelessWidget {
+/// Section "Quán Mới Deal Hời" — horizontal scroll of new stores with hot discounts.
+/// Replaces the old grid-style "Trùm Deal Ngon" section.
+class DealsSection extends ConsumerWidget {
   final Function(String) onItemTap;
 
   const DealsSection({super.key, required this.onItemTap});
 
-  @override
-  Widget build(BuildContext context) {
-    // Fixed height for the cards area to prevent overflow
-    const double smallCardHeight = 105.0;
-    const double gap = 10.0;
-    const double totalHeight = smallCardHeight * 2 + gap;
+  static const _mockDeals = [
+    {
+      'id': 'mock-1',
+      'name': 'Bếp Nhà Thái Hạ - Trà Sữa, Chè Thái & Ăn Vặt',
+      'promo': 'Mã giảm 40k',
+      'image': 'assets/images/com.webp',
+    },
+    {
+      'id': 'mock-2',
+      'name': 'UMê Café - Tiệm Trà Sữa - 797 Hùng Vương',
+      'promo': 'Mã giảm 11%',
+      'image': 'assets/images/tra_sua.jpg',
+    },
+    {
+      'id': 'mock-3',
+      'name': 'Bánh Xèo Giòn A Tốt - Bánh Xèo Hoài Nhơn',
+      'promo': 'Mã giảm 11%',
+      'image': 'assets/images/pho.jpg',
+    },
+  ];
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final branchesAsync = ref.watch(branchesFutureProvider);
+
+    return branchesAsync.when(
+      data: (branches) {
+        if (branches.isEmpty) {
+          return _buildContent(context, _getMockBranches());
+        }
+        return _buildContent(context, branches);
+      },
+      loading: () => _buildLoadingState(),
+      error: (err, stack) {
+        print('[DealsSection] Lỗi tải chi nhánh: $err');
+        return _buildContent(context, _getMockBranches());
+      },
+    );
+  }
+
+  List<BranchListItemModel> _getMockBranches() {
+    return _mockDeals
+        .map((m) => BranchListItemModel(
+              id: m['id']!,
+              name: m['name']!,
+              imageUrl: m['image']!,
+              rating: 4.8,
+              distance: '1.2 km',
+              deliveryTime: '20 phút',
+              promo: m['promo'],
+            ))
+        .toList();
+  }
+
+  Widget _buildLoadingState() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 200,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 300,
+          height: 12,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 195,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: 3,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, __) => Container(
+              width: 135,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(
+      BuildContext context, List<BranchListItemModel> branches) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.secondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -32,18 +129,35 @@ class DealsSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Flexible(
-                child: Text(
-                  'TRÙM DEAL NGON DINEX',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: 0.2,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Quán Deal Hời, Giảm mạnh',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE55333), // ShopeeFood Orange-Red
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'DineX gợi ý quán ngon cho bộ sưu tập của bạn',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {},
                 child: const Row(
@@ -52,13 +166,13 @@ class DealsSection extends StatelessWidget {
                     Text(
                       'Xem thêm',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                    SizedBox(width: 2),
-                    Icon(Icons.chevron_right, color: Colors.white, size: 18),
+                    Icon(Icons.chevron_right,
+                        color: AppColors.textTertiary, size: 16),
                   ],
                 ),
               ),
@@ -66,58 +180,47 @@ class DealsSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // ─── Cards Grid ─────────────────────────────────────
+          // ─── Row of cards ───────────────────────────────────
           SizedBox(
-            height: totalHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // LEFT — Large vertical card (narrower)
-                Expanded(
-                  flex: 4,
-                  child: _LargeCard(
-                    discount: '-30%',
-                    shopName: 'Bánh Mì Khói - 120...',
-                    productName: 'BÁNH MÌ ỐP LA',
-                    price: '17.500đ',
-                    oldPrice: '25.000đ',
-                    imagePath: 'assets/images/com.webp',
-                    onTap: () => onItemTap('BÁNH MÌ ỐP LA'),
-                  ),
-                ),
-                const SizedBox(width: gap),
-                // RIGHT — Two horizontal cards stacked (wider for clear content)
-                Expanded(
-                  flex: 7,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: _SmallCard(
-                          discount: '-30%',
-                          shopName: 'Nhà Cô Thanh - Bún Thịt Nư...',
-                          productName: 'BÚN MẮM NÊM\nDEALNGON',
-                          price: '32.900đ',
-                          oldPrice: '47.000đ',
-                          imagePath: 'assets/images/pho_bo.png',
-                          onTap: () => onItemTap('BÚN MẮM NÊM DEALNGON'),
-                        ),
-                      ),
-                      const SizedBox(height: gap),
-                      Expanded(
-                        child: _SmallCard(
-                          discount: '-30%',
-                          shopName: 'Quán Ăn Hà Nội Phở - Bánh...',
-                          productName: 'BÁNH CUỐN CHẢ\nHÀ NỘI + NƯỚC ĐẬ...',
-                          price: '38.500đ',
-                          oldPrice: '55.000đ',
-                          imagePath: 'assets/images/pho.jpg',
-                          onTap: () => onItemTap('BÁNH CUỐN CHẢ HÀ NỘI'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            height: 195,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: branches.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final branch = branches[index];
+
+                // Dynamic promo label formatting
+                String promoTag = 'Mã giảm 10%';
+                if (branch.discount != null && branch.discount!.isNotEmpty) {
+                  final rawDiscount = branch.discount!;
+                  if (rawDiscount.contains('%') ||
+                      rawDiscount.toLowerCase().contains('k')) {
+                    promoTag = 'Mã giảm $rawDiscount';
+                  } else {
+                    promoTag = 'Mã giảm $rawDiscount';
+                  }
+                } else if (branch.promo != null && branch.promo!.isNotEmpty) {
+                  promoTag = branch.promo!;
+                  if (!promoTag.toLowerCase().contains('giảm') &&
+                      !promoTag.toLowerCase().contains('freeship')) {
+                    promoTag = 'Mã giảm $promoTag';
+                  }
+                } else {
+                  final fallbacks = [
+                    'Mã giảm 40k',
+                    'Mã giảm 11%',
+                    'Mã giảm 15%'
+                  ];
+                  promoTag = fallbacks[index % fallbacks.length];
+                }
+
+                return _DealCard(
+                  branch: branch,
+                  promoTag: promoTag,
+                  onItemTap: onItemTap,
+                );
+              },
             ),
           ),
         ],
@@ -126,286 +229,120 @@ class DealsSection extends StatelessWidget {
   }
 }
 
-// ─── Large Card (left side — image top, info bottom) ───────────────────────
-class _LargeCard extends StatelessWidget {
-  final String discount;
-  final String shopName;
-  final String productName;
-  final String price;
-  final String oldPrice;
-  final String imagePath;
-  final VoidCallback onTap;
+class _DealCard extends StatelessWidget {
+  final BranchListItemModel branch;
+  final String promoTag;
+  final Function(String) onItemTap;
 
-  const _LargeCard({
-    required this.discount,
-    required this.shopName,
-    required this.productName,
-    required this.price,
-    required this.oldPrice,
-    required this.imagePath,
-    required this.onTap,
+  const _DealCard({
+    required this.branch,
+    required this.promoTag,
+    required this.onItemTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StoreDetailPage(
+              storeName: branch.name,
+              category: 'Đồ ăn · Đồ uống',
+              rating: branch.rating,
+              reviews: branch.reviewsCount ?? 120,
+              deliveryTime: branch.deliveryTime.isNotEmpty
+                  ? branch.deliveryTime
+                  : '25 phút',
+              distance: branch.distance.isNotEmpty ? branch.distance : '1.5 km',
+              icon: Icons.store,
+              branchId: branch.id.startsWith('mock') ? null : branch.id,
             ),
-          ],
-        ),
+          ),
+        );
+      },
+      child: SizedBox(
+        width: 135,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image area
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  topRight: Radius.circular(8),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Container(
-                      color: AppColors.bgWarm,
-                      child: Image.asset(imagePath, fit: BoxFit.cover),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: _DiscountBadge(label: discount),
-                    ),
-                  ],
-                ),
+            // Image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 135,
+                height: 120, // Square image
+                color: AppColors.bgSoft,
+                child: branch.imageUrl.startsWith('http')
+                    ? Image.network(
+                        branch.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.store,
+                              color: AppColors.textTertiary, size: 28),
+                        ),
+                      )
+                    : Image.asset(
+                        branch.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.store,
+                              color: AppColors.textTertiary, size: 28),
+                        ),
+                      ),
               ),
             ),
-            // Info area
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    shopName,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 6),
+            // Verified Badge + Name
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2.0),
+                  child: Icon(
+                    Icons.verified,
+                    size: 13,
+                    color: Color(0xFFF2994A), // Orange/Amber verified badge
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    productName,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    branch.name,
                     style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                       height: 1.2,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        price,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          oldPrice,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.textTertiary,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Small Card (right side — image left, info right) ──────────────────────
-class _SmallCard extends StatelessWidget {
-  final String discount;
-  final String shopName;
-  final String productName;
-  final String price;
-  final String oldPrice;
-  final String imagePath;
-  final VoidCallback onTap;
-
-  const _SmallCard({
-    required this.discount,
-    required this.shopName,
-    required this.productName,
-    required this.price,
-    required this.oldPrice,
-    required this.imagePath,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Image area (square)
-            AspectRatio(
-              aspectRatio: 1,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
                 ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Container(
-                      color: AppColors.bgWarm,
-                      child: Image.asset(imagePath, fit: BoxFit.cover),
-                    ),
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: _DiscountBadge(label: discount, small: true),
-                    ),
-                  ],
+              ],
+            ),
+            const Spacer(),
+            // Promo Tag
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF5F5), // Light pink/red background
+                border: Border.all(
+                    color: const Color(0xFFFFCCCC), width: 0.8), // Red border
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                promoTag,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFE55333), // ShopeeFood Orange-Red text
                 ),
               ),
             ),
-            // Info area
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      shopName,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      productName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          price,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            oldPrice,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textTertiary,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 2),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Discount Badge ────────────────────────────────────────────────────────
-class _DiscountBadge extends StatelessWidget {
-  final String label;
-  final bool small;
-
-  const _DiscountBadge({required this.label, this.small = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: small ? 5 : 7,
-        vertical: small ? 2 : 3,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.accent,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: small ? 10 : 12,
-          fontWeight: FontWeight.w800,
-          color: Colors.white,
         ),
       ),
     );
