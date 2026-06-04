@@ -120,7 +120,7 @@ class BranchMenuSectionModel {
 
   factory BranchMenuSectionModel.fromJson(Map<String, dynamic> json) {
     return BranchMenuSectionModel(
-      name: json['name'] as String? ?? '',
+      name: (json['categoryName'] ?? json['name']) as String? ?? '',
       items: (json['items'] as List<dynamic>?)
               ?.map((e) => MenuItemModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -185,7 +185,7 @@ class BranchDetailModel {
       
       for (final item in rawMenu) {
         if (item is Map<String, dynamic>) {
-          if (item['items'] is List && item['name'] != null) {
+          if (item['items'] is List && (item['name'] != null || item['categoryName'] != null)) {
             groupedMenu ??= [];
             groupedMenu.add(BranchMenuSectionModel.fromJson(item));
             continue;

@@ -34,7 +34,7 @@ class DealsSection extends StatelessWidget {
             children: [
               const Flexible(
                 child: Text(
-                  'TRÙM DEAL NGON BMC PHỞ',
+                  'TRÙM DEAL NGON DINEX',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
