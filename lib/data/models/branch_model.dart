@@ -58,13 +58,16 @@ class BranchListItemModel {
       }
     }
 
-    // Ghép các phần tử trong promos cách nhau bởi dấu " · "
+    // Lấy phần tử đầu tiên trong promos để làm tag giảm giá chính
     String? mergedPromo = json['promo'] as String?;
     if (json['promos'] is List) {
       final promosList = (json['promos'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
       if (promosList.isNotEmpty) {
-        mergedPromo = promosList.join(' · ');
+        mergedPromo = promosList.first;
       }
+    }
+    if (mergedPromo != null && mergedPromo.contains(' · ')) {
+      mergedPromo = mergedPromo.split(' · ').first;
     }
 
     return BranchListItemModel(

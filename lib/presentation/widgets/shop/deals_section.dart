@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/branch_model.dart';
 import '../../../providers/branch_provider.dart';
@@ -159,7 +160,7 @@ class DealsSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.push('/section-detail?type=deals&title=Quán Mới Lên Sàn, Giảm 50.000Đ'),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -185,7 +186,7 @@ class DealsSection extends ConsumerWidget {
             height: 195,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: branches.length,
+              itemCount: branches.length > 6 ? 6 : branches.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 final branch = branches[index];

@@ -20,6 +20,7 @@ import '../presentation/pages/shop/favorite_shops_page.dart';
 import '../presentation/pages/merchant/store_setup_page.dart';
 import '../presentation/pages/merchant/menu_builder_page.dart';
 import '../presentation/pages/merchant/staff_management_page.dart';
+import '../presentation/pages/shop/section_detail_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -138,6 +139,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final category = state.uri.queryParameters['category'];
           return SearchPage(initialCategory: category);
+        },
+      ),
+      GoRoute(
+        path: '/section-detail',
+        builder: (context, state) {
+          final type = state.uri.queryParameters['type'] ?? 'deals';
+          final title = state.uri.queryParameters['title'] ?? '';
+          return SectionDetailPage(type: type, title: title);
         },
       ),
       GoRoute(

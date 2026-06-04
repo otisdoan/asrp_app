@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/location_service.dart';
 import '../../../data/models/branch_model.dart';
@@ -134,7 +135,7 @@ class NearbyStoresSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.push('/section-detail?type=nearby&title=Gần bạn'),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -159,7 +160,7 @@ class NearbyStoresSection extends ConsumerWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: EdgeInsets.zero,
-              itemCount: branches.length,
+              itemCount: branches.length > 6 ? 6 : branches.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 final branch = branches[index];
