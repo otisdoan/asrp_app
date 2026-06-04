@@ -72,9 +72,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
   }
 
   @override
@@ -292,9 +292,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   // ─── Pickup Time ───────────────────────────────────────────────────────
   int _calculateTravelTime(String distanceStr) {
-    final cleaned = distanceStr.toLowerCase().replaceAll(RegExp(r'[^0-9.]'), '');
+    final normalized = distanceStr.replaceAll(',', '.');
+    final cleaned =
+        normalized.toLowerCase().replaceAll(RegExp(r'[^0-9.]'), '');
     final val = double.tryParse(cleaned) ?? 1.0;
-    if (distanceStr.toLowerCase().contains('m') && !distanceStr.toLowerCase().contains('k')) {
+    if (distanceStr.toLowerCase().contains('m') &&
+        !distanceStr.toLowerCase().contains('k')) {
       return (val / 80).ceil(); // ~80m per minute walking
     } else {
       return (val * 5).ceil(); // ~5 mins per km driving
@@ -302,18 +305,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Widget _buildPickupTime() {
-    final travelTime = _calculateTravelTime(widget.distance);
-    
     // Calculate expected ready time
     final now = DateTime.now();
     final readyTime = now.add(Duration(minutes: _selectedMinutes));
-    final readyTimeStr = '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
+    final readyTimeStr =
+        '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
 
+    final maxMinutes = _minPrepTime > 120 ? _minPrepTime + 30 : 120;
     final lockedFlex = _minPrepTime;
     final selectedFlex = _selectedMinutes - _minPrepTime;
-    final unselectedFlex = 120 - _selectedMinutes;
-
-    final isOnTime = _selectedMinutes >= travelTime;
+    final unselectedFlex = maxMinutes - _selectedMinutes;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -323,7 +324,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           // Header
           Row(
             children: [
-              Icon(Icons.access_time_filled, size: 20, color: AppColors.primary),
+              Icon(Icons.access_time_filled,
+                  size: 20, color: AppColors.primary),
               const SizedBox(width: 8),
               const Text(
                 'Thời gian nhận hàng tại quán',
@@ -389,7 +391,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         child: Container(
                           height: 6,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFFEAE3), // Light primary color background
+                            color: Color(
+                                0xFFFFEAE3), // Light primary color background
                             borderRadius: BorderRadius.only(
                               topRight: Radius.circular(3),
                               bottomRight: Radius.circular(3),
@@ -400,7 +403,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ],
                 ),
               ),
-              
+
               // Transparent-track Flutter Slider
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
@@ -419,7 +422,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
                 child: Slider(
                   min: 0,
-                  max: 120,
+                  max: maxMinutes.toDouble(),
                   value: _selectedMinutes.toDouble(),
                   onChanged: (val) {
                     setState(() {
@@ -441,11 +444,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('0m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                Text('${_minPrepTime}m (Tối thiểu)', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
-                const Text('45m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                const Text('90m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                const Text('120m', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                const Text('0m',
+                    style:
+                        TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                Text('${_minPrepTime}m (Tối thiểu)',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.bold)),
+                if (_minPrepTime < 45)
+                  const Text('45m',
+                      style:
+                          TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                if (_minPrepTime < 90)
+                  const Text('90m',
+                      style:
+                          TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                Text('${maxMinutes}m',
+                    style:
+                        const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
               ],
             ),
           ),
@@ -458,14 +475,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             decoration: BoxDecoration(
               color: AppColors.primaryContainer,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              border:
+                  Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                    const Icon(Icons.check_circle_rounded,
+                        color: AppColors.primary, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text.rich(
@@ -473,40 +492,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           children: [
                             const TextSpan(
                               text: 'Dự kiến sẵn sàng: ',
-                              style: TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w500),
                             ),
                             TextSpan(
                               text: readyTimeStr,
-                              style: const TextStyle(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold),
                             ),
                             TextSpan(
                               text: ' (sau $_selectedMinutes phút)',
-                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      isOnTime ? Icons.directions_walk_rounded : Icons.warning_amber_rounded,
-                      color: isOnTime ? AppColors.success : AppColors.accent,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        isOnTime
-                            ? 'Thời gian bạn di chuyển đến quán: ~$travelTime phút (Kịp chuẩn bị)'
-                            : 'Thời gian di chuyển là ~$travelTime phút. Bạn sẽ phải đợi thêm ở quán.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isOnTime ? AppColors.success : AppColors.accent,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -557,7 +562,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.qr_code_2, color: AppColors.onPrimary, size: 22),
+                  child: const Icon(Icons.qr_code_2,
+                      color: AppColors.onPrimary, size: 22),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -591,7 +597,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check, size: 14, color: AppColors.onPrimary),
+                  child: const Icon(Icons.check,
+                      size: 14, color: AppColors.onPrimary),
                 ),
               ],
             ),
@@ -668,17 +675,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: RichText(
         text: const TextSpan(
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+          style: TextStyle(
+              fontSize: 12, color: AppColors.textSecondary, height: 1.4),
           children: [
             TextSpan(text: 'Bằng việc đặt đơn này, bạn đã đồng ý '),
             TextSpan(
               text: 'Điều khoản Sử dụng',
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
             TextSpan(text: ' và '),
             TextSpan(
               text: 'Quy chế Hoạt động',
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
             TextSpan(text: ' của chúng tôi'),
           ],
@@ -694,7 +704,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       decoration: const BoxDecoration(
         color: AppColors.onPrimary,
         boxShadow: [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
+          BoxShadow(
+              color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
         ],
       ),
       child: SafeArea(
@@ -730,8 +741,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: ElevatedButton(
                 onPressed: () {
                   final now = DateTime.now();
-                  final readyTime = now.add(Duration(minutes: _selectedMinutes));
-                  final readyTimeStr = '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
+                  final readyTime =
+                      now.add(Duration(minutes: _selectedMinutes));
+                  final readyTimeStr =
+                      '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
 
                   // 1. Tạo đơn hàng Self-Pickup mock
                   final newOrder = MockOrder(
@@ -746,7 +759,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       );
                     }).toList(),
                     totalAmount: 53000, // Combo 1 price
-                    status: MockOrderStatus.pendingConfirm, // Ban đầu: Chờ xác nhận
+                    status:
+                        MockOrderStatus.pendingConfirm, // Ban đầu: Chờ xác nhận
                     orderTime: now,
                     pickupTime: readyTime,
                     originalMinutes: _selectedMinutes,
@@ -761,7 +775,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   // Show confirmation
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đơn hàng đã được gửi! Chờ thu ngân xác nhận thời gian chuẩn bị.'),
+                      content: Text(
+                          'Đơn hàng đã được gửi! Chờ thu ngân xác nhận thời gian chuẩn bị.'),
                       backgroundColor: AppColors.primary,
                     ),
                   );

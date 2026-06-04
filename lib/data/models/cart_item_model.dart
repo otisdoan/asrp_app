@@ -1,3 +1,5 @@
+import 'topping_selection_model.dart';
+
 class CartItemModel {
   final String id;
   final String imageUrl;
@@ -6,6 +8,7 @@ class CartItemModel {
   final String priceDisplay; // e.g. "95,000đ"
   int quantity;
   String? note;
+  final List<ToppingSelectionModel> selectedToppings;
 
   CartItemModel({
     required this.id,
@@ -15,9 +18,15 @@ class CartItemModel {
     required this.priceDisplay,
     this.quantity = 1,
     this.note,
+    this.selectedToppings = const [],
   });
 
-  int get lineTotal => priceAmount * quantity;
+  int get unitTotal {
+    final toppingsCost = selectedToppings.fold(0, (sum, t) => sum + t.price);
+    return priceAmount + toppingsCost;
+  }
+
+  int get lineTotal => unitTotal * quantity;
 
   CartItemModel copyWith({
     String? id,
@@ -27,6 +36,7 @@ class CartItemModel {
     String? priceDisplay,
     int? quantity,
     String? note,
+    List<ToppingSelectionModel>? selectedToppings,
   }) {
     return CartItemModel(
       id: id ?? this.id,
@@ -36,6 +46,36 @@ class CartItemModel {
       priceDisplay: priceDisplay ?? this.priceDisplay,
       quantity: quantity ?? this.quantity,
       note: note ?? this.note,
+      selectedToppings: selectedToppings ?? this.selectedToppings,
     );
+  }
+
+  factory CartItemModel.fromJson(Map<String, dynamic> json) {
+    return CartItemModel(
+      id: json['id'] as String? ?? json['cartItemId'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      priceAmount: json['priceAmount'] as int? ?? 0,
+      priceDisplay: json['priceDisplay'] as String? ?? '',
+      quantity: json['quantity'] as int? ?? 1,
+      note: json['note'] as String?,
+      selectedToppings: (json['selectedToppings'] as List<dynamic>?)
+              ?.map((e) => ToppingSelectionModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'imageUrl': imageUrl,
+      'name': name,
+      'priceAmount': priceAmount,
+      'priceDisplay': priceDisplay,
+      'quantity': quantity,
+      if (note != null) 'note': note,
+      'selectedToppings': selectedToppings.map((e) => e.toJson()).toList(),
+    };
   }
 }
