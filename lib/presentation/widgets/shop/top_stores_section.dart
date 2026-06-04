@@ -6,8 +6,8 @@ import '../../../data/models/branch_model.dart';
 import '../../../providers/branch_provider.dart';
 import '../../pages/shop/store_detail_page.dart';
 
-/// Section "Top quán đỉnh trên 4.5" — horizontal scroll of store cards.
-/// Inspired by GrabFood/ShopeeFood store listing design.
+/// Section "Top quán đỉnh trên 4.5" — horizontal scroll of top-rated store cards.
+/// Wraps the entire section in a white rounded container with margins, preserving the original cards.
 class TopStoresSection extends ConsumerWidget {
   const TopStoresSection({super.key});
 
@@ -64,7 +64,6 @@ class TopStoresSection extends ConsumerWidget {
 
     return branchesAsync.when(
       data: (branches) {
-        // Lọc quán đỉnh trên 4.5
         final topBranches = branches.where((b) => b.rating >= 4.5).toList();
         if (topBranches.isEmpty) {
           return _buildContent(
@@ -115,94 +114,126 @@ class TopStoresSection extends ConsumerWidget {
       BuildContext context, WidgetRef ref, List<BranchListItemModel> branches) {
     final userLocation = ref.watch(userLocationProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12), // Align left and right margins
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 6),
               const Expanded(
-                child: Text(
-                  'Top quán trên 4.5 sao',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Top quán trên 4.5 sao',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE55333), // ShopeeFood Orange-Red
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Những quán ngon được đánh giá cao nhất',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {},
-                child: const Text(
-                  'Xem thêm',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Xem thêm',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 16),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        // Store cards
-        SizedBox(
-          height: 230,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: branches.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final branch = branches[index];
+          const SizedBox(height: 12),
+          // Store cards
+          SizedBox(
+            height: 200,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: branches.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final branch = branches[index];
 
-              // Calculate dynamic distance if user location is available
-              String displayDistance = branch.distance;
-              print(
-                  '[TopStoresSection] Branch: ${branch.name}, lat: ${branch.latitude}, lng: ${branch.longitude}, userLocation: ${userLocation?.latitude}, ${userLocation?.longitude}');
-              if (userLocation != null &&
-                  branch.latitude != null &&
-                  branch.longitude != null) {
-                final meters = LocationService.distanceTo(
-                  userLocation.latitude,
-                  userLocation.longitude,
-                  branch.latitude!,
-                  branch.longitude!,
+                // Calculate dynamic distance if user location is available
+                String displayDistance = branch.distance;
+                if (userLocation != null &&
+                    branch.latitude != null &&
+                    branch.longitude != null) {
+                  final meters = LocationService.distanceTo(
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    branch.latitude!,
+                    branch.longitude!,
+                  );
+                  displayDistance = LocationService.formatDistance(meters);
+                } else if (displayDistance.isEmpty) {
+                  displayDistance = 'Gần đây';
+                }
+
+                // Fallback for empty deliveryTime
+                String displayTime = branch.deliveryTime;
+                if (displayTime.isEmpty) {
+                  displayTime = '25 phút';
+                }
+
+                return _StoreCard(
+                  name: branch.name,
+                  tag: branch.tag ?? '',
+                  rating: branch.rating,
+                  distance: displayDistance,
+                  time: displayTime,
+                  promo: branch.promo ?? '',
+                  discount: branch.discount ?? '',
+                  image: branch.imageUrl,
+                  adLabel: branch.adLabel ?? '',
+                  branchId: branch.id,
                 );
-                displayDistance = LocationService.formatDistance(meters);
-                print(
-                    '[TopStoresSection] Calculated distance: $displayDistance');
-              } else if (displayDistance.isEmpty) {
-                displayDistance = 'Gần đây';
-              }
-
-              // Fallback for empty deliveryTime
-              String displayTime = branch.deliveryTime;
-              if (displayTime.isEmpty) {
-                displayTime = '25 phút';
-              }
-
-              return _StoreCard(
-                name: branch.name,
-                tag: branch.tag ?? '',
-                rating: branch.rating,
-                distance: displayDistance,
-                time: displayTime,
-                promo: branch.promo ?? '',
-                discount: branch.discount ?? '',
-                image: branch.imageUrl,
-                adLabel: branch.adLabel ?? '',
-                branchId: branch.id,
-              );
-            },
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -251,19 +282,8 @@ class _StoreCard extends StatelessWidget {
               ),
             ));
       },
-      child: Container(
-        width: 160,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0F000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
+      child: SizedBox(
+        width: 135,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -271,10 +291,7 @@ class _StoreCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(10),
-                    topRight: Radius.circular(10),
-                  ),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
                     height: 110,
                     width: double.infinity,
@@ -361,12 +378,12 @@ class _StoreCard extends StatelessWidget {
             // Info area
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Promo line
-                    if (promo.isNotEmpty)
+                    if (promo.isNotEmpty) ...[
                       Row(
                         children: [
                           const Icon(Icons.local_offer,
@@ -386,7 +403,8 @@ class _StoreCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                    const SizedBox(height: 4),
+                      const SizedBox(height: 4),
+                    ],
                     // Store name
                     Text(
                       name,
@@ -399,7 +417,7 @@ class _StoreCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 4),
                     // Bottom info: ad label · time · distance
                     Row(
                       children: [
@@ -428,6 +446,7 @@ class _StoreCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const Spacer(),
                   ],
                 ),
               ),
