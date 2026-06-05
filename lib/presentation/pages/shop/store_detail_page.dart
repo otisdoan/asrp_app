@@ -8,6 +8,7 @@ import '../../../data/models/menu_item_model.dart';
 import '../../../providers/branch_provider.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
+import 'store_reviews_page.dart';
 
 /// Store Detail Page — shows store info, promos, popular items, and full menu.
 /// Follows RULE: UI-only, uses AppColors, responsive.
@@ -107,7 +108,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         return _cachedMenuItems!;
       }
     }
-    return _menuItems;
+    return [ _popularItems ];
   }
 
   List<String> get _currentCategories {
@@ -121,7 +122,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         return _cachedCategories!;
       }
     }
-    return _menuCategories;
+    return [ 'Món phổ biến' ];
   }
 
   void _invalidateMenuCache() {
@@ -273,61 +274,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     });
   }
 
-  // Mock menu categories
-  static const _menuCategories = [
-    'Món phổ biến',
-    'Phở & Bún',
-    'Cơm',
-    'Đồ uống',
-    'Combo',
-    'Tráng miệng',
-  ];
 
-  // Mock menu items per category
-  static const _menuItems = [
-    // Món phổ biến
-    [
-      {'name': 'Combo 1: Phần gà + khoai', 'sold': '200+', 'likes': 3, 'price': '40.000đ', 'icon': Icons.fastfood},
-      {'name': 'Set sum vầy (4 người)', 'sold': '600+', 'likes': 12, 'price': '53.000đ', 'icon': Icons.dinner_dining},
-      {'name': 'Gà rán truyền thống (2 miếng)', 'sold': '500+', 'likes': 8, 'price': '45.000đ', 'icon': Icons.lunch_dining},
-      {'name': 'Gà sốt cay Hàn Quốc', 'sold': '150+', 'likes': 5, 'price': '55.000đ', 'icon': Icons.local_fire_department},
-    ],
-    // Phở & Bún
-    [
-      {'name': 'Phở bò tái chín', 'sold': '300+', 'likes': 15, 'price': '65.000đ', 'icon': Icons.ramen_dining},
-      {'name': 'Phở gà ta', 'sold': '180+', 'likes': 7, 'price': '60.000đ', 'icon': Icons.ramen_dining},
-      {'name': 'Bún bò Huế đặc biệt', 'sold': '250+', 'likes': 10, 'price': '70.000đ', 'icon': Icons.soup_kitchen},
-    ],
-    // Cơm
-    [
-      {'name': 'Cơm gà xối mỡ', 'sold': '400+', 'likes': 20, 'price': '55.000đ', 'icon': Icons.rice_bowl},
-      {'name': 'Cơm tấm sườn bì chả', 'sold': '350+', 'likes': 18, 'price': '50.000đ', 'icon': Icons.rice_bowl},
-    ],
-    // Đồ uống
-    [
-      {'name': 'Trà đào cam sả', 'sold': '600+', 'likes': 25, 'price': '35.000đ', 'icon': Icons.local_drink},
-      {'name': 'Cà phê sữa đá', 'sold': '800+', 'likes': 30, 'price': '29.000đ', 'icon': Icons.coffee},
-      {'name': 'Nước ép cam tươi', 'sold': '200+', 'likes': 8, 'price': '32.000đ', 'icon': Icons.local_drink},
-    ],
-    // Combo
-    [
-      {'name': 'Combo A: 2 gà + 1 nước', 'sold': '150+', 'likes': 6, 'price': '89.000đ', 'icon': Icons.fastfood},
-      {'name': 'Combo B: 3 gà + khoai + nước', 'sold': '100+', 'likes': 4, 'price': '119.000đ', 'icon': Icons.fastfood},
-    ],
-    // Tráng miệng
-    [
-      {'name': 'Kem vani socola', 'sold': '80+', 'likes': 3, 'price': '25.000đ', 'icon': Icons.icecream},
-      {'name': 'Bánh flan caramel', 'sold': '120+', 'likes': 5, 'price': '20.000đ', 'icon': Icons.cake},
-    ],
-  ];
-
-  // Mock promos
-  static const _promos = [
-    'Giảm 50% · Đơn từ 55k',
-    'Giảm 50% · Đơn từ 55k',
-    'Giảm 50% · Đơn từ 99k',
-    'Freeship · Đơn từ 30k',
-  ];
 
   // Mock popular items (horizontal scroll)
   static const _popularItems = [
@@ -775,22 +722,43 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
           // Rating + Reviews + Time + Favorite
           Row(
             children: [
-              // Stars (compact)
-              ...List.generate(5, (i) {
-                if (i < rating.floor()) {
-                  return const Icon(Icons.star, size: 14, color: AppColors.star);
-                } else if (i < rating) {
-                  return const Icon(Icons.star_half, size: 14, color: AppColors.star);
-                }
-                return const Icon(Icons.star_border, size: 14, color: AppColors.star);
-              }),
-              const SizedBox(width: 4),
-              // Rating + reviews (flexible to prevent overflow)
-              Flexible(
-                child: Text(
-                  '$rating ($reviews+ Bình luận) >',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  overflow: TextOverflow.ellipsis,
+              // Interactive Rating + reviews
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StoreReviewsPage(
+                        storeName: name,
+                        category: widget.category,
+                        rating: rating,
+                        reviewsCount: reviews,
+                        deliveryTime: deliveryTime,
+                        distance: widget.distance,
+                      ),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Stars (compact)
+                    ...List.generate(5, (i) {
+                      if (i < rating.floor()) {
+                        return const Icon(Icons.star, size: 14, color: AppColors.star);
+                      } else if (i < rating) {
+                        return const Icon(Icons.star_half, size: 14, color: AppColors.star);
+                      }
+                      return const Icon(Icons.star_border, size: 14, color: AppColors.star);
+                    }),
+                    const SizedBox(width: 4),
+                    // Rating + reviews text
+                    Text(
+                      '$rating ($reviews+ Bình luận) >',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -923,9 +891,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     );
   }
 
-  // ─── Promos Section ─────────────────────────────────────────────────────
   Widget _buildPromos(BranchDetailModel? detail) {
-    final promos = detail != null ? (detail.promos ?? []) : _promos;
+    final promos = detail != null ? (detail.promos ?? []) : const <String>[];
     if (promos.isEmpty) return const SizedBox.shrink();
 
     return Padding(

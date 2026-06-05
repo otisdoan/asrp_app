@@ -29,12 +29,16 @@ class FoodDetailPage extends StatefulWidget {
 class _FoodDetailPageState extends State<FoodDetailPage> {
   late ScrollController _scrollController;
   bool _isCollapsed = false;
+  final Set<String> _likedReviews = {};
+  bool _isProductLiked = false;
+  late int _productLikes;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+    _productLikes = widget.likes;
   }
 
   @override
@@ -78,6 +82,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'imageCount': 3,
       'tags': ['BÁNH GÀ PHÔ MAI'],
       'reply': 'C.ơn quý khách đã dùng cơm 🤗🤗🤗🤗',
+      'likes': 12,
     },
     {
       'user': '47w_lslctd',
@@ -87,6 +92,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'imageCount': 4,
       'tags': ['GÀ RÁN'],
       'reply': '',
+      'likes': 8,
     },
     {
       'user': 'foodie_saigon',
@@ -96,6 +102,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'imageCount': 2,
       'tags': ['GÀ SỐT CAY'],
       'reply': 'Xin lỗi bạn vì sự thiếu sót. Lần sau mình sẽ kiểm tra kỹ hơn ạ! Mong bạn thông cảm 🙏',
+      'likes': 5,
     },
     {
       'user': 'minh_an_99',
@@ -105,6 +112,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'imageCount': 0,
       'tags': [],
       'reply': 'Cảm ơn bạn nhiều lắm ạ! Hẹn gặp lại bạn lần sau nha 💛',
+      'likes': 0,
     },
   ];
 
@@ -184,6 +192,36 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         ),
       ),
       actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _isProductLiked = !_isProductLiked;
+                if (_isProductLiked) {
+                  _productLikes++;
+                } else {
+                  _productLikes--;
+                }
+              });
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _isCollapsed ? Colors.transparent : Colors.black26,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _isProductLiked ? Icons.favorite : Icons.favorite_border,
+                color: _isProductLiked
+                    ? const Color(0xFFE55333)
+                    : (_isCollapsed ? const Color(0xFFE55333) : Colors.white),
+                size: _isCollapsed ? 22 : 18,
+              ),
+            ),
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 12),
           child: GestureDetector(
@@ -266,11 +304,35 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
               const SizedBox(width: 12),
               Container(width: 1, height: 12, color: AppColors.outlineVariant),
               const SizedBox(width: 12),
-              Text(
-                '${widget.likes} lượt thích',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textTertiary,
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isProductLiked = !_isProductLiked;
+                    if (_isProductLiked) {
+                      _productLikes++;
+                    } else {
+                      _productLikes--;
+                    }
+                  });
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isProductLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 14,
+                      color: _isProductLiked ? const Color(0xFFE55333) : AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_productLikes lượt thích',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _isProductLiked ? const Color(0xFFE55333) : AppColors.textTertiary,
+                        fontWeight: _isProductLiked ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -497,35 +559,45 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                         ),
                       ),
                     ],
-                    // Tags
-                    if (tags.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                    // Likes
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          final user = review['user'] as String;
+                          if (_likedReviews.contains(user)) {
+                            _likedReviews.remove(user);
+                          } else {
+                            _likedReviews.add(user);
+                          }
+                        });
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Cũng được thích: ',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          Icon(
+                            _likedReviews.contains(review['user'] as String)
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            size: 14,
+                            color: _likedReviews.contains(review['user'] as String)
+                                ? const Color(0xFFE55333)
+                                : AppColors.textTertiary,
                           ),
-                          ...tags.map((tag) => Container(
-                                margin: const EdgeInsets.only(right: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryContainer,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  tag,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              )),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${(review['likes'] as int? ?? tags.length) + (_likedReviews.contains(review['user'] as String) ? 1 : 0)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _likedReviews.contains(review['user'] as String)
+                                  ? const Color(0xFFE55333)
+                                  : AppColors.textTertiary,
+                            ),
+                          ),
                         ],
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 6),
                     // Date
                     Text(
