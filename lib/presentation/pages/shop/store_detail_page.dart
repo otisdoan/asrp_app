@@ -6,6 +6,9 @@ import '../../../providers/favorite_shops_provider.dart';
 import '../../../data/models/branch_model.dart';
 import '../../../data/models/menu_item_model.dart';
 import '../../../providers/branch_provider.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../data/models/cart_item_model.dart';
+import '../../../data/models/topping_selection_model.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
 import 'store_reviews_page.dart';
@@ -48,9 +51,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   late ScrollController _scrollController;
   late List<GlobalKey> _sectionKeys;
 
-  // Cart state
-  int _cartItemCount = 0;
-  int _cartTotal = 0;
+
 
   // Search state
   late TextEditingController _searchController;
@@ -297,6 +298,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   Widget _buildMainScaffold(BuildContext context, BranchDetailModel? detail) {
     final categories = _currentCategories;
     final menuItems = _currentMenuItems;
+    final cart = ref.watch(cartProvider);
 
     // Check key initialization
     if (_sectionKeys.length != categories.length) {
@@ -350,7 +352,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
           ],
         ),
         // ─── Floating Cart Bar ─────────────────────────────────
-        bottomNavigationBar: _cartItemCount > 0 ? _buildCartBar() : null,
+        bottomNavigationBar: cart.totalItems > 0 ? _buildCartBar(cart) : null,
       ),
     );
   }
@@ -378,7 +380,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   }
 
   // ─── Cart Bar ──────────────────────────────────────────────────────────
-  Widget _buildCartBar() {
+  Widget _buildCartBar(CartState cart) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: const BoxDecoration(
@@ -393,7 +395,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             Navigator.push(context, MaterialPageRoute(
               builder: (_) => CheckoutPage(
                 storeName: widget.storeName,
-                itemCount: _cartItemCount,
+                itemCount: cart.totalItems,
                 distance: widget.distance,
                 icon: widget.icon,
               ),
@@ -410,7 +412,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                 const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
                 const SizedBox(width: 10),
                 Text(
-                  'Giỏ hàng - $_cartItemCount món',
+                  'Giỏ hàng - ${cart.totalItems} món',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -419,7 +421,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                 ),
                 const Spacer(),
                 Text(
-                  '${_formatCartPrice(_cartTotal)}đ',
+                  '${_formatCartPrice(cart.total)}đ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -441,12 +443,20 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     );
   }
 
-  void _handleCartResult(dynamic result) {
+  void _handleCartResult(dynamic result, {required String name, required String price, String? imageUrl, required IconData icon}) {
     if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _cartItemCount += result['quantity'] as int;
-        _cartTotal += result['total'] as int;
-      });
+      final priceVal = int.tryParse(price.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+      final cartItem = CartItemModel(
+        id: '${DateTime.now().millisecondsSinceEpoch}_$name',
+        imageUrl: imageUrl ?? '',
+        name: name,
+        priceAmount: priceVal,
+        priceDisplay: '${_formatCartPrice(priceVal)}đ',
+        quantity: result['quantity'] as int,
+        note: result['note'] as String?,
+        selectedToppings: result['selectedToppings'] as List<ToppingSelectionModel>,
+      );
+      ref.read(cartProvider.notifier).addItem(cartItem);
     }
   }
 
@@ -993,7 +1003,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             imageUrl: imageUrl,
           ),
         ));
-        _handleCartResult(result);
+        _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon);
       },
       child: Container(
         width: 130,
@@ -1125,7 +1135,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             imageUrl: imageUrl,
           ),
         ));
-        _handleCartResult(result);
+        _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon);
       },
       child: Container(
         key: isHighlighted ? _highlightedItemKey : null,

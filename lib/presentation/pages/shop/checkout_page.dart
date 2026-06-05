@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../data/models/cart_item_model.dart';
+import '../../../data/models/topping_selection_model.dart';
+import 'add_to_cart_page.dart';
 import 'order_success_page.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
@@ -44,32 +48,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _selectedMinutes = _minPrepTime;
   }
 
-  // Mock order items
-  static const _orderItems = [
-    {
-      'name': 'Combo 1: Phần gà + khoai',
-      'extras': 'Thêm Kem muối\n1 Gà sốt cay',
-      'price': 53000,
-      'quantity': 1,
-    },
-    {
-      'name': 'Gà rán truyền thống (2 miếng)',
-      'extras': '',
-      'price': 45000,
-      'quantity': 1,
-    },
-  ];
-
-  int get _subtotal {
-    int total = 0;
-    for (final item in _orderItems) {
-      total += (item['price'] as int) * (item['quantity'] as int);
-    }
-    return total;
-  }
+  bool _isExpanded = false;
 
   int get _serviceFee => 3000;
-  int get _total => _subtotal + _serviceFee;
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
@@ -80,6 +61,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cart = ref.watch(cartProvider);
+    final subtotal = cart.subtotal;
+    final total = subtotal + _serviceFee;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -88,7 +73,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _buildAppBar(context),
 
           // ─── Order Summary ─────────────────────────────────────
-          SliverToBoxAdapter(child: _buildOrderSummary()),
+          SliverToBoxAdapter(child: _buildOrderSummary(cart.items)),
 
           // ─── Pickup Time ───────────────────────────────────────
           SliverToBoxAdapter(child: _buildPickupTime()),
@@ -97,7 +82,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           SliverToBoxAdapter(child: _buildPaymentMethod()),
 
           // ─── Price Breakdown ───────────────────────────────────
-          SliverToBoxAdapter(child: _buildPriceBreakdown()),
+          SliverToBoxAdapter(child: _buildPriceBreakdown(subtotal, total)),
 
           // ─── Terms ─────────────────────────────────────────────
           SliverToBoxAdapter(child: _buildTerms()),
@@ -107,7 +92,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ],
       ),
       // ─── Bottom Confirm Button ─────────────────────────────────
-      bottomNavigationBar: _buildBottomBar(),
+      bottomNavigationBar: _buildBottomBar(cart, total),
     );
   }
 
@@ -148,7 +133,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   // ─── Order Summary ─────────────────────────────────────────────────────
-  Widget _buildOrderSummary() {
+  Widget _buildOrderSummary(List<CartItemModel> items) {
+    final displayItems = _isExpanded ? items : items.take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -167,7 +154,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  Navigator.pop(context); // Thêm món: Quay lại để chọn thêm
+                },
                 child: const Text(
                   'Thêm món',
                   style: TextStyle(
@@ -182,24 +171,56 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ),
         const SizedBox(height: 12),
         // Order items
-        ...List.generate(_orderItems.length, (index) {
-          final item = _orderItems[index];
-          return _buildOrderItem(item);
-        }),
+        ...displayItems.map((item) => _buildOrderItem(item)),
+
+        // Xem thêm / Thu gọn button
+        if (items.length > 3) ...[
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                });
+              },
+              icon: Icon(
+                _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              label: Text(
+                _isExpanded ? 'Thu gọn' : 'Xem thêm (còn ${items.length - 3} món)',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         const Divider(height: 1, color: AppColors.outlineVariant),
       ],
     );
   }
 
-  Widget _buildOrderItem(Map<String, dynamic> item) {
-    final extras = item['extras'] as String;
+  Widget _buildOrderItem(CartItemModel item) {
+    final extrasList = <String>[];
+    for (final topping in item.selectedToppings) {
+      extrasList.add(topping.name);
+    }
+    if (item.note != null && item.note!.trim().isNotEmpty) {
+      extrasList.add('Lưu ý: ${item.note!.trim()}');
+    }
+    final extras = extrasList.join('\n');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Food icon
+          // Food icon / image
           Container(
             width: 44,
             height: 44,
@@ -207,7 +228,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               color: AppColors.bgWarm,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(widget.icon, size: 22, color: AppColors.textTertiary),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: (item.imageUrl.isNotEmpty)
+                  ? (item.imageUrl.startsWith('http')
+                      ? Image.network(
+                          item.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(widget.icon, size: 22, color: AppColors.textTertiary),
+                        )
+                      : Image.asset(
+                          item.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(widget.icon, size: 22, color: AppColors.textTertiary),
+                        ))
+                  : Icon(widget.icon, size: 22, color: AppColors.textTertiary),
+            ),
           ),
           const SizedBox(width: 12),
           // Item details
@@ -216,7 +252,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'] as String,
+                  item.name,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -238,7 +274,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ],
                 const SizedBox(height: 4),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () => _editOrderItem(item),
                   child: const Text(
                     'Chỉnh sửa',
                     style: TextStyle(
@@ -257,7 +293,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${_formatPrice(item['price'] as int)}đ',
+                '${_formatPrice(item.unitTotal)}đ',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -275,7 +311,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
                 child: Center(
                   child: Text(
-                    '${item['quantity']}',
+                    '${item.quantity}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -289,6 +325,40 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ],
       ),
     );
+  }
+
+  void _editOrderItem(CartItemModel item) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddToCartPage(
+          name: item.name,
+          price: '${item.priceAmount}đ',
+          icon: widget.icon,
+          imageUrl: item.imageUrl,
+          initialQuantity: item.quantity,
+          initialSelectedToppings: item.selectedToppings
+              .where((t) => !t.name.startsWith('Size'))
+              .map((t) => t.name)
+              .toList(),
+          initialSize: item.selectedToppings
+              .where((t) => t.name.startsWith('Size'))
+              .map((t) => t.name.replaceAll('Size ', ''))
+              .firstOrNull,
+          initialNote: item.note,
+          isEditing: true,
+        ),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic> && mounted) {
+      ref.read(cartProvider.notifier).updateItem(
+        item.id,
+        quantity: result['quantity'] as int,
+        note: result['note'] as String?,
+        selectedToppings: result['selectedToppings'] as List<ToppingSelectionModel>,
+      );
+    }
   }
 
   // ─── Pickup Time ───────────────────────────────────────────────────────
@@ -612,13 +682,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   // ─── Price Breakdown ───────────────────────────────────────────────────
-  Widget _buildPriceBreakdown() {
+  Widget _buildPriceBreakdown(int subtotal, int total) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
         children: [
           // Subtotal
-          _buildPriceRow('Tổng tạm tính', _subtotal),
+          _buildPriceRow('Tổng tạm tính', subtotal),
           const SizedBox(height: 10),
           // Service fee
           _buildPriceRow('Phí dịch vụ', _serviceFee),
@@ -638,7 +708,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ),
               Text(
-                '${_formatPrice(_total)}đ',
+                '${_formatPrice(total)}đ',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -699,7 +769,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   // ─── Bottom Confirm Button ─────────────────────────────────────────────
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(CartState cart, int total) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: const BoxDecoration(
@@ -726,7 +796,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                 ),
                 Text(
-                  '${_formatPrice(_total)}đ',
+                  '${_formatPrice(total)}đ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -751,15 +821,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   final newOrder = MockOrder(
                     id: '#SP${(100 + (ref.read(orderProvider).length) * 7).toString()}',
                     storeName: widget.storeName,
-                    items: _orderItems.map((item) {
+                    items: cart.items.map((item) {
+                      final extraList = <String>[];
+                      if (item.selectedToppings.isNotEmpty) {
+                        extraList.addAll(item.selectedToppings.map((t) => t.name));
+                      }
+                      if (item.note != null && item.note!.isNotEmpty) {
+                        extraList.add('Lưu ý: ${item.note}');
+                      }
                       return MockOrderItem(
-                        name: item['name'] as String,
-                        price: item['price'] as int,
-                        quantity: item['quantity'] as int,
-                        extras: item['extras'] as String?,
+                        name: item.name,
+                        price: item.priceAmount,
+                        quantity: item.quantity,
+                        extras: extraList.isNotEmpty ? extraList.join('\n') : null,
                       );
                     }).toList(),
-                    totalAmount: 53000, // Combo 1 price
+                    totalAmount: total,
                     status:
                         MockOrderStatus.pendingConfirm, // Ban đầu: Chờ xác nhận
                     orderTime: now,
@@ -772,6 +849,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                   // 2. Thêm vào provider quản lý đơn hàng
                   ref.read(orderProvider.notifier).addOrder(newOrder);
+
+                  // 3. Clear giỏ hàng sau khi đặt thành công
+                  ref.read(cartProvider.notifier).clearCart();
 
                   // Chuyển hướng đến trang đặt hàng thành công
                   Navigator.pushReplacement(

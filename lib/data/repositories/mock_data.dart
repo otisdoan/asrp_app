@@ -240,33 +240,7 @@ class MockData {
     },
   ];
 
-  // ===== MOCK CART ITEMS =====
-  static List<CartItemModel> get initialCartItems => [
-        CartItemModel(
-          id: '1',
-          imageUrl: 'assets/images/pho.jpg',
-          name: 'Phở bò đặc biệt',
-          priceAmount: 95000,
-          priceDisplay: '95,000đ',
-          quantity: 1,
-        ),
-        CartItemModel(
-          id: '2',
-          imageUrl: 'assets/images/tra_sua.jpg',
-          name: 'Nước mía tươi',
-          priceAmount: 25000,
-          priceDisplay: '25,000đ',
-          quantity: 1,
-        ),
-        CartItemModel(
-          id: '3',
-          imageUrl: 'assets/images/com.webp',
-          name: 'Bánh quẩy',
-          priceAmount: 10000,
-          priceDisplay: '10,000đ',
-          quantity: 2,
-        ),
-      ];
+
 
   // ===== MOCK PRODUCT DETAIL =====
   // ===== MOCK PRODUCT DETAIL =====

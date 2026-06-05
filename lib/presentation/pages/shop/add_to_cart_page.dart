@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/topping_selection_model.dart';
 
 /// Add to Cart Page — topping selection, size, notes, quantity.
 /// Follows RULE: UI-only, uses AppColors, responsive.
@@ -8,6 +9,11 @@ class AddToCartPage extends StatefulWidget {
   final String price;
   final IconData icon;
   final String? imageUrl;
+  final int? initialQuantity;
+  final List<String>? initialSelectedToppings;
+  final String? initialSize;
+  final String? initialNote;
+  final bool isEditing;
 
   const AddToCartPage({
     super.key,
@@ -15,6 +21,11 @@ class AddToCartPage extends StatefulWidget {
     required this.price,
     required this.icon,
     this.imageUrl,
+    this.initialQuantity,
+    this.initialSelectedToppings,
+    this.initialSize,
+    this.initialNote,
+    this.isEditing = false,
   });
 
   @override
@@ -26,6 +37,28 @@ class _AddToCartPageState extends State<AddToCartPage> {
   final Set<int> _selectedToppings = {};
   int _selectedSize = -1; // -1 = none selected
   final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuantity != null) {
+      _quantity = widget.initialQuantity!;
+    }
+    if (widget.initialNote != null) {
+      _noteController.text = widget.initialNote!;
+    }
+    if (widget.initialSelectedToppings != null) {
+      for (final name in widget.initialSelectedToppings!) {
+        final index = _toppings.indexWhere((t) => t['name'] == name);
+        if (index >= 0) {
+          _selectedToppings.add(index);
+        }
+      }
+    }
+    if (widget.initialSize != null) {
+      _selectedSize = _sizes.indexWhere((s) => s['name'] == widget.initialSize);
+    }
+  }
 
   // Mock toppings
   static const _toppings = [
@@ -513,9 +546,29 @@ class _AddToCartPageState extends State<AddToCartPage> {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () {
+              final selectedToppingsList = <ToppingSelectionModel>[];
+              for (final index in _selectedToppings) {
+                final topping = _toppings[index];
+                selectedToppingsList.add(ToppingSelectionModel(
+                  toppingId: 'topping_$index',
+                  name: topping['name'] as String,
+                  price: topping['price'] as int,
+                ));
+              }
+              if (_selectedSize >= 0) {
+                final size = _sizes[_selectedSize];
+                selectedToppingsList.add(ToppingSelectionModel(
+                  toppingId: 'size_$_selectedSize',
+                  name: 'Size ${size['name']}',
+                  price: size['price'] as int,
+                ));
+              }
+
               Navigator.pop(context, {
                 'quantity': _quantity,
                 'total': _totalPrice,
+                'note': _noteController.text.trim(),
+                'selectedToppings': selectedToppingsList,
               });
             },
             style: ElevatedButton.styleFrom(
@@ -528,7 +581,9 @@ class _AddToCartPageState extends State<AddToCartPage> {
               elevation: 0,
             ),
             child: Text(
-              'Thêm vào giỏ hàng - ${_formatPrice(_totalPrice)}',
+              widget.isEditing
+                  ? 'Cập nhật - ${_formatPrice(_totalPrice)}đ'
+                  : 'Thêm vào giỏ hàng - ${_formatPrice(_totalPrice)}đ',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),

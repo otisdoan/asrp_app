@@ -412,7 +412,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               )
             : null,
         body: _buildBody(cart),
-        floatingActionButton: _currentTabIndex == 0 && !cart.isEmpty
+        floatingActionButton: _currentTabIndex == 0
             ? FloatingActionButton(
                 onPressed: () => Navigator.push(
                   context,

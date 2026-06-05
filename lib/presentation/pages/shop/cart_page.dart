@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/cart_provider.dart';
 import 'checkout_page.dart';
 
 /// Cart Page — shows list of stores with cart items.
 /// Normal mode: view cart items per store.
 /// Manage mode: checkboxes to select and delete items.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class CartPage extends StatefulWidget {
+class CartPage extends ConsumerStatefulWidget {
   const CartPage({super.key});
 
   @override
-  State<CartPage> createState() => _CartPageState();
+  ConsumerState<CartPage> createState() => _CartPageState();
 }
 
-class _CartPageState extends State<CartPage> {
+class _CartPageState extends ConsumerState<CartPage> {
   bool _isManaging = false;
   final Set<int> _selectedItems = {};
 
-  // Mock cart data (stores with items)
-  static const _cartStores = [
+  // Mock cart data (stores with items) — background entries
+  static const _mockCartStores = [
     {
       'name': 'Bếp Trọng - Nguyễn Thị Minh Khai',
       'items': 1,
@@ -93,20 +95,29 @@ class _CartPageState extends State<CartPage> {
     },
   ];
 
-  bool get _allSelected => _selectedItems.length == _cartStores.length;
+  /// Total entries = active cart (if non-empty) + mock stores
+  int _totalEntries(CartState cart) {
+    return (cart.items.isNotEmpty ? 1 : 0) + _mockCartStores.length;
+  }
+
+  bool get _allSelected => _selectedItems.length == _totalEntries(ref.read(cartProvider));
 
   void _toggleSelectAll() {
+    final total = _totalEntries(ref.read(cartProvider));
     setState(() {
       if (_allSelected) {
         _selectedItems.clear();
       } else {
-        _selectedItems.addAll(List.generate(_cartStores.length, (i) => i));
+        _selectedItems.addAll(List.generate(total, (i) => i));
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final cart = ref.watch(cartProvider);
+    final totalCount = _totalEntries(cart);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -146,22 +157,140 @@ class _CartPageState extends State<CartPage> {
       ),
       body: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _cartStores.length,
+        itemCount: totalCount,
         separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.outlineVariant),
-        itemBuilder: (context, index) => _buildCartItem(index),
+        itemBuilder: (context, index) {
+          if (cart.items.isNotEmpty && index == 0) {
+            // First entry: active real cart
+            return _buildActiveCartItem(cart);
+          }
+          // Remaining entries: mock stores
+          final mockIndex = cart.items.isNotEmpty ? index - 1 : index;
+          return _buildMockCartItem(mockIndex);
+        },
       ),
       // Bottom bar in manage mode
       bottomNavigationBar: _isManaging ? _buildManageBar() : null,
     );
   }
 
-  // ─── Cart Item ─────────────────────────────────────────────────────────
-  Widget _buildCartItem(int index) {
-    final store = _cartStores[index];
-    final isClosed = store['closed'] as bool;
-    final isSelected = _selectedItems.contains(index);
+  // ─── Active Cart Item (real data) ─────────────────────────────────────
+  Widget _buildActiveCartItem(CartState cart) {
+    final isSelected = _selectedItems.contains(0);
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _isManaging ? null : () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => CheckoutPage(
+            storeName: cart.storeName ?? 'Cửa hàng',
+            itemCount: cart.totalItems,
+            distance: cart.distance ?? '0 km',
+            icon: cart.icon ?? Icons.restaurant,
+          ),
+        ));
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox (only in manage mode)
+            if (_isManaging) ...[
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedItems.remove(0);
+                    } else {
+                      _selectedItems.add(0);
+                    }
+                  });
+                },
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  margin: const EdgeInsets.only(right: 12, top: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 16, color: AppColors.onPrimary)
+                      : null,
+                ),
+              ),
+            ],
+            // Store info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cart.storeName ?? 'Cửa hàng',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        '${cart.totalItems} món',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                      if (cart.distance != null && cart.distance!.isNotEmpty) ...[
+                        const Text(' • ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(
+                          cart.distance!,
+                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Store image
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.bgWarm,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                cart.icon ?? Icons.restaurant,
+                size: 24,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Mock Cart Item ───────────────────────────────────────────────────
+  Widget _buildMockCartItem(int mockIndex) {
+    final store = _mockCartStores[mockIndex];
+    final isClosed = store['closed'] as bool;
+    final cart = ref.read(cartProvider);
+    // Offset index by 1 if active cart is present
+    final globalIndex = cart.items.isNotEmpty ? mockIndex + 1 : mockIndex;
+    final isSelected = _selectedItems.contains(globalIndex);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: _isManaging ? null : () {
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => CheckoutPage(
@@ -173,126 +302,126 @@ class _CartPageState extends State<CartPage> {
         ));
       },
       child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Checkbox (only in manage mode)
-          if (_isManaging) ...[
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selectedItems.remove(index);
-                  } else {
-                    _selectedItems.add(index);
-                  }
-                });
-              },
-              child: Container(
-                width: 22,
-                height: 22,
-                margin: const EdgeInsets.only(right: 12, top: 4),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.textTertiary,
-                    width: 1.5,
-                  ),
-                ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 16, color: AppColors.onPrimary)
-                    : null,
-              ),
-            ),
-          ],
-          // Store info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Store name
-                Text(
-                  store['name'] as String,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                // Items + time + distance
-                Row(
-                  children: [
-                    Text(
-                      '${store['items']} món',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox (only in manage mode)
+            if (_isManaging) ...[
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedItems.remove(globalIndex);
+                    } else {
+                      _selectedItems.add(globalIndex);
+                    }
+                  });
+                },
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  margin: const EdgeInsets.only(right: 12, top: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                      width: 1.5,
                     ),
-                    if ((store['time'] as String).isNotEmpty) ...[
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 16, color: AppColors.onPrimary)
+                      : null,
+                ),
+              ),
+            ],
+            // Store info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Store name
+                  Text(
+                    store['name'] as String,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // Items + time + distance
+                  Row(
+                    children: [
+                      Text(
+                        '${store['items']} món',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                      if ((store['time'] as String).isNotEmpty) ...[
+                        const Text(' • ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                        Text(
+                          store['time'] as String,
+                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ],
                       const Text(' • ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                       Text(
-                        store['time'] as String,
+                        store['distance'] as String,
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
                     ],
-                    const Text(' • ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                    Text(
-                      store['distance'] as String,
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  // Closed status
+                  if (isClosed) ...[
+                    const SizedBox(height: 6),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: 'Đóng cửa',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' · ${store['closedNote']}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                // Closed status
-                if (isClosed) ...[
-                  const SizedBox(height: 6),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        const TextSpan(
-                          text: 'Đóng cửa',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.error,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' · ${store['closedNote']}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Store image
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.bgWarm,
-              borderRadius: BorderRadius.circular(8),
+            const SizedBox(width: 12),
+            // Store image
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.bgWarm,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                store['icon'] as IconData,
+                size: 24,
+                color: AppColors.textTertiary,
+              ),
             ),
-            child: Icon(
-              store['icon'] as IconData,
-              size: 24,
-              color: AppColors.textTertiary,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -343,6 +472,10 @@ class _CartPageState extends State<CartPage> {
             // Delete button
             TextButton(
               onPressed: _selectedItems.isNotEmpty ? () {
+                // If index 0 (active cart) is selected, clear the real cart
+                if (_selectedItems.contains(0) && ref.read(cartProvider).items.isNotEmpty) {
+                  ref.read(cartProvider.notifier).clearCart();
+                }
                 setState(() {
                   _selectedItems.clear();
                   _isManaging = false;
