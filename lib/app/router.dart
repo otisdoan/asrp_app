@@ -20,6 +20,7 @@ import '../presentation/pages/shop/favorite_shops_page.dart';
 import '../presentation/pages/merchant/store_setup_page.dart';
 import '../presentation/pages/merchant/menu_builder_page.dart';
 import '../presentation/pages/merchant/staff_management_page.dart';
+import '../providers/branch_registration_provider.dart';
 import '../presentation/pages/shop/section_detail_page.dart';
 import '../core/constants/app_constants.dart';
 
@@ -44,33 +45,45 @@ final routerProvider = Provider<GoRouter>((ref) {
 
         // Protect admin and staff routes from unauthorized users
         if (role == 'customer') {
-          // Customers not allowed in POS, Cashier, Admin dashboards, or Staff Management
+          // Customers not allowed in POS, Cashier, Admin/SuperAdmin dashboards, Staff Management, or Merchant Setup/Menu
           if (path == AppConstants.routeStaffHome || 
               path == AppConstants.routeCashier ||
               path == '/admin/dashboard' ||
               path == AppConstants.routeSuperAdminDashboard ||
-              path == AppConstants.routeStaffManagement) {
+              path == AppConstants.routeStaffManagement ||
+              path == AppConstants.routeStoreSetup ||
+              path == AppConstants.routeMenuBuilder) {
             return AppConstants.routeHome;
           }
         } else if (role == 'staff') {
-          // Staff not allowed in Cashier or Admin dashboards
+          // Staff not allowed in Cashier, dashboards, Staff Management, or Merchant Setup/Menu
           if (path == AppConstants.routeCashier ||
               path == '/admin/dashboard' ||
-              path == AppConstants.routeSuperAdminDashboard) {
+              path == AppConstants.routeSuperAdminDashboard ||
+              path == AppConstants.routeStaffManagement ||
+              path == AppConstants.routeStoreSetup ||
+              path == AppConstants.routeMenuBuilder) {
             return AppConstants.routeHome;
           }
         } else if (role == 'manager') {
-          // Managers not allowed in Admin or SuperAdmin dashboards
+          // Managers not allowed in Admin/SuperAdmin dashboards or Staff Management
           if (path == '/admin/dashboard' ||
-              path == AppConstants.routeSuperAdminDashboard) {
+              path == AppConstants.routeSuperAdminDashboard ||
+              path == AppConstants.routeStaffManagement) {
             return AppConstants.routeHome;
           }
         } else if (role == 'admin') {
-          // Admins not allowed in SuperAdmin dashboard
-          if (path == AppConstants.routeSuperAdminDashboard) {
-            return AppConstants.routeHome;
+          // If admin has only 1 branch, redirect them from multi-branch SuperAdmin dashboard to single branch dashboard
+          final registration = ref.read(branchRegistrationProvider);
+          final hasMultipleBranches = registration.registeredBranches.length > 1;
+          if (path == AppConstants.routeSuperAdminDashboard && !hasMultipleBranches) {
+            return '/admin/dashboard';
+          }
+          if (path == '/admin/dashboard' && hasMultipleBranches) {
+            return AppConstants.routeSuperAdminDashboard;
           }
         }
+        // Admin (Chủ thương hiệu) and SuperAdmin are allowed to access all routes.
       } 
       
       // 2. If NOT logged in:

@@ -62,14 +62,14 @@ class AuthRepository {
       );
     }
 
-    // Intercept and return mock SuperAdmin account
+    // Intercept and return mock Admin account (former SuperAdmin)
     if (phone.trim() == '0888888888' && password == 'superadmin123456') {
       final mockSuperAdminUser = UserModel(
         id: 'mock-superadmin-id',
         username: 'superadmin',
         phone: '+84888888888',
-        fullName: 'SuperAdmin Tối Cao',
-        role: 'SuperAdmin',
+        fullName: 'Chủ thương hiệu ASRP',
+        role: 'Admin',
         isActive: true,
         points: 2000,
         createdAt: DateTime.now().toIso8601String(),

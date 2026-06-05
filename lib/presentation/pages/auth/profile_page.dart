@@ -190,7 +190,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         icon: Icons.add_business_outlined,
                         title: 'Đăng ký chi nhánh',
                         subtitle: registration.status == 'pending'
-                            ? 'Hồ sơ thương hiệu đang chờ SuperAdmin duyệt'
+                            ? 'Hồ sơ thương hiệu đang chờ duyệt'
                             : (registration.status == 'approved'
                                 ? 'Thương hiệu đã hoạt động · Đăng ký thêm chi nhánh'
                                 : 'Hợp tác mở rộng kinh doanh cùng DineX'),
@@ -215,8 +215,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         },
                       ),
 
-                      // Group 2.5: Merchant Portal (Only if approved)
-                      if (registration.status == 'approved') ...[
+                      // Group 2.5: Merchant Portal (Only if Admin or Manager)
+                      if (user.role.toLowerCase() == 'admin' ||
+                          user.role.toLowerCase() == 'superadmin' ||
+                          user.role.toLowerCase() == 'manager') ...[
                         const SizedBox(height: 20),
                         _buildSectionHeader('Quản lý cửa hàng'),
                         _buildMenuItem(
@@ -280,43 +282,36 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           user.role.toLowerCase() == 'manager' ||
                           user.role.toLowerCase() == 'staff') ...[
                         _buildSectionHeader(
-                          user.role.toLowerCase() == 'superadmin'
-                              ? 'Đặc quyền SuperAdmin (Chủ Chuỗi)'
-                              : (user.role.toLowerCase() == 'admin'
-                                  ? 'Đặc quyền Admin (Chi Nhánh)'
-                                  : (user.role.toLowerCase() == 'manager'
-                                      ? 'Đặc quyền Quản lý'
-                                      : 'Đặc quyền Nhân viên')),
+                          user.role.toLowerCase() == 'superadmin' || user.role.toLowerCase() == 'admin'
+                              ? 'Đặc quyền Admin (Chủ Thương Hiệu)'
+                              : (user.role.toLowerCase() == 'manager'
+                                  ? 'Đặc quyền Quản lý chi nhánh'
+                                  : 'Đặc quyền Nhân viên'),
                         ),
-                        if (user.role.toLowerCase() == 'superadmin') ...[
+                        if (user.role.toLowerCase() == 'superadmin' || user.role.toLowerCase() == 'admin') ...[
                           _buildMenuItem(
-                            icon: Icons.admin_panel_settings_outlined,
-                            title: 'Bảng điều khiển SuperAdmin',
-                            subtitle: 'Quản lý toàn bộ chuỗi chi nhánh & điều phối kho',
-                            onTap: () => context.push(AppConstants.routeSuperAdminDashboard),
-                          ),
-                          _buildMenuItem(
-                            icon: Icons.people_alt_outlined,
-                            title: 'Quản lý nhân sự chuỗi',
-                            subtitle: 'Bổ nhiệm Admin chi nhánh và điều phối nhân sự',
-                            onTap: () => context.push(AppConstants.routeStaffManagement),
-                          ),
-                        ],
-                        if (user.role.toLowerCase() == 'admin') ...[
-                          _buildMenuItem(
-                            icon: Icons.dashboard_customize_outlined,
-                            title: 'Bảng điều khiển Admin',
-                            subtitle: 'Xem doanh thu và thống kê hoạt động chi nhánh',
-                            onTap: () => context.push('/admin/dashboard'),
+                            icon: Icons.analytics_outlined,
+                            title: registration.registeredBranches.length > 1
+                                ? 'Báo cáo doanh thu & Kho'
+                                : 'Báo cáo doanh thu',
+                            subtitle: registration.registeredBranches.length > 1
+                                ? 'Xem doanh thu và quản lý kho chi nhánh chuỗi'
+                                : 'Xem doanh thu và thống kê hoạt động chi nhánh',
+                            onTap: () => context.push(
+                              registration.registeredBranches.length > 1
+                                  ? AppConstants.routeSuperAdminDashboard
+                                  : '/admin/dashboard',
+                            ),
                           ),
                           _buildMenuItem(
                             icon: Icons.people_outline_rounded,
                             title: 'Quản lý nhân viên chi nhánh',
-                            subtitle: 'Tuyển dụng, cấp tài khoản cho Thu ngân & POS',
+                            subtitle: 'Bổ nhiệm Quản lý chi nhánh & nhân viên',
                             onTap: () => context.push(AppConstants.routeStaffManagement),
                           ),
                         ],
-                        if (user.role.toLowerCase() == 'admin' ||
+                        if (user.role.toLowerCase() == 'superadmin' ||
+                            user.role.toLowerCase() == 'admin' ||
                             user.role.toLowerCase() == 'manager' ||
                             user.role.toLowerCase() == 'staff')
                           _buildMenuItem(
@@ -326,7 +321,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             onTap: () =>
                                 context.push(AppConstants.routeStaffHome),
                           ),
-                        if (user.role.toLowerCase() == 'admin' ||
+                        if (user.role.toLowerCase() == 'superadmin' ||
+                            user.role.toLowerCase() == 'admin' ||
                             user.role.toLowerCase() == 'manager')
                           _buildMenuItem(
                             icon: Icons.account_balance_wallet_outlined,

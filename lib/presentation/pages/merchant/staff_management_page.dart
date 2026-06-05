@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/branch_registration_provider.dart';
 import '../../../providers/staff_management_provider.dart';
 import '../../../data/models/staff_member_model.dart';
 
@@ -48,11 +49,17 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final isSuperAdmin = user?.role.toLowerCase() == 'superadmin';
-    final isAdmin = user?.role.toLowerCase() == 'admin';
+    final registration = ref.watch(branchRegistrationProvider);
+    final isMultiBranch = registration.registeredBranches.length > 1;
+    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' || user?.role.toLowerCase() == 'admin';
 
-    // Xác định chi nhánh của Admin (mặc định 'Quận 1' cho tài khoản mock)
-    final adminBranch = 'Quận 1';
+    // Chỉ hiển thị giao diện đa chi nhánh nếu là Chủ thương hiệu và có trên 1 chi nhánh thực tế
+    final isSuperAdmin = isBrandOwner && isMultiBranch;
+
+    // Chi nhánh của Admin (lấy từ chi nhánh đăng ký đầu tiên, hoặc mặc định 'Quận 1')
+    final adminBranch = registration.registeredBranches.isNotEmpty
+        ? (registration.registeredBranches.first['branchName'] ?? 'Quận 1')
+        : 'Quận 1';
 
     // Lấy toàn bộ danh sách từ provider
     final rawStaffList = ref.watch(staffManagementProvider);
@@ -139,7 +146,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add, size: 20),
         label: Text(
-          isSuperAdmin ? 'Bổ nhiệm Admin/Nhân sự' : 'Thêm Nhân viên mới',
+          isBrandOwner ? 'Bổ nhiệm Quản lý/Nhân viên' : 'Thêm Nhân viên mới',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -265,18 +272,18 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
       case 'Admin':
         badgeBgColor = const Color(0xFFFFECEB);
         badgeTextColor = Colors.red.shade900;
-        displayRole = 'Admin Chi Nhánh';
+        displayRole = 'Chủ thương hiệu (Admin)';
         break;
       case 'Manager':
         badgeBgColor = const Color(0xFFFFF2E6);
         badgeTextColor = Colors.orange.shade900;
-        displayRole = 'Thu ngân (Manager)';
+        displayRole = 'Quản lý chi nhánh (Manager)';
         break;
       case 'Staff':
       default:
         badgeBgColor = const Color(0xFFEAF8EB);
         badgeTextColor = Colors.green.shade900;
-        displayRole = 'Nhân viên (Staff)';
+        displayRole = 'Nhân viên phục vụ (Staff)';
     }
 
     final initials =
@@ -579,11 +586,9 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
     _nameController = TextEditingController(text: widget.existing?.fullName ?? '');
     _phoneController = TextEditingController(text: widget.existing?.phone ?? '');
     
-    _selectedRole = widget.existing?.role ?? (widget.isSuperAdmin ? 'Admin' : 'Staff');
-    if (!widget.isSuperAdmin && _selectedRole == 'Admin') {
-      _selectedRole = 'Staff';
-    } else if (widget.isSuperAdmin && _selectedRole != 'Admin') {
-      _selectedRole = 'Admin';
+    _selectedRole = widget.existing?.role ?? 'Manager';
+    if (_selectedRole == 'Admin') {
+      _selectedRole = 'Manager';
     }
 
     _selectedBranch = widget.existing?.branchName ??
@@ -752,7 +757,7 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                   ),
                   const SizedBox(height: 16),
 
-                  // 3. Branch selection dropdown (only for SuperAdmin, lock to admin branch for Admin)
+                  // 3. Branch selection dropdown (only for brand owner, lock to admin branch for standard admin)
                   if (widget.isSuperAdmin) ...[
                     const Text(
                       'Chi nhánh làm việc *',
@@ -810,52 +815,35 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      if (widget.isSuperAdmin) ...[
-                        ChoiceChip(
-                          label: const Text('Admin chi nhánh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                          selected: _selectedRole == 'Admin',
-                          onSelected: (selected) {
-                            if (selected) setState(() => _selectedRole = 'Admin');
-                          },
-                          selectedColor: Colors.red.shade100,
-                          backgroundColor: AppColors.bgSoft,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Admin' ? Colors.red.shade400 : AppColors.outlineVariant)),
-                          labelStyle: TextStyle(
-                            color: _selectedRole == 'Admin' ? Colors.red.shade900 : AppColors.textSecondary,
-                          ),
-                          showCheckmark: false,
+                      ChoiceChip(
+                        label: const Text('Quản lý chi nhánh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        selected: _selectedRole == 'Manager',
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedRole = 'Manager');
+                        },
+                        selectedColor: Colors.orange.shade100,
+                        backgroundColor: AppColors.bgSoft,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Manager' ? Colors.orange.shade400 : AppColors.outlineVariant)),
+                        labelStyle: TextStyle(
+                          color: _selectedRole == 'Manager' ? Colors.orange.shade900 : AppColors.textSecondary,
                         ),
-                      ] else ...[
-                        ChoiceChip(
-                          label: const Text('Thu ngân', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                          selected: _selectedRole == 'Manager',
-                          onSelected: (selected) {
-                            if (selected) setState(() => _selectedRole = 'Manager');
-                          },
-                          selectedColor: Colors.orange.shade100,
-                          backgroundColor: AppColors.bgSoft,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Manager' ? Colors.orange.shade400 : AppColors.outlineVariant)),
-                          labelStyle: TextStyle(
-                            color: _selectedRole == 'Manager' ? Colors.orange.shade900 : AppColors.textSecondary,
-                          ),
-                          showCheckmark: false,
+                        showCheckmark: false,
+                      ),
+                      const SizedBox(width: 12),
+                      ChoiceChip(
+                        label: const Text('Nhân viên phục vụ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        selected: _selectedRole == 'Staff',
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedRole = 'Staff');
+                        },
+                        selectedColor: Colors.green.shade100,
+                        backgroundColor: AppColors.bgSoft,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Staff' ? Colors.green.shade400 : AppColors.outlineVariant)),
+                        labelStyle: TextStyle(
+                          color: _selectedRole == 'Staff' ? Colors.green.shade900 : AppColors.textSecondary,
                         ),
-                        const SizedBox(width: 12),
-                        ChoiceChip(
-                          label: const Text('Phục vụ POS', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                          selected: _selectedRole == 'Staff',
-                          onSelected: (selected) {
-                            if (selected) setState(() => _selectedRole = 'Staff');
-                          },
-                          selectedColor: Colors.green.shade100,
-                          backgroundColor: AppColors.bgSoft,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Staff' ? Colors.green.shade400 : AppColors.outlineVariant)),
-                          labelStyle: TextStyle(
-                            color: _selectedRole == 'Staff' ? Colors.green.shade900 : AppColors.textSecondary,
-                          ),
-                          showCheckmark: false,
-                        ),
-                      ],
+                        showCheckmark: false,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 28),

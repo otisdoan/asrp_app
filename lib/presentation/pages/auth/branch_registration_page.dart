@@ -154,7 +154,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             gps: _gpsCtrl.text,
           );
 
-          // Tự động nâng cấp vai trò thành SuperAdmin (Chủ chuỗi) do hệ thống đã có từ 2 chi nhánh trở lên
+          // Giữ nguyên vai trò là Admin khi đăng ký thêm chi nhánh
           final user = ref.read(currentUserProvider);
           if (user != null) {
             final updatedUser = UserModel(
@@ -166,7 +166,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
               avatar: user.avatar,
               gender: user.gender,
               birthday: user.birthday,
-              role: 'SuperAdmin',
+              role: 'Admin',
               isActive: user.isActive,
               points: user.points,
               tier: user.tier,
@@ -318,7 +318,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
               ),
               const SizedBox(height: 8),
               const Text(
-                'Thương hiệu & Chi nhánh đầu tiên đang được SuperAdmin kiểm tra. Vui lòng đợi đến khi được phê duyệt để tiếp tục đăng ký thêm chi nhánh khác.',
+                'Thương hiệu & Chi nhánh đầu tiên đang được hệ thống kiểm tra. Vui lòng đợi đến khi được phê duyệt để tiếp tục đăng ký thêm chi nhánh khác.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
@@ -381,8 +381,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    final isAlreadyApproved = registration.status == 'approved';
-                    final newRole = isAlreadyApproved ? 'SuperAdmin' : 'Admin';
+                    const newRole = 'Admin';
 
                     ref.read(branchRegistrationProvider.notifier).approveBrand();
 
@@ -410,7 +409,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('🚨 [MOCK] Đã phê duyệt thương hiệu! Tài khoản của bạn được nâng cấp thành $newRole.'),
+                        content: const Text('🚨 [MOCK] Đã phê duyệt thương hiệu! Tài khoản của bạn được nâng cấp thành Admin.'),
                         backgroundColor: AppColors.success,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -419,7 +418,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
                   },
                   icon: const Icon(Icons.gavel_rounded, color: Colors.white, size: 18),
                   label: const Text(
-                    'Mock: Phê duyệt thương hiệu (SuperAdmin)',
+                    'Mock: Phê duyệt thương hiệu',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -650,7 +649,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Lưu ý: Tên thương hiệu sau khi đăng ký sẽ được SuperAdmin kiểm tra trùng lặp để bảo vệ bản quyền thương hiệu của bạn.',
+                    'Lưu ý: Tên thương hiệu sau khi đăng ký sẽ được hệ thống kiểm tra trùng lặp để bảo vệ bản quyền thương hiệu của bạn.',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -970,7 +969,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
         Text(
           hasMultipleBranches
               ? 'Yêu cầu mở thêm chi nhánh mới của bạn đang được kiểm tra. Kết quả phê duyệt chi nhánh sẽ được cập nhật nhanh chóng.'
-              : 'Hồ sơ của bạn đang được hệ thống SuperAdmin kiểm tra và phê duyệt. Kết quả sẽ được gửi thông báo đến bạn sau tối đa 24 giờ làm việc.',
+              : 'Hồ sơ của bạn đang được hệ thống kiểm tra và phê duyệt. Kết quả sẽ được gửi thông báo đến bạn sau tối đa 24 giờ làm việc.',
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 13,
