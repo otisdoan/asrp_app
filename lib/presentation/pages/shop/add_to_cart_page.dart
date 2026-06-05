@@ -7,12 +7,14 @@ class AddToCartPage extends StatefulWidget {
   final String name;
   final String price;
   final IconData icon;
+  final String? imageUrl;
 
   const AddToCartPage({
     super.key,
     required this.name,
     required this.price,
     required this.icon,
+    this.imageUrl,
   });
 
   @override
@@ -137,7 +139,19 @@ class _AddToCartPageState extends State<AddToCartPage> {
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           color: AppColors.bgWarm,
-          child: Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+          child: (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
+              ? (widget.imageUrl!.startsWith('http')
+                  ? Image.network(
+                      widget.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+                    )
+                  : Image.asset(
+                      widget.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
+                    ))
+              : Icon(widget.icon, size: 80, color: AppColors.textTertiary),
         ),
       ),
     );

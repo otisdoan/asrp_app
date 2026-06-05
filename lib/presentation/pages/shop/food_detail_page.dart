@@ -372,6 +372,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           name: widget.name,
                           price: widget.price,
                           icon: widget.icon,
+                          imageUrl: widget.imageUrl,
                         ),
                       ));
                   if (result != null && context.mounted) {
@@ -725,6 +726,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           name: widget.name,
                           price: widget.price,
                           icon: widget.icon,
+                          imageUrl: widget.imageUrl,
                         ),
                       ));
                   if (result != null && context.mounted) {
