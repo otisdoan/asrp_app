@@ -116,7 +116,7 @@ class TopStoresSection extends ConsumerWidget {
     final userLocation = ref.watch(userLocationProvider);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12), // Align left and right margins
+      margin: const EdgeInsets.symmetric(horizontal: 8), // Align left and right margins
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -465,7 +465,7 @@ class _LoadingSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

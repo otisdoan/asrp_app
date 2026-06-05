@@ -146,7 +146,7 @@ class _AddToCartPageState extends State<AddToCartPage> {
   // ─── Food Name + Price Header ──────────────────────────────────────────
   Widget _buildFoodHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -204,7 +204,7 @@ class _AddToCartPageState extends State<AddToCartPage> {
   // ─── Toppings Section ──────────────────────────────────────────────────
   Widget _buildToppingsSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -263,7 +263,7 @@ class _AddToCartPageState extends State<AddToCartPage> {
   // ─── Size Section ──────────────────────────────────────────────────────
   Widget _buildSizeSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -318,7 +318,7 @@ class _AddToCartPageState extends State<AddToCartPage> {
   // ─── Note Section ──────────────────────────────────────────────────────
   Widget _buildNoteSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -376,7 +376,7 @@ class _AddToCartPageState extends State<AddToCartPage> {
   // ─── Quantity Section ──────────────────────────────────────────────────
   Widget _buildQuantitySection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -487,7 +487,7 @@ class _AddToCartPageState extends State<AddToCartPage> {
   // ─── Bottom Add to Cart Button ─────────────────────────────────────────
   Widget _buildBottomButton() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: const BoxDecoration(
         color: AppColors.onPrimary,
         boxShadow: [

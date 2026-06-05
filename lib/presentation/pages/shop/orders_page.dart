@@ -68,7 +68,7 @@ class OrdersPage extends ConsumerWidget {
         // ─── Content ─────────────────────────────────────────
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
               children: [
                 const SizedBox(height: 16),
@@ -86,7 +86,7 @@ class OrdersPage extends ConsumerWidget {
   // ─── Header ────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -143,7 +143,7 @@ class OrdersPage extends ConsumerWidget {
   Widget _buildStatusRow(BuildContext context, List<Map<String, dynamic>> categories) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       decoration: BoxDecoration(
         color: AppColors.onPrimary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
@@ -263,7 +263,7 @@ class OrdersPage extends ConsumerWidget {
   Widget _buildStoreGridCard(Map<String, dynamic> store) {
     final screenWidth = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize.width /
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
-    final cardWidth = (screenWidth - 32 - 12) / 2; // 16 padding each side + 12 gap
+    final cardWidth = (screenWidth - 24 - 12) / 2; // 12 padding each side + 12 gap
 
     return SizedBox(
       width: cardWidth,

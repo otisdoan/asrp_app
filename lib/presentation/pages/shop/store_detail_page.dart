@@ -433,7 +433,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   // ─── Cart Bar ──────────────────────────────────────────────────────────
   Widget _buildCartBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         boxShadow: [
@@ -453,7 +453,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             ));
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(12),
@@ -516,7 +516,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         SliverToBoxAdapter(
           child: Padding(
             key: _sectionKeys[i],
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
             child: Text(
               '$category (${items.length})',
               style: const TextStyle(
@@ -733,7 +733,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final deliveryTime = (detail?.deliveryTime != null && detail!.deliveryTime.isNotEmpty) ? detail.deliveryTime : widget.deliveryTime;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -843,7 +843,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   // ─── Delivery Info Section ──────────────────────────────────────────────
   Widget _buildDeliveryInfo(BranchDetailModel? detail) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -934,7 +934,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         height: 34,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           itemCount: promos.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (_, index) {
@@ -977,7 +977,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: 12),
             child: Text(
               'Món phổ biến',
               style: TextStyle(
@@ -992,7 +992,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             height: 160,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: popularItemsList.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, index) {
@@ -1162,7 +1162,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       },
       child: Container(
         key: isHighlighted ? _highlightedItemKey : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: isHighlighted ? AppColors.bgSoft : Colors.transparent,
           border: isHighlighted
@@ -1289,7 +1289,7 @@ class _CategoryTabsDelegate extends SliverPersistentHeaderDelegate {
               Expanded(
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: categories.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 20),
                   itemBuilder: (_, index) {

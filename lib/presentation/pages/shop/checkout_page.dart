@@ -154,7 +154,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       children: [
         const Divider(height: 1, color: AppColors.outlineVariant),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -195,7 +195,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Widget _buildOrderItem(Map<String, dynamic> item) {
     final extras = item['extras'] as String;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -318,7 +318,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final unselectedFlex = maxMinutes - _selectedMinutes;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -532,7 +532,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ─── Payment Method ────────────────────────────────────────────────────
   Widget _buildPaymentMethod() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -548,7 +548,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           // QR Payment method (only option)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.primaryContainer,
               borderRadius: BorderRadius.circular(10),
@@ -614,7 +614,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ─── Price Breakdown ───────────────────────────────────────────────────
   Widget _buildPriceBreakdown() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
         children: [
           // Subtotal
@@ -673,7 +673,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ─── Terms ─────────────────────────────────────────────────────────────
   Widget _buildTerms() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
       child: RichText(
         text: const TextSpan(
           style: TextStyle(
@@ -701,7 +701,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ─── Bottom Confirm Button ─────────────────────────────────────────────
   Widget _buildBottomBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: const BoxDecoration(
         color: AppColors.onPrimary,
         boxShadow: [

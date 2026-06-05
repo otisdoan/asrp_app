@@ -74,7 +74,7 @@ class _CancelSuccessPageState extends State<CancelSuccessPage> {
             width: double.infinity,
             height: 90,
             color: AppColors.secondary,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -99,8 +99,8 @@ class _CancelSuccessPageState extends State<CancelSuccessPage> {
           // ─── Feedback Card ─────────────────────────────────────────────────
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),

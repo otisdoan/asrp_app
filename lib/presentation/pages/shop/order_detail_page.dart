@@ -111,7 +111,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -715,7 +715,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
     final bottomSafe = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottomSafe + 8),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottomSafe + 8),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.outlineVariant)),
@@ -810,7 +810,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -856,7 +856,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                             });
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -885,7 +885,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   const SizedBox(height: 16),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: SizedBox(
                       width: double.infinity,
                       height: 48,

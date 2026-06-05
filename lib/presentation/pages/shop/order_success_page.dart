@@ -93,7 +93,7 @@ class OrderSuccessPage extends StatelessWidget {
                     // ─── Success Confirmation Card ───────────────────────────
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                       child: Column(
                         children: [
                           const Icon(
@@ -158,13 +158,13 @@ class OrderSuccessPage extends StatelessWidget {
                     Container(
                       height: 1,
                       color: AppColors.outlineVariant,
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     const SizedBox(height: 20),
 
                     // ─── "Có thể bạn cũng thích" Section ──────────────────────
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

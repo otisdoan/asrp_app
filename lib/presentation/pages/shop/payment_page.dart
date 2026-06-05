@@ -29,7 +29,7 @@ class PaymentPage extends StatelessWidget {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      padding: const EdgeInsets.fromLTRB(12, 24, 12, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primaryActive, AppColors.secondary],
@@ -65,7 +65,7 @@ class PaymentPage extends StatelessWidget {
           // Card — Thêm thẻ
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(12),
@@ -111,7 +111,7 @@ class PaymentPage extends StatelessWidget {
   // ─── Add Card Button ───────────────────────────────────────────────────
   Widget _buildAddCardButton() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -141,7 +141,7 @@ class PaymentPage extends StatelessWidget {
   // ─── Recent Transactions ───────────────────────────────────────────────
   Widget _buildRecentTransactions() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 40),
+      padding: const EdgeInsets.fromLTRB(12, 28, 12, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

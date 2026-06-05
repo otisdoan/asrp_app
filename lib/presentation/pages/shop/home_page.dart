@@ -334,7 +334,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Promo Banner
               Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+                  padding: const EdgeInsets.fromLTRB(8, 14, 8, 0),
                   child: const PromoBannerSection()),
               const SizedBox(height: 12),
               // Categories
@@ -342,7 +342,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               const SizedBox(height: 20),
               // Deals / Promotions
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: DealsSection(onItemTap: _openProductDetail),
               ),
               const SizedBox(height: 20),
@@ -354,7 +354,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               const SizedBox(height: 20),
               // All Stores
               Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: AllStoresSection(scrollController: _scrollController)),
               const SizedBox(height: 24),
             ]),

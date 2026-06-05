@@ -22,7 +22,7 @@ class CategoriesSection extends ConsumerWidget {
         children: [
           if (selectedCategory != 'Tất cả')
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -57,7 +57,7 @@ class CategoriesSection extends ConsumerWidget {
       height: 90,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         itemCount: categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 16),
         itemBuilder: (context, index) {

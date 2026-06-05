@@ -32,7 +32,7 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
       backgroundColor: AppColors.primary, // Brand Primary Color (Cam đỏ trầm)
       elevation: 0,
       automaticallyImplyLeading: false,
-      titleSpacing: 12,
+      titleSpacing: 8,
       title: Row(
         children: [
           // 1. Scanner Icon (Left)

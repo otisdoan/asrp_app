@@ -126,7 +126,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -509,7 +509,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(left: 24, right: 24, top: 12, bottom: 24),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 24),
         decoration: BoxDecoration(
           color: AppColors.bgMain,
           boxShadow: [
