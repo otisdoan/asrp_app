@@ -88,7 +88,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'user': '47w_lslctd',
       'rating': 5,
       'date': '03-05-2026 19:32',
-      'content': 'Gà chiên giòn rụm, nước sốt đậm đà. Phần ăn to, giá hợp lý. Sẽ quay lại ủng hộ!',
+      'content':
+          'Gà chiên giòn rụm, nước sốt đậm đà. Phần ăn to, giá hợp lý. Sẽ quay lại ủng hộ!',
       'imageCount': 4,
       'tags': ['GÀ RÁN'],
       'reply': '',
@@ -98,17 +99,20 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'user': 'foodie_saigon',
       'rating': 4,
       'date': '01-05-2026 14:20',
-      'content': 'Đồ ăn ngon, giao hàng nhanh. Nhưng lần này thiếu nước chấm 😅',
+      'content':
+          'Đồ ăn ngon, giao hàng nhanh. Nhưng lần này thiếu nước chấm 😅',
       'imageCount': 2,
       'tags': ['GÀ SỐT CAY'],
-      'reply': 'Xin lỗi bạn vì sự thiếu sót. Lần sau mình sẽ kiểm tra kỹ hơn ạ! Mong bạn thông cảm 🙏',
+      'reply':
+          'Xin lỗi bạn vì sự thiếu sót. Lần sau mình sẽ kiểm tra kỹ hơn ạ! Mong bạn thông cảm 🙏',
       'likes': 5,
     },
     {
       'user': 'minh_an_99',
       'rating': 5,
       'date': '28-04-2026 20:15',
-      'content': 'Lần đầu order thử, không ngờ ngon quá! Gà giòn, cơm dẻo, nước sốt đậm đà. 10 điểm!',
+      'content':
+          'Lần đầu order thử, không ngờ ngon quá! Gà giòn, cơm dẻo, nước sốt đậm đà. 10 điểm!',
       'imageCount': 0,
       'tags': [],
       'reply': 'Cảm ơn bạn nhiều lắm ạ! Hẹn gặp lại bạn lần sau nha 💛',
@@ -250,12 +254,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   ? Image.network(
                       widget.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 100, color: AppColors.textTertiary),
+                      errorBuilder: (_, __, ___) => Icon(widget.icon,
+                          size: 100, color: AppColors.textTertiary),
                     )
                   : Image.asset(
                       widget.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 100, color: AppColors.textTertiary),
+                      errorBuilder: (_, __, ___) => Icon(widget.icon,
+                          size: 100, color: AppColors.textTertiary),
                     ))
               : Icon(widget.icon, size: 100, color: AppColors.textTertiary),
         ),
@@ -321,15 +327,21 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                     Icon(
                       _isProductLiked ? Icons.favorite : Icons.favorite_border,
                       size: 14,
-                      color: _isProductLiked ? const Color(0xFFE55333) : AppColors.textTertiary,
+                      color: _isProductLiked
+                          ? const Color(0xFFE55333)
+                          : AppColors.textTertiary,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '$_productLikes lượt thích',
                       style: TextStyle(
                         fontSize: 13,
-                        color: _isProductLiked ? const Color(0xFFE55333) : AppColors.textTertiary,
-                        fontWeight: _isProductLiked ? FontWeight.bold : FontWeight.normal,
+                        color: _isProductLiked
+                            ? const Color(0xFFE55333)
+                            : AppColors.textTertiary,
+                        fontWeight: _isProductLiked
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -353,13 +365,15 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
               // Add button
               GestureDetector(
                 onTap: () async {
-                  final result = await Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => AddToCartPage(
-                      name: widget.name,
-                      price: widget.price,
-                      icon: widget.icon,
-                    ),
-                  ));
+                  final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddToCartPage(
+                          name: widget.name,
+                          price: widget.price,
+                          icon: widget.icon,
+                        ),
+                      ));
                   if (result != null && context.mounted) {
                     Navigator.pop(context, result);
                   }
@@ -413,7 +427,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
               color: AppColors.bgWarm,
               borderRadius: BorderRadius.circular(40),
             ),
-            child: const Icon(Icons.rate_review_outlined, size: 40, color: AppColors.accent),
+            child: const Icon(Icons.rate_review_outlined,
+                size: 40, color: AppColors.accent),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -459,7 +474,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   color: AppColors.bgSoft,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person, size: 18, color: AppColors.textTertiary),
+                child: const Icon(Icons.person,
+                    size: 18, color: AppColors.textTertiary),
               ),
               const SizedBox(width: 10),
               // All content (right)
@@ -482,7 +498,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                       children: List.generate(
                         5,
                         (i) => Icon(
-                          i < (review['rating'] as int) ? Icons.star : Icons.star_border,
+                          i < (review['rating'] as int)
+                              ? Icons.star
+                              : Icons.star_border,
                           size: 16,
                           color: AppColors.star,
                         ),
@@ -522,7 +540,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                       child: Icon(
                                         Icons.image_outlined,
                                         size: 28,
-                                        color: AppColors.textTertiary.withValues(alpha: 0.6),
+                                        color: AppColors.textTertiary
+                                            .withValues(alpha: 0.6),
                                       ),
                                     ),
                                     if (isLast)
@@ -531,13 +550,16 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                         height: 80,
                                         decoration: BoxDecoration(
                                           color: Colors.black45,
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: Center(
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(Icons.photo_library, size: 14, color: Colors.white),
+                                              const Icon(Icons.photo_library,
+                                                  size: 14,
+                                                  color: Colors.white),
                                               const SizedBox(width: 3),
                                               Text(
                                                 '+${imageCount - 2}',
@@ -580,9 +602,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             size: 14,
-                            color: _likedReviews.contains(review['user'] as String)
-                                ? const Color(0xFFE55333)
-                                : AppColors.textTertiary,
+                            color:
+                                _likedReviews.contains(review['user'] as String)
+                                    ? const Color(0xFFE55333)
+                                    : AppColors.textTertiary,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -590,7 +613,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: _likedReviews.contains(review['user'] as String)
+                              color: _likedReviews
+                                      .contains(review['user'] as String)
                                   ? const Color(0xFFE55333)
                                   : AppColors.textTertiary,
                             ),
@@ -661,7 +685,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
+          BoxShadow(
+              color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -2)),
         ],
       ),
       child: SafeArea(
@@ -675,7 +700,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 children: [
                   const Text(
                     'Giá',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                   Text(
                     widget.price,
@@ -692,13 +718,15 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             Expanded(
               child: ElevatedButton(
                 onPressed: () async {
-                  final result = await Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => AddToCartPage(
-                      name: widget.name,
-                      price: widget.price,
-                      icon: widget.icon,
-                    ),
-                  ));
+                  final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddToCartPage(
+                          name: widget.name,
+                          price: widget.price,
+                          icon: widget.icon,
+                        ),
+                      ));
                   if (result != null && context.mounted) {
                     Navigator.pop(context, result);
                   }

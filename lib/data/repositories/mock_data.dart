@@ -1,7 +1,6 @@
 import '../models/menu_item_model.dart';
 import '../models/cart_item_model.dart';
 import '../models/product_detail_model.dart';
-import '../models/category_model.dart';
 
 class MockData {
   MockData._();
@@ -295,24 +294,24 @@ class MockData {
       ],
       reviews: const [
         ProductReviewModel(
-          user: 'N.T.H',
+          user: ReviewUserModel(name: 'N.T.H'),
           rating: 5,
           date: '3 ngày trước',
           content:
               'Nước dùng rất ngon, ngọt thanh tự nhiên. Thịt bò tươi và mềm. Sẽ quay lại ủng hộ thường xuyên!',
-          imageCount: 12,
-          tags: ['PHỞ BÒ ĐẶC BIỆT'],
+          images: [],
           reply:
               'Cảm ơn bạn đã ủng hộ nhà hàng. Rất mong được phục vụ bạn lần sau!',
+          likes: 12,
         ),
         ProductReviewModel(
-          user: 'Trần Văn B.',
+          user: ReviewUserModel(name: 'Trần Văn B.'),
           rating: 4,
           date: '1 tuần trước',
           content:
               'Phở ngon nhưng hơi đông nên phục vụ hơi lâu chút. Bù lại đồ ăn chất lượng.',
-          imageCount: 5,
-          tags: ['PHỞ BÒ'],
+          images: [],
+          likes: 5,
         ),
       ],
     );

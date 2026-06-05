@@ -40,48 +40,88 @@ class ProductSizeModel {
   }
 }
 
+class ReviewUserModel {
+  final String name;
+  final String? avatar;
+
+  const ReviewUserModel({
+    required this.name,
+    this.avatar,
+  });
+
+  factory ReviewUserModel.fromJson(Map<String, dynamic> json) {
+    return ReviewUserModel(
+      name: (json['name'] ?? json['username'] ?? '') as String? ?? '',
+      avatar: json['avatar'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      if (avatar != null) 'avatar': avatar,
+    };
+  }
+}
+
 class ProductReviewModel {
-  final String user;
+  final ReviewUserModel user;
   final int rating;
   final String date;
   final String content;
-  final int imageCount;
-  final List<String> tags;
+  final List<String> images;
   final String? reply;
+  final int likes;
 
   const ProductReviewModel({
     required this.user,
     required this.rating,
     required this.date,
     required this.content,
-    required this.imageCount,
-    required this.tags,
+    required this.images,
     this.reply,
+    this.likes = 0,
   });
 
+  int get imageCount => images.length;
+
   factory ProductReviewModel.fromJson(Map<String, dynamic> json) {
+    final userVal = json['user'];
+    final ReviewUserModel parsedUser;
+    if (userVal is Map<String, dynamic>) {
+      parsedUser = ReviewUserModel.fromJson(userVal);
+    } else {
+      parsedUser = ReviewUserModel(
+        name: (userVal ?? json['userName'] ?? json['name']) as String? ?? '',
+        avatar: json['userAvatar'] as String?,
+      );
+    }
+
+    final imagesList = (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+        (json['image'] is List
+            ? (json['image'] as List).map((e) => e as String).toList()
+            : []);
+
     return ProductReviewModel(
-      user: (json['user'] ?? json['name']) as String? ?? '',
+      user: parsedUser,
       rating: json['rating'] as int? ?? 5,
       date: json['date'] as String? ?? '',
       content: json['content'] as String? ?? '',
-      imageCount: (json['imageCount'] ?? json['helpful'] ?? 0) as int,
-      tags:
-          (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-              [],
+      images: imagesList,
       reply: json['reply'] as String?,
+      likes: json['likes'] as int? ?? json['helpful'] as int? ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'user': user,
+      'user': user.toJson(),
       'rating': rating,
       'date': date,
       'content': content,
-      'imageCount': imageCount,
-      'tags': tags,
+      'images': images,
       if (reply != null) 'reply': reply,
+      'likes': likes,
     };
   }
 }
