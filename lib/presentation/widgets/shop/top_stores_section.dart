@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/location_service.dart';
 import '../../../data/models/branch_model.dart';
@@ -12,53 +13,6 @@ import '../../pages/shop/store_detail_page.dart';
 class TopStoresSection extends ConsumerWidget {
   const TopStoresSection({super.key});
 
-  static const _stores = [
-    {
-      'name': 'Tiệm Trà Mơ - 52 Nguyễn Huệ',
-      'tag': 'Quán Ngon',
-      'rating': 4.8,
-      'distance': '1.2 km',
-      'time': '30 phút',
-      'promo': 'Giảm 10.000đ · Giảm 8...',
-      'discount': '56K',
-      'image': 'assets/images/tra_sua.jpg',
-      'adLabel': 'Quảng cáo',
-    },
-    {
-      'name': 'Jollibee - Trần Hưng Đạo',
-      'tag': '',
-      'rating': 4.6,
-      'distance': '4.6 km',
-      'time': '34 phút trở lên',
-      'promo': 'Giảm 10.000đ · Giảm 1...',
-      'discount': '',
-      'image': 'assets/images/com.webp',
-      'adLabel': '',
-    },
-    {
-      'name': 'Trà Sữa Happy Tea',
-      'tag': '',
-      'rating': 4.7,
-      'distance': '2.1 km',
-      'time': '27 phút',
-      'promo': 'Giảm 11.000đ',
-      'discount': '56K',
-      'image': 'assets/images/tra_sua.jpg',
-      'adLabel': 'Quảng cáo',
-    },
-    {
-      'name': 'Phở Hà Nội - Lý Tự Trọng',
-      'tag': 'Yêu thích',
-      'rating': 4.9,
-      'distance': '0.8 km',
-      'time': '20 phút',
-      'promo': 'Giảm 15.000đ · Freeship',
-      'discount': '30K',
-      'image': 'assets/images/pho.jpg',
-      'adLabel': '',
-    },
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final branchesAsync = ref.watch(branchesFutureProvider);
@@ -67,46 +21,14 @@ class TopStoresSection extends ConsumerWidget {
       data: (branches) {
         final topBranches = branches.where((b) => b.rating >= 4.5).toList();
         if (topBranches.isEmpty) {
-          return _buildContent(
-              context,
-              ref,
-              _stores
-                  .map((s) => BranchListItemModel(
-                        id: '',
-                        name: s['name'] as String,
-                        imageUrl: s['image'] as String,
-                        rating: s['rating'] as double,
-                        distance: s['distance'] as String,
-                        deliveryTime: s['time'] as String,
-                        promo: s['promo'] as String,
-                        discount: s['discount'] as String,
-                        tag: s['tag'] as String,
-                        adLabel: s['adLabel'] as String,
-                      ))
-                  .toList());
+          return const SizedBox.shrink();
         }
         return _buildContent(context, ref, topBranches);
       },
       loading: () => const _LoadingSection(),
       error: (err, stack) {
         print('[TopStoresSection] Lỗi tải chi nhánh: $err');
-        return _buildContent(
-            context,
-            ref,
-            _stores
-                .map((s) => BranchListItemModel(
-                      id: '',
-                      name: s['name'] as String,
-                      imageUrl: s['image'] as String,
-                      rating: s['rating'] as double,
-                      distance: s['distance'] as String,
-                      deliveryTime: s['time'] as String,
-                      promo: s['promo'] as String,
-                      discount: s['discount'] as String,
-                      tag: s['tag'] as String,
-                      adLabel: s['adLabel'] as String,
-                    ))
-                .toList());
+        return const SizedBox.shrink();
       },
     );
   }
@@ -466,34 +388,38 @@ class _LoadingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 150,
-            height: 16,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(4),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 150,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 230,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: 3,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, __) => Container(
-                width: 160,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(10),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, __) => Container(
+                  width: 135,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

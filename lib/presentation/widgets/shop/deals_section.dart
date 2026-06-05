@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/branch_model.dart';
 import '../../../providers/branch_provider.dart';
@@ -13,27 +14,6 @@ class DealsSection extends ConsumerWidget {
 
   const DealsSection({super.key, required this.onItemTap});
 
-  static const _mockDeals = [
-    {
-      'id': 'mock-1',
-      'name': 'Bếp Nhà Thái Hạ',
-      'promo': 'Mã giảm 40k',
-      'image': 'assets/images/com.webp',
-    },
-    {
-      'id': 'mock-2',
-      'name': 'UMê Café',
-      'promo': 'Mã giảm 11%',
-      'image': 'assets/images/tra_sua.jpg',
-    },
-    {
-      'id': 'mock-3',
-      'name': 'Bánh Xèo Giòn A Tốt',
-      'promo': 'Mã giảm 11%',
-      'image': 'assets/images/pho.jpg',
-    },
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final branchesAsync = ref.watch(branchesFutureProvider);
@@ -41,70 +21,60 @@ class DealsSection extends ConsumerWidget {
     return branchesAsync.when(
       data: (branches) {
         if (branches.isEmpty) {
-          return _buildContent(context, _getMockBranches());
+          return const SizedBox.shrink();
         }
         return _buildContent(context, branches);
       },
       loading: () => _buildLoadingState(),
       error: (err, stack) {
         print('[DealsSection] Lỗi tải chi nhánh: $err');
-        return _buildContent(context, _getMockBranches());
+        return const SizedBox.shrink();
       },
     );
   }
 
-  List<BranchListItemModel> _getMockBranches() {
-    return _mockDeals
-        .map((m) => BranchListItemModel(
-              id: m['id']!,
-              name: m['name']!,
-              imageUrl: m['image']!,
-              rating: 4.8,
-              distance: '1.2 km',
-              deliveryTime: '20 phút',
-              promo: m['promo'],
-            ))
-        .toList();
-  }
-
   Widget _buildLoadingState() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 200,
-          height: 16,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(4),
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 200,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: 300,
-          height: 12,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(4),
+          const SizedBox(height: 8),
+          Container(
+            width: 300,
+            height: 12,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 195,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, __) => Container(
-              width: 135,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(8),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 195,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 3,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, __) => Container(
+                width: 135,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -259,7 +229,7 @@ class _DealCard extends StatelessWidget {
                   : '25 phút',
               distance: branch.distance.isNotEmpty ? branch.distance : '1.5 km',
               icon: Icons.store,
-              branchId: branch.id.startsWith('mock') ? null : branch.id,
+              branchId: branch.id,
             ),
           ),
         );

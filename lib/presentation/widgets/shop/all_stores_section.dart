@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/location_service.dart';
 import '../../../data/models/branch_model.dart';
@@ -39,388 +40,20 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
       final branches = ref.read(branchesFutureProvider).value;
       if (branches != null) {
         _loadMore(branches.length);
-      } else {
-        _loadMore(_stores.length);
       }
     }
   }
-
-  static const _stores = [
-    {
-      'name': 'BMC Phở Express - Quận 1',
-      'category': 'Phở · Bún · Cơm',
-      'rating': 4.9,
-      'reviews': 1240,
-      'distance': '0.8 km',
-      'time': '20 phút',
-      'promo': 'Giảm 20% đơn từ 100K',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Cơm Tấm Bụi Sài Gòn',
-      'category': 'Cơm · Món Việt',
-      'rating': 4.5,
-      'reviews': 856,
-      'distance': '0.3 km',
-      'time': '15 phút',
-      'promo': 'Freeship',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Bún Đậu Mắm Tôm Hà Nội',
-      'category': 'Bún · Đồ ăn vặt',
-      'rating': 4.3,
-      'reviews': 432,
-      'distance': '0.5 km',
-      'time': '18 phút',
-      'promo': 'Giảm 15K đơn từ 80K',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'Trà Sữa ToCoToCo - Lê Văn Sỹ',
-      'category': 'Trà sữa · Đồ uống',
-      'rating': 4.6,
-      'reviews': 2100,
-      'distance': '0.7 km',
-      'time': '20 phút',
-      'promo': 'Mua 1 tặng 1',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Pizza Hut - Nguyễn Trãi',
-      'category': 'Pizza · Gà rán',
-      'rating': 4.4,
-      'reviews': 1580,
-      'distance': '1.0 km',
-      'time': '25 phút',
-      'promo': 'Giảm 50K đơn từ 200K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Highlands Coffee - Pasteur',
-      'category': 'Cà phê · Bánh ngọt',
-      'rating': 4.5,
-      'reviews': 3200,
-      'distance': '1.2 km',
-      'time': '28 phút',
-      'promo': '',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Bánh Mì Huỳnh Hoa',
-      'category': 'Bánh mì · Ăn sáng',
-      'rating': 4.8,
-      'reviews': 5600,
-      'distance': '1.5 km',
-      'time': '30 phút',
-      'promo': 'Giảm 10K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Phúc Long Coffee & Tea',
-      'category': 'Cà phê · Trà',
-      'rating': 4.4,
-      'reviews': 4200,
-      'distance': '0.9 km',
-      'time': '22 phút',
-      'promo': 'Freeship đơn từ 50K',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Lẩu Hải Sản Biển Đông',
-      'category': 'Lẩu · Hải sản',
-      'rating': 4.2,
-      'reviews': 780,
-      'distance': '2.0 km',
-      'time': '35 phút',
-      'promo': 'Giảm 30% lẩu 2 người',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'Gà Rán KFC - Hai Bà Trưng',
-      'category': 'Gà rán · Fastfood',
-      'rating': 4.3,
-      'reviews': 2800,
-      'distance': '1.1 km',
-      'time': '25 phút',
-      'promo': 'Combo 99K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Sushi Hokkaido - Đồng Khởi',
-      'category': 'Sushi · Nhật Bản',
-      'rating': 4.7,
-      'reviews': 920,
-      'distance': '1.8 km',
-      'time': '32 phút',
-      'promo': 'Giảm 20% set lunch',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Bò Né 3 Ngon - Quận 3',
-      'category': 'Bò né · Ăn sáng',
-      'rating': 4.5,
-      'reviews': 1100,
-      'distance': '1.3 km',
-      'time': '28 phút',
-      'promo': '',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'Quán Chay An Lạc',
-      'category': 'Chay · Healthy',
-      'rating': 4.6,
-      'reviews': 340,
-      'distance': '0.6 km',
-      'time': '18 phút',
-      'promo': 'Giảm 10% thứ 2',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Bánh Cuốn Thanh Trì',
-      'category': 'Bánh cuốn · Ăn sáng',
-      'rating': 4.4,
-      'reviews': 560,
-      'distance': '0.4 km',
-      'time': '15 phút',
-      'promo': 'Freeship',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Trà Đào Cam Sả - Phạm Ngũ Lão',
-      'category': 'Đồ uống · Trà',
-      'rating': 4.3,
-      'reviews': 1800,
-      'distance': '0.9 km',
-      'time': '20 phút',
-      'promo': 'Mua 2 giảm 15K',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Cơm Gà Xối Mỡ Tư Lý',
-      'category': 'Cơm · Gà',
-      'rating': 4.6,
-      'reviews': 2300,
-      'distance': '1.4 km',
-      'time': '28 phút',
-      'promo': 'Giảm 20K đơn từ 120K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Bún Chả Hà Nội - Quận 1',
-      'category': 'Bún chả · Nem',
-      'rating': 4.5,
-      'reviews': 890,
-      'distance': '1.0 km',
-      'time': '24 phút',
-      'promo': '',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'The Coffee House - Nguyễn Du',
-      'category': 'Cà phê · Bánh',
-      'rating': 4.4,
-      'reviews': 3800,
-      'distance': '0.7 km',
-      'time': '20 phút',
-      'promo': 'Freeship đơn từ 40K',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Hủ Tiếu Nam Vang Liến Húa',
-      'category': 'Hủ tiếu · Mì',
-      'rating': 4.7,
-      'reviews': 1500,
-      'distance': '1.6 km',
-      'time': '30 phút',
-      'promo': 'Giảm 15K',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Gỏi Cuốn Bà Tám',
-      'category': 'Gỏi cuốn · Ăn vặt',
-      'rating': 4.3,
-      'reviews': 420,
-      'distance': '0.5 km',
-      'time': '16 phút',
-      'promo': 'Mua 5 tặng 1',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'Kem Bạch Đằng',
-      'category': 'Kem · Tráng miệng',
-      'rating': 4.5,
-      'reviews': 2600,
-      'distance': '1.2 km',
-      'time': '26 phút',
-      'promo': '',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Xôi Bắc - Chợ Bến Thành',
-      'category': 'Xôi · Ăn sáng',
-      'rating': 4.4,
-      'reviews': 780,
-      'distance': '0.8 km',
-      'time': '20 phút',
-      'promo': 'Giảm 5K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Bánh Tráng Trộn Cô Ba',
-      'category': 'Ăn vặt · Snack',
-      'rating': 4.2,
-      'reviews': 1200,
-      'distance': '0.3 km',
-      'time': '12 phút',
-      'promo': 'Freeship',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Cháo Lòng Bà Út',
-      'category': 'Cháo · Ăn sáng',
-      'rating': 4.6,
-      'reviews': 650,
-      'distance': '0.6 km',
-      'time': '18 phút',
-      'promo': 'Giảm 10K đơn từ 50K',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'McDonald\'s - Bến Thành',
-      'category': 'Burger · Fastfood',
-      'rating': 4.3,
-      'reviews': 4500,
-      'distance': '1.0 km',
-      'time': '22 phút',
-      'promo': 'Combo 79K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Lotteria - Lê Lợi',
-      'category': 'Gà rán · Burger',
-      'rating': 4.1,
-      'reviews': 2100,
-      'distance': '0.9 km',
-      'time': '20 phút',
-      'promo': 'Giảm 25K đơn từ 150K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Chè Thái Bà Năm',
-      'category': 'Chè · Tráng miệng',
-      'rating': 4.5,
-      'reviews': 980,
-      'distance': '0.4 km',
-      'time': '14 phút',
-      'promo': '',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Mì Quảng Bà Mua',
-      'category': 'Mì Quảng · Món Trung',
-      'rating': 4.7,
-      'reviews': 1350,
-      'distance': '1.5 km',
-      'time': '30 phút',
-      'promo': 'Giảm 12K',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Cơm Niêu Sài Gòn',
-      'category': 'Cơm niêu · Món Việt',
-      'rating': 4.6,
-      'reviews': 870,
-      'distance': '2.2 km',
-      'time': '38 phút',
-      'promo': 'Giảm 30K đơn từ 200K',
-      'image': 'assets/images/com.webp'
-    },
-    {
-      'name': 'Trà Sữa Gong Cha - Võ Văn Tần',
-      'category': 'Trà sữa · Đồ uống',
-      'rating': 4.4,
-      'reviews': 3100,
-      'distance': '1.1 km',
-      'time': '24 phút',
-      'promo': 'Mua 1 tặng 1 size M',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Bánh Xèo Mười Xiềm',
-      'category': 'Bánh xèo · Món Nam',
-      'rating': 4.8,
-      'reviews': 2200,
-      'distance': '1.7 km',
-      'time': '32 phút',
-      'promo': 'Giảm 15% cuối tuần',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Bò Kho Bà Hai',
-      'category': 'Bò kho · Bánh mì',
-      'rating': 4.5,
-      'reviews': 1600,
-      'distance': '0.8 km',
-      'time': '20 phút',
-      'promo': '',
-      'image': 'assets/images/pho_bo.png'
-    },
-    {
-      'name': 'Dimsum Hồng Kông',
-      'category': 'Dimsum · Trung Hoa',
-      'rating': 4.6,
-      'reviews': 720,
-      'distance': '2.5 km',
-      'time': '40 phút',
-      'promo': 'Giảm 20% set 4 người',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Nước Ép Juice Plus',
-      'category': 'Nước ép · Healthy',
-      'rating': 4.3,
-      'reviews': 540,
-      'distance': '0.5 km',
-      'time': '15 phút',
-      'promo': 'Freeship',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-    {
-      'name': 'Phở 24 - Nguyễn Thiệp',
-      'category': 'Phở · Món Việt',
-      'rating': 4.4,
-      'reviews': 1900,
-      'distance': '1.3 km',
-      'time': '26 phút',
-      'promo': 'Giảm 10K đơn từ 80K',
-      'image': 'assets/images/pho.jpg'
-    },
-    {
-      'name': 'Cà Phê Muối Huế - Quận 5',
-      'category': 'Cà phê · Đặc sản Huế',
-      'rating': 4.7,
-      'reviews': 680,
-      'distance': '1.8 km',
-      'time': '34 phút',
-      'promo': 'Giảm 8K ly thứ 2',
-      'image': 'assets/images/tra_sua.jpg'
-    },
-  ];
 
   void _loadMore(int totalCount) {
     if (_isLoading || _displayCount >= totalCount) return;
     setState(() => _isLoading = true);
 
-    // Simulate network delay
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        setState(() {
-          _displayCount = (_displayCount + 10).clamp(0, totalCount);
-          _isLoading = false;
-        });
-      }
-    });
+    if (mounted) {
+      setState(() {
+        _displayCount = (_displayCount + 10).clamp(0, totalCount);
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -430,42 +63,14 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
     return branchesAsync.when(
       data: (branches) {
         if (branches.isEmpty) {
-          return _buildContent(
-              context,
-              _stores
-                  .map((s) => BranchListItemModel(
-                        id: '',
-                        name: s['name'] as String,
-                        imageUrl: s['image'] as String,
-                        rating: s['rating'] as double,
-                        reviewsCount: s['reviews'] as int,
-                        distance: s['distance'] as String,
-                        deliveryTime: s['time'] as String,
-                        promo: s['promo'] as String,
-                        category: s['category'] as String,
-                      ))
-                  .toList());
+          return const SizedBox.shrink();
         }
         return _buildContent(context, branches);
       },
       loading: () => const _LoadingSection(),
       error: (err, stack) {
         print('[AllStoresSection] Lỗi tải chi nhánh: $err');
-        return _buildContent(
-            context,
-            _stores
-                .map((s) => BranchListItemModel(
-                      id: '',
-                      name: s['name'] as String,
-                      imageUrl: s['image'] as String,
-                      rating: s['rating'] as double,
-                      reviewsCount: s['reviews'] as int,
-                      distance: s['distance'] as String,
-                      deliveryTime: s['time'] as String,
-                      promo: s['promo'] as String,
-                      category: s['category'] as String,
-                    ))
-                .toList());
+        return const SizedBox.shrink();
       },
     );
   }
@@ -766,71 +371,68 @@ class _LoadingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 3,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) => Container(
-        height: 104,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x06000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(8),
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, __) => Container(
+          height: 104,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 140,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(4),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 140,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 80,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 80,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 100,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 100,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

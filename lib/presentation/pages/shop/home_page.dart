@@ -12,6 +12,7 @@ import '../../widgets/shop/all_stores_section.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/branch_provider.dart';
+import '../../../providers/category_provider.dart';
 import 'cart_page.dart';
 import 'payment_page.dart';
 import 'orders_page.dart';
@@ -199,6 +200,19 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
+  Future<void> _onRefresh() async {
+    ref.invalidate(categoriesFutureProvider);
+    ref.invalidate(branchesFutureProvider);
+    try {
+      await Future.wait([
+        ref.read(categoriesFutureProvider.future),
+        ref.read(branchesFutureProvider.future),
+      ]);
+    } catch (e) {
+      print('[HomePage] Refresh error: $e');
+    }
+  }
+
   void _openProductDetail(String name) {
     Navigator.push(
       context,
@@ -327,38 +341,49 @@ class _HomePageState extends ConsumerState<HomePage> {
       default:
         return Column(children: [
           Expanded(
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              color: AppColors.primary,
+              backgroundColor: Colors.white,
               child: SingleChildScrollView(
-            controller: _scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Promo Banner
-              Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 14, 8, 0),
-                  child: const PromoBannerSection()),
-              const SizedBox(height: 12),
-              // Categories
-              const CategoriesSection(),
-              const SizedBox(height: 20),
-              // Deals / Promotions
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: DealsSection(onItemTap: _openProductDetail),
+                physics: const AlwaysScrollableScrollPhysics(),
+                controller: _scrollController,
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Promo Banner
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 14, 8, 0),
+                      child: const PromoBannerSection(),
+                    ),
+                    const SizedBox(height: 12),
+                    // Categories
+                    const CategoriesSection(),
+                    const SizedBox(height: 20),
+                    // Deals / Promotions
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: DealsSection(onItemTap: _openProductDetail),
+                    ),
+                    const SizedBox(height: 20),
+                    // Top Stores
+                    const TopStoresSection(),
+                    const SizedBox(height: 20),
+                    // Nearby Stores
+                    const NearbyStoresSection(),
+                    const SizedBox(height: 20),
+                    // All Stores
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: AllStoresSection(scrollController: _scrollController),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
-              // Top Stores
-              const TopStoresSection(),
-              const SizedBox(height: 20),
-              // Nearby Stores
-              const NearbyStoresSection(),
-              const SizedBox(height: 20),
-              // All Stores
-              Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: AllStoresSection(scrollController: _scrollController)),
-              const SizedBox(height: 24),
-            ]),
-          )),
+            ),
+          ),
         ]);
     }
   }

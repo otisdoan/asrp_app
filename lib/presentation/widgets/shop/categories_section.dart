@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/repositories/mock_data.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
@@ -43,9 +43,27 @@ class CategoriesSection extends ConsumerWidget {
             ),
           if (selectedCategory != 'Tất cả') const SizedBox(height: 8),
           categoriesAsync.when(
-            data: (categories) => _buildList(context, ref, categories.isEmpty ? MockData.categories : categories, selectedCategory),
-            loading: () => _buildList(context, ref, MockData.categories, selectedCategory), // smooth loading fallback
-            error: (err, stack) => _buildList(context, ref, MockData.categories, selectedCategory), // robust error fallback
+            data: (categories) => categories.isEmpty
+                ? const SizedBox(
+                    height: 90,
+                    child: Center(
+                      child: Text(
+                        'Không có danh mục nào',
+                        style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                      ),
+                    ),
+                  )
+                : _buildList(context, ref, categories, selectedCategory),
+            loading: () => _buildShimmerList(),
+            error: (err, stack) => const SizedBox(
+              height: 90,
+              child: Center(
+                child: Text(
+                  'Lỗi tải danh mục',
+                  style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -131,6 +149,47 @@ class CategoriesSection extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildShimmerList() {
+    return SizedBox(
+      height: 90,
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          itemCount: 5,
+          separatorBuilder: (_, __) => const SizedBox(width: 16),
+          itemBuilder: (_, __) {
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 50,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/repositories/mock_data.dart';
 import 'store_detail_page.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/category_provider.dart';
@@ -482,9 +482,58 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _buildCategoryRow() {
     final categoriesAsync = ref.watch(categoriesFutureProvider);
     return categoriesAsync.when(
-      data: (categories) => _buildCategoryList(categories.isEmpty ? MockData.categories : categories),
-      loading: () => _buildCategoryList(MockData.categories),
-      error: (err, stack) => _buildCategoryList(MockData.categories),
+      data: (categories) => categories.isEmpty
+          ? const SizedBox.shrink()
+          : _buildCategoryList(categories),
+      loading: () => _buildCategoryShimmer(),
+      error: (err, stack) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildCategoryShimmer() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.divider, width: 0.5)),
+      ),
+      child: SizedBox(
+        height: 80,
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: 5,
+            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            itemBuilder: (_, __) {
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 40,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 

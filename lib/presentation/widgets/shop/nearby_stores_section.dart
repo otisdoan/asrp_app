@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/location_service.dart';
 import '../../../data/models/branch_model.dart';
@@ -11,41 +12,6 @@ import '../../pages/shop/store_detail_page.dart';
 class NearbyStoresSection extends ConsumerWidget {
   const NearbyStoresSection({super.key});
 
-  static const _stores = [
-    {
-      'name': 'Cơm Tấm Bụi Sài Gòn',
-      'rating': 4.5,
-      'distance': '0.3 km',
-      'time': '15 phút',
-      'promo': 'Freeship',
-      'image': 'assets/images/com.webp',
-    },
-    {
-      'name': 'Bún Đậu Mắm Tôm Hà Nội',
-      'rating': 4.3,
-      'distance': '0.5 km',
-      'time': '18 phút',
-      'promo': 'Giảm 20%',
-      'image': 'assets/images/pho_bo.png',
-    },
-    {
-      'name': 'Trà Sữa ToCoToCo',
-      'rating': 4.6,
-      'distance': '0.7 km',
-      'time': '20 phút',
-      'promo': 'Mua 1 tặng 1',
-      'image': 'assets/images/tra_sua.jpg',
-    },
-    {
-      'name': 'Pizza Hut - Nguyễn Trãi',
-      'rating': 4.4,
-      'distance': '1.0 km',
-      'time': '25 phút',
-      'promo': 'Giảm 50K',
-      'image': 'assets/images/pho.jpg',
-    },
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final branchesAsync = ref.watch(branchesFutureProvider);
@@ -53,30 +19,14 @@ class NearbyStoresSection extends ConsumerWidget {
     return branchesAsync.when(
       data: (branches) {
         if (branches.isEmpty) {
-          return _buildContent(context, ref, _stores.map((s) => BranchListItemModel(
-            id: '',
-            name: s['name'] as String,
-            imageUrl: s['image'] as String,
-            rating: s['rating'] as double,
-            distance: s['distance'] as String,
-            deliveryTime: s['time'] as String,
-            promo: s['promo'] as String,
-          )).toList());
+          return const SizedBox.shrink();
         }
         return _buildContent(context, ref, branches);
       },
       loading: () => const _LoadingSection(),
       error: (err, stack) {
         print('[NearbyStoresSection] Lỗi tải chi nhánh: $err');
-        return _buildContent(context, ref, _stores.map((s) => BranchListItemModel(
-          id: '',
-          name: s['name'] as String,
-          imageUrl: s['image'] as String,
-          rating: s['rating'] as double,
-          distance: s['distance'] as String,
-          deliveryTime: s['time'] as String,
-          promo: s['promo'] as String,
-        )).toList());
+        return const SizedBox.shrink();
       },
     );
   }
@@ -365,34 +315,38 @@ class _LoadingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 120,
-            height: 16,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(4),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 120,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 200,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: 3,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, __) => Container(
-                width: 150,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(10),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, __) => Container(
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

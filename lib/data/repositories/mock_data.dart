@@ -34,26 +34,6 @@ class MockData {
     },
   ];
 
-  // ===== CATEGORIES =====
-  static const List<CategoryModel> categories = [
-    CategoryModel(
-        id: 'pho', name: 'Phở', count: 12, imageUrl: 'assets/images/pho.jpg'),
-    CategoryModel(
-        id: 'bun', name: 'Bún', count: 8, imageUrl: 'assets/images/pho_bo.png'),
-    CategoryModel(
-        id: 'com', name: 'Cơm', count: 10, imageUrl: 'assets/images/com.webp'),
-    CategoryModel(
-        id: 'drinks',
-        name: 'Đồ uống',
-        count: 7,
-        imageUrl: 'assets/images/tra_sua.jpg'),
-    CategoryModel(
-        id: 'dessert',
-        name: 'Tráng miệng',
-        count: 5,
-        imageUrl: 'assets/images/tra_sua.jpg'),
-  ];
-
   // ===== QUICK FILTERS =====
   static const List<Map<String, String>> quickFilters = [
     {'imageUrl': 'assets/images/pho.jpg', 'name': 'Đang hot'},
