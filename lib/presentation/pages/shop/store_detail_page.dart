@@ -746,6 +746,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                         reviewsCount: reviews,
                         deliveryTime: deliveryTime,
                         distance: widget.distance,
+                        imageUrl: detail?.imageUrl,
+                        icon: widget.icon,
                       ),
                     ),
                   );

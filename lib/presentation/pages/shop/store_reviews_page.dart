@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/favorite_shops_provider.dart';
 
 /// Store Reviews Page showing ratings breakdown, AI review summary, and a list of all dish comments.
 /// Follows DineX Premium visual style and matches user's reference UI.
-class StoreReviewsPage extends StatefulWidget {
+class StoreReviewsPage extends ConsumerStatefulWidget {
   final String storeName;
   final String category;
   final double rating;
   final int reviewsCount;
   final String deliveryTime;
   final String distance;
+  final String? imageUrl;
+  final IconData? icon;
 
   const StoreReviewsPage({
     super.key,
@@ -19,15 +24,39 @@ class StoreReviewsPage extends StatefulWidget {
     required this.reviewsCount,
     required this.deliveryTime,
     required this.distance,
+    this.imageUrl,
+    this.icon,
   });
 
   @override
-  State<StoreReviewsPage> createState() => _StoreReviewsPageState();
+  ConsumerState<StoreReviewsPage> createState() => _StoreReviewsPageState();
 }
 
-class _StoreReviewsPageState extends State<StoreReviewsPage> {
+class _StoreReviewsPageState extends ConsumerState<StoreReviewsPage> {
   final Set<String> _likedReviews = {};
   String _selectedFilter = 'Tất cả';
+
+  late ScrollController _scrollController;
+  final ValueNotifier<bool> _isCollapsedNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      final collapsed = _scrollController.offset > 140;
+      if (collapsed != _isCollapsedNotifier.value) {
+        _isCollapsedNotifier.value = collapsed;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _isCollapsedNotifier.dispose();
+    super.dispose();
+  }
 
   static const List<String> _filters = [
     'Tất cả',
@@ -97,71 +126,226 @@ class _StoreReviewsPageState extends State<StoreReviewsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgMain,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        centerTitle: true,
-        title: const Text(
-          'Đánh giá cửa hàng',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          // ─── 1. Background Banner Image ───
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 220,
+            child: _buildHeaderImage(),
           ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── Card 1: Store Information Summary ────────────────────────
-            _buildStoreSummaryCard(),
+          // ─── 2. Scrollable Content sheet overlapping background ───
+          Positioned.fill(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 180), // Creates the overlap spacing
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x0A000000),
+                          blurRadius: 15,
+                          offset: Offset(0, -5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Store Details (Name, category, status card)
+                        _buildStoreHeaderDetails(),
 
-            // ─── Card 2: Ratings Breakdown Section ───────────────────────
-            _buildRatingBreakdownCard(),
+                        // ─── Card 2: Ratings Breakdown Section ───────────────────────
+                        _buildRatingBreakdownCard(),
 
-            // ─── Card 3: AI Review Summary ───────────────────────────────
-            _buildAISummaryCard(),
+                        // ─── Card 3: AI Review Summary ───────────────────────────────
+                        _buildAISummaryCard(),
 
-            // ─── List Section Header ─────────────────────────────────────
-            _buildSectionHeader(),
+                        // ─── List Section Header ─────────────────────────────────────
+                        _buildSectionHeader(),
 
-            // ─── Filter Bar ──────────────────────────────────────────────
-            _buildFilterBar(),
-            const SizedBox(height: 12),
+                        // ─── Filter Bar ──────────────────────────────────────────────
+                        _buildFilterBar(),
+                        const SizedBox(height: 12),
 
-            // ─── Card 4: Comments List ───────────────────────────────────
-            _buildCommentsList(),
-
-            const SizedBox(height: 40),
-          ],
-        ),
+                        // ─── Card 4: Comments List ───────────────────────────────────
+                        _buildCommentsList(),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ─── 3. Floating Action Buttons (Back + Favorite) ───
+          _buildFloatingActionButtons(context),
+        ],
       ),
     );
   }
 
-  // ─── Store Information Card ────────────────────────────────────────────────
-  Widget _buildStoreSummaryCard() {
+  // ─── Background Banner Image Helper ────────────────────────────────────────
+  Widget _buildHeaderImage() {
+    final imageUrl = widget.imageUrl ?? '';
+    // Use tra_sua.jpg as a beautiful default beverage image if imageUrl is empty
+    final finalUrl = imageUrl.isNotEmpty ? imageUrl : 'assets/images/tra_sua.jpg';
+
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+      color: AppColors.bgWarm,
+      child: finalUrl.startsWith('http')
+          ? CachedNetworkImage(
+              imageUrl: finalUrl,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => const Center(
+                child: SizedBox(
+                  width: 24, height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                ),
+              ),
+              errorWidget: (_, __, ___) => Icon(widget.icon ?? Icons.restaurant, size: 80, color: AppColors.textTertiary),
+            )
+          : Image.asset(
+              finalUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Icon(widget.icon ?? Icons.restaurant, size: 80, color: AppColors.textTertiary),
+            ),
+    );
+  }
+
+  // ─── Floating Top Actions ──────────────────────────────────────────────────
+  Widget _buildFloatingActionButtons(BuildContext context) {
+    final favorites = ref.watch(favoriteShopsProvider);
+    final isFav = favorites.contains(widget.storeName);
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isCollapsedNotifier,
+      builder: (context, isCollapsed, _) {
+        return Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: topPadding + 56,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: isCollapsed ? Colors.white : Colors.transparent,
+              boxShadow: isCollapsed
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x1A000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      )
+                    ]
+                  : null,
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Title Text in the center
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: isCollapsed ? 1.0 : 0.0,
+                      child: const Text(
+                        'Đánh giá cửa hàng',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    // Row containing back and favorite buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Back Button
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isCollapsed ? Colors.transparent : Colors.black.withValues(alpha: 0.4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: isCollapsed ? AppColors.textPrimary : Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        // Heart Button
+                        GestureDetector(
+                          onTap: () {
+                            ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isFav
+                                    ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
+                                    : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
+                                ),
+                                duration: const Duration(seconds: 1),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            );
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isCollapsed ? Colors.transparent : Colors.black.withValues(alpha: 0.4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isFav ? Icons.favorite : Icons.favorite_border,
+                              color: isFav 
+                                  ? const Color(0xFFFF2A55) 
+                                  : (isCollapsed ? AppColors.textPrimary : Colors.white),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-      ),
+        );
+      },
+    );
+  }
+
+  // ─── Store Header Details (Inside Overlapping card) ─────────────────────────
+  Widget _buildStoreHeaderDetails() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -169,88 +353,96 @@ class _StoreReviewsPageState extends State<StoreReviewsPage> {
           Text(
             widget.storeName,
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 6),
-          // Store Category
+          const SizedBox(height: 4),
+          // Category
           Text(
             widget.category,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
-          // Status + Distance Row (Clean UI matching screenshot)
-          Row(
-            children: [
-              // Open Status
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSoft,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Đang mở cửa',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.success,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Đóng cửa vào ${widget.deliveryTime == '15 phút' ? '11:59 CH' : '10:00 CH'}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+          // Status and distance card
+          _buildStatusDistanceCard(),
+        ],
+      ),
+    );
+  }
+
+  // ─── Open/Close status & distance card ─────────────────────────────────────
+  Widget _buildStatusDistanceCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.8)),
+      ),
+      child: Row(
+        children: [
+          // Open Status
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Đang mở cửa',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.success,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Distance
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.outlineVariant),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        color: AppColors.textSecondary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        widget.distance,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 2),
+                Text(
+                  'Đóng cửa vào ${widget.deliveryTime == '15 phút' ? '11:59 CH' : '11:59 CH'}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+          // Vertical Divider
+          Container(
+            height: 24,
+            width: 1,
+            color: AppColors.outlineVariant,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+          // Distance Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: AppColors.textPrimary,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.distance,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -438,7 +630,6 @@ class _StoreReviewsPageState extends State<StoreReviewsPage> {
     );
   }
 
-  // ─── Comments List Section Header ──────────────────────────────────────────
   Widget _buildSectionHeader() {
     return const Padding(
       padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
