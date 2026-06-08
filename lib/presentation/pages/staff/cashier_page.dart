@@ -512,7 +512,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
         break;
     }
 
-    final total = order.items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+    final total = order.totalAmount;
     final formattedPickupTime =
         '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
 

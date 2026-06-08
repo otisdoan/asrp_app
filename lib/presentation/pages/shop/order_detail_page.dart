@@ -483,7 +483,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${(item.price / 1000).toStringAsFixed(0)}.000đ',
+                          '${_formatPrice(item.price)}đ',
                           style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
@@ -547,7 +547,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               Text(
-                '${(order.totalAmount / 1000).toStringAsFixed(0)}.000đ',
+                '${_formatPrice(order.totalAmount)}đ',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
             ],
@@ -929,5 +929,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         );
       },
     );
+  }
+
+  String _formatPrice(int price) {
+    return price.toString().replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
   }
 }

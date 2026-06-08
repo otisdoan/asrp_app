@@ -831,7 +831,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       }
                       return MockOrderItem(
                         name: item.name,
-                        price: item.priceAmount,
+                        price: item.unitTotal,
                         quantity: item.quantity,
                         extras: extraList.isNotEmpty ? extraList.join('\n') : null,
                       );

@@ -374,7 +374,7 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${(item.price / 1000).toStringAsFixed(0)}.000đ',
+                            '${_formatPrice(item.price)}đ',
                             style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 4),
@@ -413,7 +413,7 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                         style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
                       Text(
-                        '${(order.totalAmount / 1000).toStringAsFixed(0)}.000đ',
+                        '${_formatPrice(order.totalAmount)}đ',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                       ),
                     ],
@@ -738,5 +738,12 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
         ),
       ),
     );
+  }
+
+  String _formatPrice(int price) {
+    return price.toString().replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
   }
 }
