@@ -27,4 +27,5 @@ class ApiConstants {
   // Branches
   static const String branches = '/branches';
   static String branchDetail(String id) => '/branches/$id';
+  static String branchMenu(String branchId) => '/branches/$branchId/menu';
 }

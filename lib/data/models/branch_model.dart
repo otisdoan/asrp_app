@@ -122,9 +122,10 @@ class BranchMenuSectionModel {
   });
 
   factory BranchMenuSectionModel.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] ?? json['menuItems'];
     return BranchMenuSectionModel(
       name: (json['categoryName'] ?? json['name']) as String? ?? '',
-      items: (json['items'] as List<dynamic>?)
+      items: (rawItems as List<dynamic>?)
               ?.map((e) => MenuItemModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -256,5 +257,45 @@ class BranchDetailModel {
       if (promos != null) 'promos': promos,
       if (menu != null) 'menu': menu!.map((e) => e.toJson()).toList(),
     };
+  }
+
+  BranchDetailModel copyWith({
+    String? id,
+    String? name,
+    String? imageUrl,
+    double? rating,
+    String? distance,
+    String? deliveryTime,
+    String? category,
+    int? reviewsCount,
+    bool? isFavorite,
+    int? likesCount,
+    String? address,
+    String? description,
+    double? latitude,
+    double? longitude,
+    bool? isActive,
+    List<String>? promos,
+    List<BranchMenuSectionModel>? menu,
+  }) {
+    return BranchDetailModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      imageUrl: imageUrl ?? this.imageUrl,
+      rating: rating ?? this.rating,
+      distance: distance ?? this.distance,
+      deliveryTime: deliveryTime ?? this.deliveryTime,
+      category: category ?? this.category,
+      reviewsCount: reviewsCount ?? this.reviewsCount,
+      isFavorite: isFavorite ?? this.isFavorite,
+      likesCount: likesCount ?? this.likesCount,
+      address: address ?? this.address,
+      description: description ?? this.description,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      isActive: isActive ?? this.isActive,
+      promos: promos ?? this.promos,
+      menu: menu ?? this.menu,
+    );
   }
 }

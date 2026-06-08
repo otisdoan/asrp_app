@@ -48,13 +48,26 @@ class MenuItemModel {
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
+    BadgeModel? parsedBadge;
+    if (json['badge'] != null) {
+      parsedBadge = BadgeModel.fromJson(json['badge'] as Map<String, dynamic>);
+    } else if (json['badgeLabel'] != null && json['badgeLabel'].toString().isNotEmpty) {
+      parsedBadge = BadgeModel(
+        label: json['badgeLabel'] as String,
+        type: BadgeType.values.firstWhere(
+          (e) => e.name == json['badgeType'] || e.toString().split('.').last == json['badgeType'],
+          orElse: () => BadgeType.hot,
+        ),
+      );
+    }
+
     return MenuItemModel(
       slug: json['slug'] as String?,
       imageUrl: (json['imageUrl'] ?? json['image']) as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String?,
       price: json['price']?.toString() ?? '',
-      badge: json['badge'] != null ? BadgeModel.fromJson(json['badge'] as Map<String, dynamic>) : null,
+      badge: parsedBadge,
       rating: (json['rating'] as num?)?.toDouble(),
       soldCount: json['soldCount'] as int? ?? json['sold'] as int?,
       likesCount: json['likesCount'] as int? ?? json['likes'] as int?,

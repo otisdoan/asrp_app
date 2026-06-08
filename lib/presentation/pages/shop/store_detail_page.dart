@@ -105,11 +105,11 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       final menu = detailVal.menu;
       if (menu != null && menu.isNotEmpty) {
         final dynamicSections = menu.map((e) => e.items).toList();
-        _cachedMenuItems = [ _popularItems, ...dynamicSections ];
+        _cachedMenuItems = dynamicSections;
         return _cachedMenuItems!;
       }
     }
-    return [ _popularItems ];
+    return [];
   }
 
   List<String> get _currentCategories {
@@ -119,11 +119,11 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       final menu = detailVal.menu;
       if (menu != null && menu.isNotEmpty) {
         final dynamicCats = menu.map((e) => e.name).toList();
-        _cachedCategories = [ 'Món phổ biến', ...dynamicCats ];
+        _cachedCategories = dynamicCats;
         return _cachedCategories!;
       }
     }
-    return [ 'Món phổ biến' ];
+    return [];
   }
 
   void _invalidateMenuCache() {
@@ -948,7 +948,18 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
   // ─── Popular Items Section ──────────────────────────────────────────────
   Widget _buildPopularItems(BranchDetailModel? detail) {
-    const popularItemsList = _popularItems;
+    final List<MenuItemModel> allItems = [];
+    if (detail?.menu != null) {
+      for (final section in detail!.menu!) {
+        allItems.addAll(section.items);
+      }
+    }
+
+    if (allItems.isEmpty) return const SizedBox.shrink();
+
+    // Sắp xếp các món ăn theo số lượng bán được giảm dần
+    allItems.sort((a, b) => (b.soldCount ?? 0).compareTo(a.soldCount ?? 0));
+    final popularItemsList = allItems.take(6).toList();
 
     return Padding(
       padding: const EdgeInsets.only(top: 16),
