@@ -354,7 +354,9 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
           ],
         ),
         // ─── Floating Cart Bar ─────────────────────────────────
-        bottomNavigationBar: cart.totalItems > 0 ? _buildCartBar(cart) : null,
+        bottomNavigationBar: (cart.totalItems > 0 && cart.storeName == (detail?.name ?? widget.storeName))
+            ? _buildCartBar(cart)
+            : null,
       ),
     );
   }

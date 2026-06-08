@@ -134,6 +134,10 @@ class CartNotifier extends StateNotifier<CartState> {
     String? storeImageUrl,
     IconData? icon,
   }) {
+    if (state.storeName != null && storeName != null && state.storeName != storeName && state.items.isNotEmpty) {
+      state = const CartState();
+    }
+
     final existingIndex = state.items.indexWhere((i) => i.id == item.id);
     List<CartItemModel> updatedItems;
     if (existingIndex >= 0) {
