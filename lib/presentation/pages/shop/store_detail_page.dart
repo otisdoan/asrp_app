@@ -25,6 +25,7 @@ class StoreDetailPage extends ConsumerStatefulWidget {
   final IconData icon;
   final String? highlightFoodName;
   final String? branchId;
+  final String? imageUrl;
 
   const StoreDetailPage({
     super.key,
@@ -37,6 +38,7 @@ class StoreDetailPage extends ConsumerStatefulWidget {
     required this.icon,
     this.highlightFoodName,
     this.branchId,
+    this.imageUrl,
   });
 
   @override
@@ -456,7 +458,20 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         note: result['note'] as String?,
         selectedToppings: result['selectedToppings'] as List<ToppingSelectionModel>,
       );
-      ref.read(cartProvider.notifier).addItem(cartItem);
+      ref.read(cartProvider.notifier).addItem(
+        cartItem,
+        storeName: _lastResolvedDetail?.name ?? widget.storeName,
+        distance: (_lastResolvedDetail?.distance != null && _lastResolvedDetail!.distance.isNotEmpty)
+            ? _lastResolvedDetail!.distance
+            : widget.distance,
+        deliveryTime: (_lastResolvedDetail?.deliveryTime != null && _lastResolvedDetail!.deliveryTime.isNotEmpty)
+            ? _lastResolvedDetail!.deliveryTime
+            : widget.deliveryTime,
+        storeImageUrl: (_lastResolvedDetail?.imageUrl != null && _lastResolvedDetail!.imageUrl.isNotEmpty)
+            ? _lastResolvedDetail!.imageUrl
+            : widget.imageUrl,
+        icon: widget.icon,
+      );
     }
   }
 

@@ -193,6 +193,7 @@ class _NearbyStoreCard extends StatelessWidget {
             distance: distance,
             icon: Icons.store,
             branchId: branchId,
+            imageUrl: image,
           ),
         ));
       },

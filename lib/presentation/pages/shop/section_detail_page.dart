@@ -706,6 +706,7 @@ class _BranchCardWithMenu extends ConsumerWidget {
           icon: Icons.store,
           branchId: branch.id,
           highlightFoodName: highlightFoodName,
+          imageUrl: branch.imageUrl,
         ),
       ),
     );

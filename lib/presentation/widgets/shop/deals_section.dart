@@ -230,6 +230,7 @@ class _DealCard extends StatelessWidget {
               distance: branch.distance.isNotEmpty ? branch.distance : '1.5 km',
               icon: Icons.store,
               branchId: branch.id,
+              imageUrl: branch.imageUrl,
             ),
           ),
         );

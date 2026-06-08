@@ -767,6 +767,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   deliveryTime: store.time,
                   distance: store.distance,
                   icon: Icons.store,
+                  imageUrl: store.image,
                 ),
               ));
             },
@@ -797,6 +798,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         deliveryTime: store.time,
                         distance: store.distance,
                         icon: Icons.store,
+                        imageUrl: store.image,
                       ),
                     ));
                   },
@@ -878,6 +880,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               distance: store.distance,
                               icon: Icons.store,
                               highlightFoodName: food.name,
+                              imageUrl: store.image,
                             ),
                           ));
                         },

@@ -221,6 +221,7 @@ class _AllStoreCard extends StatelessWidget {
                 distance: distance,
                 icon: icon,
                 branchId: branchId,
+                imageUrl: image,
               ),
             ));
       },
