@@ -62,6 +62,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
+    if (cart.items.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+      });
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
     final subtotal = cart.subtotal;
     final total = subtotal + _serviceFee;
 
@@ -273,16 +285,37 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                 ],
                 const SizedBox(height: 4),
-                GestureDetector(
-                  onTap: () => _editOrderItem(item),
-                  child: const Text(
-                    'Chỉnh sửa',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _editOrderItem(item),
+                      child: const Text(
+                        'Chỉnh sửa',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      '|',
+                      style: TextStyle(fontSize: 12, color: AppColors.outlineVariant),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () => _confirmDeleteItem(item),
+                      child: const Text(
+                        'Xóa',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -321,6 +354,41 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteItem(CartItemModel item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Xóa món ăn?'),
+        content: Text('Bạn có chắc chắn muốn xóa món "${item.name}" khỏi đơn hàng không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(cartProvider.notifier).removeItem(item.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Đã xóa "${item.name}" khỏi đơn hàng'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
           ),
         ],
       ),
