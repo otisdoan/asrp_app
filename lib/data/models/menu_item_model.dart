@@ -25,6 +25,8 @@ class BadgeModel {
 }
 
 class MenuItemModel {
+  final String? id;
+  final String? menuItemId;
   final String? slug;
   final String imageUrl;
   final String name;
@@ -36,6 +38,8 @@ class MenuItemModel {
   final int? likesCount;
 
   const MenuItemModel({
+    this.id,
+    this.menuItemId,
     this.slug,
     this.imageUrl = '',
     required this.name,
@@ -62,6 +66,8 @@ class MenuItemModel {
     }
 
     return MenuItemModel(
+      id: json['id'] as String?,
+      menuItemId: json['menuItemId'] as String?,
       slug: json['slug'] as String?,
       imageUrl: (json['imageUrl'] ?? json['image']) as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -76,6 +82,8 @@ class MenuItemModel {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
+      if (menuItemId != null) 'menuItemId': menuItemId,
       if (slug != null) 'slug': slug,
       'imageUrl': imageUrl,
       'name': name,

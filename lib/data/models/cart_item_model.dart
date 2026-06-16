@@ -2,6 +2,8 @@ import 'topping_selection_model.dart';
 
 class CartItemModel {
   final String id;
+  final String? menuItemId;
+  final String? sizeId;
   final String imageUrl;
   final String name;
   final int priceAmount; // In VND, e.g. 95000
@@ -12,6 +14,8 @@ class CartItemModel {
 
   CartItemModel({
     required this.id,
+    this.menuItemId,
+    this.sizeId,
     required this.imageUrl,
     required this.name,
     required this.priceAmount,
@@ -30,6 +34,8 @@ class CartItemModel {
 
   CartItemModel copyWith({
     String? id,
+    String? menuItemId,
+    String? sizeId,
     String? imageUrl,
     String? name,
     int? priceAmount,
@@ -40,6 +46,8 @@ class CartItemModel {
   }) {
     return CartItemModel(
       id: id ?? this.id,
+      menuItemId: menuItemId ?? this.menuItemId,
+      sizeId: sizeId ?? this.sizeId,
       imageUrl: imageUrl ?? this.imageUrl,
       name: name ?? this.name,
       priceAmount: priceAmount ?? this.priceAmount,
@@ -53,6 +61,8 @@ class CartItemModel {
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     return CartItemModel(
       id: json['id'] as String? ?? json['cartItemId'] as String? ?? '',
+      menuItemId: json['menuItemId'] as String?,
+      sizeId: json['sizeId'] as String?,
       imageUrl: json['imageUrl'] as String? ?? '',
       name: json['name'] as String? ?? '',
       priceAmount: json['priceAmount'] as int? ?? 0,
@@ -69,6 +79,8 @@ class CartItemModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (menuItemId != null) 'menuItemId': menuItemId,
+      if (sizeId != null) 'sizeId': sizeId,
       'imageUrl': imageUrl,
       'name': name,
       'priceAmount': priceAmount,

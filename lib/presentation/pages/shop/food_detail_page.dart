@@ -11,6 +11,7 @@ class FoodDetailPage extends StatefulWidget {
   final int likes;
   final IconData icon;
   final String? imageUrl;
+  final String? menuItemId;
 
   const FoodDetailPage({
     super.key,
@@ -20,6 +21,7 @@ class FoodDetailPage extends StatefulWidget {
     required this.likes,
     required this.icon,
     this.imageUrl,
+    this.menuItemId,
   });
 
   @override
@@ -373,6 +375,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           price: widget.price,
                           icon: widget.icon,
                           imageUrl: widget.imageUrl,
+                          menuItemId: widget.menuItemId,
                         ),
                       ));
                   if (result != null && context.mounted) {
@@ -727,6 +730,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           price: widget.price,
                           icon: widget.icon,
                           imageUrl: widget.imageUrl,
+                          menuItemId: widget.menuItemId,
                         ),
                       ));
                   if (result != null && context.mounted) {

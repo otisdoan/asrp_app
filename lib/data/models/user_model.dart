@@ -56,15 +56,17 @@ class UserModel {
 
     return UserModel(
       id: (json['id'] ?? json['_id'])?.toString() ?? '',
-      username: json['username']?.toString() ?? '',
+      username: (json['username'] ?? json['userName'])?.toString() ?? '',
       email: json['email']?.toString(),
-      phone: json['phone']?.toString(),
+      phone: (json['phone'] ?? json['phoneNumber'])?.toString(),
       fullName: json['fullName']?.toString(),
       avatar: json['avatar']?.toString(),
       gender: json['gender']?.toString(),
       birthday: json['birthday']?.toString(),
       role: resolvedRole,
-      isActive: json['isActive'] is bool ? json['isActive'] as bool : (json['isActive']?.toString() == 'true'),
+      isActive: json['isActive'] is bool
+          ? json['isActive'] as bool
+          : (json['isActive'] == null || json['isActive']?.toString() == 'true'),
       points: json['points'] is int
           ? json['points'] as int
           : int.tryParse(json['points']?.toString() ?? '') ?? 0,

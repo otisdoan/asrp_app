@@ -14,6 +14,7 @@ class AddToCartPage extends StatefulWidget {
   final String? initialSize;
   final String? initialNote;
   final bool isEditing;
+  final String? menuItemId;
 
   const AddToCartPage({
     super.key,
@@ -26,6 +27,7 @@ class AddToCartPage extends StatefulWidget {
     this.initialSize,
     this.initialNote,
     this.isEditing = false,
+    this.menuItemId,
   });
 
   @override
@@ -569,6 +571,8 @@ class _AddToCartPageState extends State<AddToCartPage> {
                 'total': _totalPrice,
                 'note': _noteController.text.trim(),
                 'selectedToppings': selectedToppingsList,
+                'menuItemId': widget.menuItemId,
+                'sizeId': _selectedSize >= 0 ? 'size_$_selectedSize' : null,
               });
             },
             style: ElevatedButton.styleFrom(

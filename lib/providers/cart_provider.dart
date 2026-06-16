@@ -14,6 +14,7 @@ class CartState {
   final String? deliveryTime;
   final String? storeImageUrl;
   final IconData? icon;
+  final String? branchId;
 
   const CartState({
     this.items = const [],
@@ -23,6 +24,7 @@ class CartState {
     this.deliveryTime,
     this.storeImageUrl,
     this.icon,
+    this.branchId,
   });
 
   CartState copyWith({
@@ -33,6 +35,7 @@ class CartState {
     String? deliveryTime,
     String? storeImageUrl,
     IconData? icon,
+    String? branchId,
   }) {
     return CartState(
       items: items ?? this.items,
@@ -42,6 +45,7 @@ class CartState {
       deliveryTime: deliveryTime ?? this.deliveryTime,
       storeImageUrl: storeImageUrl ?? this.storeImageUrl,
       icon: icon ?? this.icon,
+      branchId: branchId ?? this.branchId,
     );
   }
 
@@ -64,6 +68,7 @@ class CartState {
       if (distance != null) 'distance': distance,
       if (deliveryTime != null) 'deliveryTime': deliveryTime,
       if (storeImageUrl != null) 'storeImageUrl': storeImageUrl,
+      if (branchId != null) 'branchId': branchId,
       if (icon != null) ...{
         'iconCodePoint': icon!.codePoint,
         'iconFontFamily': icon!.fontFamily,
@@ -91,6 +96,7 @@ class CartState {
       distance: json['distance'] as String?,
       deliveryTime: json['deliveryTime'] as String?,
       storeImageUrl: json['storeImageUrl'] as String?,
+      branchId: json['branchId'] as String?,
       icon: parsedIcon,
     );
   }
@@ -133,6 +139,7 @@ class CartNotifier extends StateNotifier<CartState> {
     String? deliveryTime,
     String? storeImageUrl,
     IconData? icon,
+    String? branchId,
   }) {
     if (state.storeName != null && storeName != null && state.storeName != storeName && state.items.isNotEmpty) {
       state = const CartState();
@@ -155,6 +162,7 @@ class CartNotifier extends StateNotifier<CartState> {
       deliveryTime: deliveryTime ?? state.deliveryTime,
       storeImageUrl: storeImageUrl ?? state.storeImageUrl,
       icon: icon ?? state.icon,
+      branchId: branchId ?? state.branchId,
     );
     _saveToStorage();
   }

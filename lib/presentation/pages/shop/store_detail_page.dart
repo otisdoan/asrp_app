@@ -277,15 +277,6 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     });
   }
 
-
-
-  // Mock popular items (horizontal scroll)
-  static const _popularItems = [
-    {'name': 'Set sum vầy', 'sold': '600+', 'price': '53.000đ', 'icon': Icons.dinner_dining},
-    {'name': 'Gà rán combo', 'sold': '200+', 'price': '89.000đ', 'icon': Icons.fastfood},
-    {'name': 'Gà sốt cay', 'sold': '150+', 'price': '55.000đ', 'icon': Icons.local_fire_department},
-  ];
-
   Widget _buildLoadingScaffold(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.background,
@@ -402,6 +393,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                 itemCount: cart.totalItems,
                 distance: widget.distance,
                 icon: widget.icon,
+                branchId: _lastResolvedDetail?.id ?? widget.branchId ?? cart.branchId,
               ),
             ));
           },
@@ -447,11 +439,13 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     );
   }
 
-  void _handleCartResult(dynamic result, {required String name, required String price, String? imageUrl, required IconData icon}) {
+  void _handleCartResult(dynamic result, {required String name, required String price, String? imageUrl, required IconData icon, String? menuItemId}) {
     if (result != null && result is Map<String, dynamic>) {
       final priceVal = int.tryParse(price.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
       final cartItem = CartItemModel(
         id: '${DateTime.now().millisecondsSinceEpoch}_$name',
+        menuItemId: menuItemId ?? result['menuItemId'] as String?,
+        sizeId: result['sizeId'] as String?,
         imageUrl: imageUrl ?? '',
         name: name,
         priceAmount: priceVal,
@@ -473,6 +467,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             ? _lastResolvedDetail!.imageUrl
             : widget.imageUrl,
         icon: widget.icon,
+        branchId: _lastResolvedDetail?.id ?? widget.branchId,
       );
     }
   }
@@ -1021,6 +1016,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final String? imageUrl = item is MenuItemModel ? item.imageUrl : null;
     final IconData icon = item is MenuItemModel ? Icons.restaurant : (item['icon'] as IconData);
 
+    final String? menuItemId = item is MenuItemModel ? (item.menuItemId ?? item.id) : null;
+
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
@@ -1031,9 +1028,10 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             likes: 0,
             icon: icon,
             imageUrl: imageUrl,
+            menuItemId: menuItemId,
           ),
         ));
-        _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon);
+        _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon, menuItemId: menuItemId);
       },
       child: Container(
         width: 130,
@@ -1153,6 +1151,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final isHighlighted = _firstMatchingFoodName != null &&
         name.toLowerCase() == _firstMatchingFoodName!.toLowerCase();
 
+    final String? menuItemId = item is MenuItemModel ? (item.menuItemId ?? item.id) : null;
+
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(
@@ -1163,9 +1163,10 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             likes: likes,
             icon: icon,
             imageUrl: imageUrl,
+            menuItemId: menuItemId,
           ),
         ));
-        _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon);
+        _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon, menuItemId: menuItemId);
       },
       child: Container(
         key: isHighlighted ? _highlightedItemKey : null,

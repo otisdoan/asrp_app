@@ -140,6 +140,7 @@ class _CartPageState extends ConsumerState<CartPage> {
             itemCount: cart.totalItems,
             distance: cart.distance ?? '0 km',
             icon: cart.icon ?? Icons.restaurant,
+            branchId: cart.branchId,
           ),
         ));
       },

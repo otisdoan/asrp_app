@@ -1,5 +1,4 @@
 import '../models/menu_item_model.dart';
-import '../models/cart_item_model.dart';
 import '../models/product_detail_model.dart';
 
 class MockData {

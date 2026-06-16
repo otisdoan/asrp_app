@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../providers/order_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/topping_selection_model.dart';
+import '../../../data/repositories/order_repository.dart';
 import 'add_to_cart_page.dart';
 import 'order_success_page.dart';
 
@@ -17,6 +18,7 @@ class CheckoutPage extends ConsumerStatefulWidget {
   final int itemCount;
   final String distance;
   final IconData icon;
+  final String? branchId;
 
   const CheckoutPage({
     super.key,
@@ -24,6 +26,7 @@ class CheckoutPage extends ConsumerStatefulWidget {
     required this.itemCount,
     required this.distance,
     required this.icon,
+    this.branchId,
   });
 
   @override
@@ -31,22 +34,12 @@ class CheckoutPage extends ConsumerStatefulWidget {
 }
 
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
-  late int _selectedMinutes;
-
-  int get _minPrepTime {
-    final travelTime = _calculateTravelTime(widget.distance);
-    const basePrepTime = 12; // Base preparation time of mock items (mins)
-    const buffer = 3; // Buffer time (mins)
-    final maxVal = basePrepTime > travelTime ? basePrepTime : travelTime;
-    return maxVal + buffer;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Mặc định chọn chính xác mốc thời gian tối thiểu khả thi (ASAP) để khách lấy đồ nhanh nhất có thể
-    _selectedMinutes = _minPrepTime;
-  }
+  List<String> _availablePickupTimes = [];
+  String? _selectedPickupTime;
+  bool _isLoading = true;
+  bool _isFirstLoad = true;
+  int _previewDiscount = 0;
+  final OrderRepository _orderRepository = OrderRepository();
 
   bool _isExpanded = false;
 
@@ -57,6 +50,106 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
           (m) => '${m[1]}.',
         );
+  }
+
+  String _formatTimeSlot(String utcString) {
+    try {
+      final dt = DateTime.parse(utcString).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return utcString;
+    }
+  }
+
+  Map<String, dynamic> _buildOrderPayload(CartState cart, {String? selectedTime}) {
+    final uuidRegex = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        caseSensitive: false);
+
+    bool isUuid(String? str) {
+      if (str == null) return false;
+      return uuidRegex.hasMatch(str);
+    }
+
+    return {
+      "branchId": widget.branchId ?? cart.branchId ?? "2ea54df9-f2b0-42d2-ad20-bcb01f7e8b0e",
+      "pickupTime": selectedTime,
+      "items": cart.items.map((item) {
+        String? sizeId;
+        if (item.sizeId != null && isUuid(item.sizeId)) {
+          sizeId = item.sizeId;
+        } else {
+          final sizeTopping = item.selectedToppings.firstWhere(
+            (t) => t.name.startsWith('Size ') && isUuid(t.toppingId),
+            orElse: () => const ToppingSelectionModel(toppingId: '', name: '', price: 0),
+          );
+          if (sizeTopping.toppingId.isNotEmpty) {
+            sizeId = sizeTopping.toppingId;
+          }
+        }
+
+        final toppingsList = item.selectedToppings
+            .where((t) => !t.name.startsWith('Size ') && isUuid(t.toppingId))
+            .map((t) => {
+                  "toppingId": t.toppingId,
+                  "quantity": 1
+                })
+            .toList();
+
+        final menuItemId = isUuid(item.menuItemId)
+            ? item.menuItemId
+            : "3cf9ad92-b267-4dac-a01b-7ef3f61b414a"; // Fallback to a valid item UUID if mock
+
+        return {
+          "menuItemId": menuItemId,
+          "sizeId": sizeId,
+          "quantity": item.quantity,
+          "note": item.note,
+          "toppings": toppingsList,
+        };
+      }).toList(),
+      "combos": [],
+      "note": cart.note,
+      "promotionId": null
+    };
+  }
+
+  Future<void> _fetchOrderPreview() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final cart = ref.read(cartProvider);
+      final payload = _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      final response = await _orderRepository.previewOrder(payload);
+
+      setState(() {
+        _availablePickupTimes = List<String>.from(response['availablePickupTimes'] ?? []);
+        if (_availablePickupTimes.isNotEmpty && _selectedPickupTime == null) {
+          _selectedPickupTime = _availablePickupTimes.first;
+        }
+        _previewDiscount = (response['discountAmount'] as num?)?.toInt() ?? 0;
+        _isLoading = false;
+        _isFirstLoad = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _isFirstLoad = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể tính toán giá đơn hàng: $e')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchOrderPreview();
+    });
   }
 
   @override
@@ -74,8 +167,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ),
       );
     }
+
+    if (_isLoading && _isFirstLoad) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
     final subtotal = cart.subtotal;
-    final total = subtotal + _serviceFee;
+    final total = (subtotal - _previewDiscount + _serviceFee).clamp(0, 99999999);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -430,44 +533,60 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   // ─── Pickup Time ───────────────────────────────────────────────────────
-  int _calculateTravelTime(String distanceStr) {
-    final normalized = distanceStr.replaceAll(',', '.');
-    final cleaned =
-        normalized.toLowerCase().replaceAll(RegExp(r'[^0-9.]'), '');
-    final val = double.tryParse(cleaned) ?? 1.0;
-    if (distanceStr.toLowerCase().contains('m') &&
-        !distanceStr.toLowerCase().contains('k')) {
-      return (val / 80).ceil(); // ~80m per minute walking
-    } else {
-      return (val * 5).ceil(); // ~5 mins per km driving
-    }
-  }
 
   Widget _buildPickupTime() {
-    // Calculate expected ready time
-    final now = DateTime.now();
-    final readyTime = now.add(Duration(minutes: _selectedMinutes));
-    final readyTimeStr =
-        '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
+    if (_isLoading && _isFirstLoad) {
+      return const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
 
-    final maxMinutes = _minPrepTime > 120 ? _minPrepTime + 30 : 120;
-    final lockedFlex = _minPrepTime;
-    final selectedFlex = _selectedMinutes - _minPrepTime;
-    final unselectedFlex = maxMinutes - _selectedMinutes;
+    if (_availablePickupTimes.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.access_time_filled, size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Thời gian nhận hàng',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Không có khung giờ nhận hàng khả dụng.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            const Divider(height: 1, color: AppColors.outlineVariant),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
-              Icon(Icons.access_time_filled,
-                  size: 20, color: AppColors.primary),
+              Icon(Icons.access_time_filled, size: 20, color: AppColors.primary),
               const SizedBox(width: 8),
               const Text(
-                'Thời gian nhận hàng tại quán',
+                'Chọn thời gian nhận hàng',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -478,188 +597,54 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Kéo thanh trượt để hẹn giờ bạn đến quán lấy đồ',
+            'Chọn khung giờ bạn muốn đến quán để lấy đồ ăn',
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
 
-          // Custom Stacked Slider
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              // Custom Colored Background Track
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    // 1. Locked portion (always gray)
-                    Expanded(
-                      flex: lockedFlex,
-                      child: Container(
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: AppColors.outlineVariant,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(3),
-                            bottomLeft: Radius.circular(3),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // 2. Selected active portion (solid primary color)
-                    if (selectedFlex > 0)
-                      Expanded(
-                        flex: selectedFlex,
-                        child: Container(
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: unselectedFlex == 0
-                                ? const BorderRadius.only(
-                                    topRight: Radius.circular(3),
-                                    bottomRight: Radius.circular(3),
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ),
-                    // 3. Unselected active portion (light primary color)
-                    if (unselectedFlex > 0)
-                      Expanded(
-                        flex: unselectedFlex,
-                        child: Container(
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(
-                                0xFFFFEAE3), // Light primary color background
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(3),
-                              bottomRight: Radius.circular(3),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+          // Horizontal list of time chips
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _availablePickupTimes.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final slot = _availablePickupTimes[index];
+                final formattedTime = _formatTimeSlot(slot);
+                final isSelected = slot == _selectedPickupTime;
 
-              // Transparent-track Flutter Slider
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 12,
-                  activeTrackColor: Colors.transparent,
-                  inactiveTrackColor: Colors.transparent,
-                  thumbColor: Colors.white,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 10,
-                    elevation: 3,
-                    pressedElevation: 6,
+                return ChoiceChip(
+                  label: Text(
+                    formattedTime,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                    ),
                   ),
-                  overlayColor: AppColors.primary.withValues(alpha: 0.12),
-                  activeTickMarkColor: Colors.transparent,
-                  inactiveTickMarkColor: Colors.transparent,
-                ),
-                child: Slider(
-                  min: 0,
-                  max: maxMinutes.toDouble(),
-                  value: _selectedMinutes.toDouble(),
-                  onChanged: (val) {
-                    setState(() {
-                      if (val < _minPrepTime) {
-                        _selectedMinutes = _minPrepTime;
-                      } else {
-                        _selectedMinutes = val.toInt();
-                      }
-                    });
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedPickupTime = slot;
+                      });
+                    }
                   },
-                ),
-              ),
-            ],
-          ),
-
-          // Custom scale labels below slider
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('0m',
-                    style:
-                        TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                Text('${_minPrepTime}m (Tối thiểu)',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.bold)),
-                if (_minPrepTime < 45)
-                  const Text('45m',
-                      style:
-                          TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                if (_minPrepTime < 90)
-                  const Text('90m',
-                      style:
-                          TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                Text('${maxMinutes}m',
-                    style:
-                        const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Expected Ready Time Display Card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.check_circle_rounded,
-                        color: AppColors.primary, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(
-                              text: 'Dự kiến sẵn sàng: ',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                            TextSpan(
-                              text: readyTimeStr,
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(
-                              text: ' (sau $_selectedMinutes phút)',
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
+                  selectedColor: AppColors.primary,
+                  backgroundColor: AppColors.bgSoft,
+                  checkmarkColor: Colors.white,
+                  showCheckmark: false,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: isSelected ? AppColors.primary : AppColors.outlineVariant,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                );
+              },
             ),
           ),
-
           const SizedBox(height: 20),
           const Divider(height: 1, color: AppColors.outlineVariant),
         ],
@@ -757,6 +742,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         children: [
           // Subtotal
           _buildPriceRow('Tổng tạm tính', subtotal),
+          if (_previewDiscount > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Khuyến mãi',
+                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                ),
+                Text(
+                  '-${_formatPrice(_previewDiscount)}đ',
+                  style: const TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           // Service fee
           _buildPriceRow('Phí dịch vụ', _serviceFee),
@@ -837,6 +838,90 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   // ─── Bottom Confirm Button ─────────────────────────────────────────────
+  Future<void> _handleConfirmCheckout(CartState cart, int total) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 1. Call preview again to chốt final price
+      final previewPayload = _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      final previewResponse = await _orderRepository.previewOrder(previewPayload);
+      
+      final finalAmount = (previewResponse['finalAmount'] as num?)?.toInt() ?? total;
+      print('[Checkout] Final confirmed amount from preview: $finalAmount');
+      
+      // 2. Call placeOrder to create the order
+      final orderResponse = await _orderRepository.placeOrder(previewPayload);
+      final orderId = orderResponse['id'] as String?;
+      if (orderId == null || orderId.isEmpty) {
+        throw Exception('Không nhận được ID đơn hàng từ hệ thống');
+      }
+
+      // 3. Call payment to initiate VietQR / PayOS payment
+      final paymentPayload = {
+        "method": 1,
+        "transactionReference": null,
+        "note": "Thanh toan don hang $orderId",
+        "returnUrl": "dinex://payment-success?orderId=$orderId",
+        "cancelUrl": "dinex://payment-cancel?orderId=$orderId"
+      };
+      
+      final paymentResponse = await _orderRepository.initiatePayment(orderId, paymentPayload);
+      final checkoutUrl = paymentResponse['checkoutUrl'] as String?;
+      
+      if (checkoutUrl == null || checkoutUrl.isEmpty) {
+        throw Exception('Không nhận được liên kết thanh toán từ PayOS');
+      }
+
+      // 4. Clear cart after ordering successfully
+      ref.read(cartProvider.notifier).clearCart();
+
+      // 5. Open PayOS Checkout Page using url_launcher
+      final uri = Uri.parse(checkoutUrl);
+      try {
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!launched) {
+          throw Exception('Không thể khởi chạy liên kết thanh toán.');
+        }
+      } catch (e) {
+        throw Exception('Không thể mở liên kết thanh toán: $e');
+      }
+
+      // Navigate to success page
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderSuccessPage(orderId: orderId),
+          ),
+        );
+      }
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Lỗi đặt hàng'),
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // ─── Bottom Confirm Button ─────────────────────────────────────────────
   Widget _buildBottomBar(CartState cart, int total) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -878,57 +963,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  final now = DateTime.now();
-                  final readyTime =
-                      now.add(Duration(minutes: _selectedMinutes));
-                  final readyTimeStr =
-                      '${readyTime.hour.toString().padLeft(2, '0')}:${readyTime.minute.toString().padLeft(2, '0')}';
-
-                  // 1. Tạo đơn hàng Self-Pickup mock
-                  final newOrder = MockOrder(
-                    id: '#SP${(100 + (ref.read(orderProvider).length) * 7).toString()}',
-                    storeName: widget.storeName,
-                    items: cart.items.map((item) {
-                      final extraList = <String>[];
-                      if (item.selectedToppings.isNotEmpty) {
-                        extraList.addAll(item.selectedToppings.map((t) => t.name));
-                      }
-                      if (item.note != null && item.note!.isNotEmpty) {
-                        extraList.add('Lưu ý: ${item.note}');
-                      }
-                      return MockOrderItem(
-                        name: item.name,
-                        price: item.unitTotal,
-                        quantity: item.quantity,
-                        extras: extraList.isNotEmpty ? extraList.join('\n') : null,
-                      );
-                    }).toList(),
-                    totalAmount: total,
-                    status:
-                        MockOrderStatus.pendingConfirm, // Ban đầu: Chờ xác nhận
-                    orderTime: now,
-                    pickupTime: readyTime,
-                    originalMinutes: _selectedMinutes,
-                    timeline: [
-                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} - Khách hàng tạo đơn hàng và chọn thời gian chuẩn bị $_selectedMinutes phút (dự kiến $readyTimeStr).'
-                    ],
-                  );
-
-                  // 2. Thêm vào provider quản lý đơn hàng
-                  ref.read(orderProvider.notifier).addOrder(newOrder);
-
-                  // 3. Clear giỏ hàng sau khi đặt thành công
-                  ref.read(cartProvider.notifier).clearCart();
-
-                  // Chuyển hướng đến trang đặt hàng thành công
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OrderSuccessPage(orderId: newOrder.id),
-                    ),
-                  );
-                },
+                onPressed: _isLoading ? null : () => _handleConfirmCheckout(cart, total),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.onPrimary,
@@ -938,10 +973,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Xác nhận đơn hàng',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Xác nhận đơn hàng',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
               ),
             ),
           ],

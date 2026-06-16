@@ -22,6 +22,9 @@ import '../presentation/pages/merchant/menu_builder_page.dart';
 import '../presentation/pages/merchant/staff_management_page.dart';
 import '../providers/branch_registration_provider.dart';
 import '../presentation/pages/shop/section_detail_page.dart';
+import '../presentation/pages/shop/order_success_page.dart';
+import '../presentation/pages/shop/order_failure_page.dart';
+import '../presentation/pages/shop/payment_success_page.dart';
 import '../core/constants/app_constants.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -39,14 +42,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         final role = user.role.toLowerCase();
 
         // Prevent going to login/register if already logged in
-        if (path == AppConstants.routeLogin || path == AppConstants.routeRegister) {
+        if (path == AppConstants.routeLogin ||
+            path == AppConstants.routeRegister) {
           return AppConstants.routeHome;
         }
 
         // Protect admin and staff routes from unauthorized users
         if (role == 'customer') {
           // Customers not allowed in POS, Cashier, Admin/SuperAdmin dashboards, Staff Management, or Merchant Setup/Menu
-          if (path == AppConstants.routeStaffHome || 
+          if (path == AppConstants.routeStaffHome ||
               path == AppConstants.routeCashier ||
               path == '/admin/dashboard' ||
               path == AppConstants.routeSuperAdminDashboard ||
@@ -75,8 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         } else if (role == 'admin') {
           // If admin has only 1 branch, redirect them from multi-branch SuperAdmin dashboard to single branch dashboard
           final registration = ref.read(branchRegistrationProvider);
-          final hasMultipleBranches = registration.registeredBranches.length > 1;
-          if (path == AppConstants.routeSuperAdminDashboard && !hasMultipleBranches) {
+          final hasMultipleBranches =
+              registration.registeredBranches.length > 1;
+          if (path == AppConstants.routeSuperAdminDashboard &&
+              !hasMultipleBranches) {
             return '/admin/dashboard';
           }
           if (path == '/admin/dashboard' && hasMultipleBranches) {
@@ -84,12 +90,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           }
         }
         // Admin (Chủ thương hiệu) and SuperAdmin are allowed to access all routes.
-      } 
-      
+      }
+
       // 2. If NOT logged in:
       else {
         // Guests not allowed in staff, cashier, admin, superadmin, or staff management pages
-        if (path == AppConstants.routeStaffHome || 
+        if (path == AppConstants.routeStaffHome ||
             path == AppConstants.routeCashier ||
             path == '/admin/dashboard' ||
             path == AppConstants.routeSuperAdminDashboard ||
@@ -189,6 +195,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppConstants.routeStaffManagement,
         builder: (context, state) => const StaffManagementPage(),
+      ),
+      GoRoute(
+        path: '/payment-success',
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['orderId'] ?? '';
+          return PaymentSuccessPage(orderId: orderId);
+        },
+      ),
+      GoRoute(
+        path: '/payment-cancel',
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['orderId'] ?? '';
+          return OrderFailurePage(orderId: orderId);
+        },
+      ),
+      GoRoute(
+        path: '/orders/success',
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['orderId'] ??
+              state.uri.queryParameters['orderCode'] ??
+              state.uri.queryParameters['id'] ??
+              '';
+          return PaymentSuccessPage(orderId: orderId);
+        },
+      ),
+      GoRoute(
+        path: '/orders/cancel',
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['orderId'] ??
+              state.uri.queryParameters['orderCode'] ??
+              state.uri.queryParameters['id'] ??
+              '';
+          return OrderFailurePage(orderId: orderId);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

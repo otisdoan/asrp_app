@@ -1,11 +1,13 @@
 class ProductToppingModel {
+  final String? id;
   final String name;
   final int price;
 
-  const ProductToppingModel({required this.name, required this.price});
+  const ProductToppingModel({this.id, required this.name, required this.price});
 
   factory ProductToppingModel.fromJson(Map<String, dynamic> json) {
     return ProductToppingModel(
+      id: json['id'] as String?,
       name: (json['name'] ?? json['label']) as String? ?? '',
       price: json['price'] as int? ?? 0,
     );
@@ -13,6 +15,7 @@ class ProductToppingModel {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'name': name,
       'price': price,
     };
@@ -20,13 +23,15 @@ class ProductToppingModel {
 }
 
 class ProductSizeModel {
+  final String? id;
   final String name;
   final int price;
 
-  const ProductSizeModel({required this.name, required this.price});
+  const ProductSizeModel({this.id, required this.name, required this.price});
 
   factory ProductSizeModel.fromJson(Map<String, dynamic> json) {
     return ProductSizeModel(
+      id: json['id'] as String?,
       name: (json['name'] ?? json['label']) as String? ?? '',
       price: json['price'] as int? ?? 0,
     );
@@ -34,6 +39,7 @@ class ProductSizeModel {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'name': name,
       'price': price,
     };
