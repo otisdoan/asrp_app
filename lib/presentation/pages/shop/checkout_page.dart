@@ -61,7 +61,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
-  Map<String, dynamic> _buildOrderPayload(CartState cart, {String? selectedTime}) {
+  Map<String, dynamic> _buildOrderPayload(CartState cart,
+      {String? selectedTime}) {
     final uuidRegex = RegExp(
         r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
         caseSensitive: false);
@@ -72,7 +73,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     return {
-      "branchId": widget.branchId ?? cart.branchId ?? "2ea54df9-f2b0-42d2-ad20-bcb01f7e8b0e",
+      "branchId": widget.branchId ??
+          cart.branchId ??
+          "2ea54df9-f2b0-42d2-ad20-bcb01f7e8b0e",
       "pickupTime": selectedTime,
       "items": cart.items.map((item) {
         String? sizeId;
@@ -81,7 +84,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         } else {
           final sizeTopping = item.selectedToppings.firstWhere(
             (t) => t.name.startsWith('Size ') && isUuid(t.toppingId),
-            orElse: () => const ToppingSelectionModel(toppingId: '', name: '', price: 0),
+            orElse: () =>
+                const ToppingSelectionModel(toppingId: '', name: '', price: 0),
           );
           if (sizeTopping.toppingId.isNotEmpty) {
             sizeId = sizeTopping.toppingId;
@@ -90,10 +94,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
         final toppingsList = item.selectedToppings
             .where((t) => !t.name.startsWith('Size ') && isUuid(t.toppingId))
-            .map((t) => {
-                  "toppingId": t.toppingId,
-                  "quantity": 1
-                })
+            .map((t) => {"toppingId": t.toppingId, "quantity": 1})
             .toList();
 
         final menuItemId = isUuid(item.menuItemId)
@@ -121,11 +122,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     try {
       final cart = ref.read(cartProvider);
-      final payload = _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      final payload =
+          _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
       final response = await _orderRepository.previewOrder(payload);
 
       setState(() {
-        _availablePickupTimes = List<String>.from(response['availablePickupTimes'] ?? []);
+        _availablePickupTimes =
+            List<String>.from(response['availablePickupTimes'] ?? []);
         if (_availablePickupTimes.isNotEmpty && _selectedPickupTime == null) {
           _selectedPickupTime = _availablePickupTimes.first;
         }
@@ -178,7 +181,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     final subtotal = cart.subtotal;
-    final total = (subtotal - _previewDiscount + _serviceFee).clamp(0, 99999999);
+    final total =
+        (subtotal - _previewDiscount + _serviceFee).clamp(0, 99999999);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -299,12 +303,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 });
               },
               icon: Icon(
-                _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                _isExpanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
                 color: AppColors.primary,
                 size: 20,
               ),
               label: Text(
-                _isExpanded ? 'Thu gọn' : 'Xem thêm (còn ${items.length - 3} món)',
+                _isExpanded
+                    ? 'Thu gọn'
+                    : 'Xem thêm (còn ${items.length - 3} món)',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -350,12 +358,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       ? Image.network(
                           item.imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(widget.icon, size: 22, color: AppColors.textTertiary),
+                          errorBuilder: (_, __, ___) => Icon(widget.icon,
+                              size: 22, color: AppColors.textTertiary),
                         )
                       : Image.asset(
                           item.imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(widget.icon, size: 22, color: AppColors.textTertiary),
+                          errorBuilder: (_, __, ___) => Icon(widget.icon,
+                              size: 22, color: AppColors.textTertiary),
                         ))
                   : Icon(widget.icon, size: 22, color: AppColors.textTertiary),
             ),
@@ -404,7 +414,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     const SizedBox(width: 12),
                     const Text(
                       '|',
-                      style: TextStyle(fontSize: 12, color: AppColors.outlineVariant),
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.outlineVariant),
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
@@ -470,11 +481,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Xóa món ăn?'),
-        content: Text('Bạn có chắc chắn muốn xóa món "${item.name}" khỏi đơn hàng không?'),
+        content: Text(
+            'Bạn có chắc chắn muốn xóa món "${item.name}" khỏi đơn hàng không?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -524,12 +537,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (result != null && result is Map<String, dynamic> && mounted) {
       ref.read(cartProvider.notifier).updateItem(
-        item.id,
-        quantity: result['quantity'] as int,
-        note: result['note'] as String?,
-        selectedToppings: result['selectedToppings'] as List<ToppingSelectionModel>,
-      );
+            item.id,
+            quantity: result['quantity'] as int,
+            note: result['note'] as String?,
+            selectedToppings:
+                result['selectedToppings'] as List<ToppingSelectionModel>,
+          );
     }
+  }
+
+  // ─── Pickup Time ───────────────────────────────────────────────────────
+
+  String _dateTimeToIsoUtcString(DateTime dt) {
+    final utc = dt.toUtc();
+    final iso = utc.toIso8601String();
+    if (iso.contains('.')) {
+      return '${iso.split('.').first}Z';
+    }
+    return iso;
   }
 
   // ─── Pickup Time ───────────────────────────────────────────────────────
@@ -552,7 +577,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.access_time_filled, size: 20, color: AppColors.primary),
+                Icon(Icons.access_time_filled,
+                    size: 20, color: AppColors.primary),
                 const SizedBox(width: 8),
                 const Text(
                   'Thời gian nhận hàng',
@@ -576,6 +602,128 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
     }
 
+    if (_availablePickupTimes.length == 1) {
+      final slot = _availablePickupTimes.first;
+      final formattedTime = _formatTimeSlot(slot);
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.access_time_filled,
+                    size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Thời gian nhận hàng',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.bgSoft,
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline,
+                      color: AppColors.primary, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Quán hẹn lúc: $formattedTime',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Divider(height: 1, color: AppColors.outlineVariant),
+          ],
+        ),
+      );
+    }
+
+    final minTimeStr = _availablePickupTimes.first;
+    final maxTimeStr = _availablePickupTimes.last;
+    DateTime? minDateTime;
+    DateTime? maxDateTime;
+    try {
+      minDateTime = DateTime.parse(minTimeStr).toLocal();
+      maxDateTime = DateTime.parse(maxTimeStr).toLocal();
+    } catch (_) {}
+
+    if (minDateTime == null ||
+        maxDateTime == null ||
+        maxDateTime.isBefore(minDateTime) ||
+        maxDateTime.isAtSameMomentAs(minDateTime)) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.access_time_filled,
+                    size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Thời gian nhận hàng',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Hẹn lúc: ${_selectedPickupTime != null ? _formatTimeSlot(_selectedPickupTime!) : 'Chưa chọn'}',
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 20),
+            const Divider(height: 1, color: AppColors.outlineVariant),
+          ],
+        ),
+      );
+    }
+
+    final double minVal = minDateTime.millisecondsSinceEpoch.toDouble();
+    final double maxVal = maxDateTime.millisecondsSinceEpoch.toDouble();
+
+    double currentVal = minVal;
+    if (_selectedPickupTime != null) {
+      try {
+        final currentDT = DateTime.parse(_selectedPickupTime!).toLocal();
+        currentVal = currentDT.millisecondsSinceEpoch.toDouble();
+      } catch (_) {}
+    }
+    currentVal = currentVal.clamp(minVal, maxVal);
+    final selectedDT = DateTime.fromMillisecondsSinceEpoch(currentVal.toInt());
+    final selectedFormatted =
+        '${selectedDT.hour.toString().padLeft(2, '0')}:${selectedDT.minute.toString().padLeft(2, '0')}';
+
+    final diffMins = selectedDT.difference(DateTime.now()).inMinutes;
+    final String timeSubText =
+        diffMins > 0 ? '(sau $diffMins phút nữa)' : '(ngay bây giờ)';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
@@ -583,7 +731,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.access_time_filled, size: 20, color: AppColors.primary),
+              Icon(Icons.access_time_filled,
+                  size: 20, color: AppColors.primary),
               const SizedBox(width: 8),
               const Text(
                 'Chọn thời gian nhận hàng',
@@ -597,52 +746,103 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Chọn khung giờ bạn muốn đến quán để lấy đồ ăn',
+            'Kéo thanh trượt để chọn giờ bạn muốn đến quán để lấy đồ',
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
-
-          // Horizontal list of time chips
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _availablePickupTimes.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                final slot = _availablePickupTimes[index];
-                final formattedTime = _formatTimeSlot(slot);
-                final isSelected = slot == _selectedPickupTime;
-
-                return ChoiceChip(
-                  label: Text(
-                    formattedTime,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _selectedPickupTime = slot;
-                      });
-                    }
-                  },
-                  selectedColor: AppColors.primary,
-                  backgroundColor: AppColors.bgSoft,
-                  checkmarkColor: Colors.white,
-                  showCheckmark: false,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(
-                      color: isSelected ? AppColors.primary : AppColors.outlineVariant,
-                    ),
-                  ),
-                );
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.outlineVariant,
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withValues(alpha: 0.12),
+              valueIndicatorColor: AppColors.primary,
+              trackHeight: 6.0,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
+            ),
+            child: Slider(
+              min: minVal,
+              max: maxVal,
+              value: currentVal,
+              onChanged: (value) {
+                final roundedMs = (value / 60000).round() * 60000;
+                DateTime finalDT =
+                    DateTime.fromMillisecondsSinceEpoch(roundedMs);
+                if (finalDT.isBefore(minDateTime!)) {
+                  finalDT = minDateTime;
+                } else if (finalDT.isAfter(maxDateTime!)) {
+                  finalDT = maxDateTime;
+                }
+                setState(() {
+                  _selectedPickupTime = _dateTimeToIsoUtcString(finalDT);
+                });
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Sớm nhất: ${_formatTimeSlot(minTimeStr)}',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Muộn nhất: ${_formatTimeSlot(maxTimeStr)}',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+              border:
+                  Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                const Icon(Icons.timer_outlined,
+                    color: AppColors.primary, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'Nhận hàng lúc: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary.withValues(alpha: 0.8),
+                  ),
+                ),
+                Text(
+                  selectedFormatted,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  timeSubText,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -749,11 +949,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               children: [
                 const Text(
                   'Khuyến mãi',
-                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 14, color: AppColors.textSecondary),
                 ),
                 Text(
                   '-${_formatPrice(_previewDiscount)}đ',
-                  style: const TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -845,12 +1049,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     try {
       // 1. Call preview again to chốt final price
-      final previewPayload = _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
-      final previewResponse = await _orderRepository.previewOrder(previewPayload);
-      
-      final finalAmount = (previewResponse['finalAmount'] as num?)?.toInt() ?? total;
+      final previewPayload =
+          _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      final previewResponse =
+          await _orderRepository.previewOrder(previewPayload);
+
+      final finalAmount =
+          (previewResponse['finalAmount'] as num?)?.toInt() ?? total;
       print('[Checkout] Final confirmed amount from preview: $finalAmount');
-      
+
       // 2. Call placeOrder to create the order
       final orderResponse = await _orderRepository.placeOrder(previewPayload);
       final orderId = orderResponse['id'] as String?;
@@ -866,10 +1073,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         "returnUrl": "dinex://payment-success?orderId=$orderId",
         "cancelUrl": "dinex://payment-cancel?orderId=$orderId"
       };
-      
-      final paymentResponse = await _orderRepository.initiatePayment(orderId, paymentPayload);
+
+      final paymentResponse =
+          await _orderRepository.initiatePayment(orderId, paymentPayload);
       final checkoutUrl = paymentResponse['checkoutUrl'] as String?;
-      
+
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('Không nhận được liên kết thanh toán từ PayOS');
       }
@@ -880,12 +1088,28 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // 5. Open PayOS Checkout Page using url_launcher
       final uri = Uri.parse(checkoutUrl);
       try {
-        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        // Try platformDefault first (opens Custom Tabs on Android / SafariViewController on iOS)
+        final launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
         if (!launched) {
-          throw Exception('Không thể khởi chạy liên kết thanh toán.');
+          // Try inAppBrowserView as fallback
+          final launchedInApp =
+              await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+          if (!launchedInApp) {
+            throw Exception('Không thể khởi chạy liên kết thanh toán.');
+          }
         }
       } catch (e) {
-        throw Exception('Không thể mở liên kết thanh toán: $e');
+        // Last fallback: try externalApplication
+        try {
+          final launchedExternal =
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+          if (!launchedExternal) {
+            throw Exception(
+                'Không thể khởi chạy liên kết thanh toán qua ứng dụng ngoài.');
+          }
+        } catch (_) {
+          throw Exception('Không thể mở liên kết thanh toán: $e');
+        }
       }
 
       // Navigate to success page
@@ -897,7 +1121,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
         );
       }
-
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -907,13 +1130,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Lỗi đặt hàng'),
           content: Text(e.toString().replaceAll('Exception: ', '')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+              child:
+                  const Text('OK', style: TextStyle(color: AppColors.primary)),
             ),
           ],
         ),
@@ -963,7 +1188,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : () => _handleConfirmCheckout(cart, total),
+                onPressed: _isLoading
+                    ? null
+                    : () => _handleConfirmCheckout(cart, total),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.onPrimary,
@@ -977,11 +1204,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
                       )
                     : const Text(
                         'Xác nhận đơn hàng',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
                       ),
               ),
             ),
