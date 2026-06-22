@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/repositories/merchant_repository.dart';
+
 class BranchRegistrationData {
   final String status; // 'none' | 'pending' | 'approved'
   final String brandName;
@@ -61,10 +63,12 @@ class BranchRegistrationData {
 }
 
 class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
+  final MerchantRepository _merchantRepository = MerchantRepository();
+
   BranchRegistrationNotifier() : super(const BranchRegistrationData());
 
   /// Đăng ký thương hiệu và chi nhánh đầu tiên (Chuyển sang trạng thái chờ duyệt)
-  void submitFirstBranch({
+  Future<void> submitFirstBranch({
     required String brandName,
     required String category,
     required String branchName,
@@ -75,28 +79,45 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
     required String bankName,
     required String bankAccount,
     required String bankOwner,
-  }) {
-    state = state.copyWith(
-      status: 'pending',
-      brandName: brandName,
-      category: category,
-      branchName: branchName,
-      phone: phone,
-      address: address,
-      gps: gps,
-      taxCode: taxCode,
-      bankName: bankName,
-      bankAccount: bankAccount,
-      bankOwner: bankOwner,
-      registeredBranches: [
-        {
-          'branchName': branchName,
-          'phone': phone,
-          'address': address,
-          'gps': gps,
-        }
-      ],
-    );
+  }) async {
+    try {
+      await _merchantRepository.submitMerchantApplication(
+        brandName: brandName,
+        category: category,
+        taxCode: taxCode,
+        bankName: bankName,
+        bankAccount: bankAccount,
+        bankOwner: bankOwner,
+        branchName: branchName,
+        phone: phone,
+        address: address,
+      );
+
+      state = state.copyWith(
+        status: 'pending',
+        brandName: brandName,
+        category: category,
+        branchName: branchName,
+        phone: phone,
+        address: address,
+        gps: gps,
+        taxCode: taxCode,
+        bankName: bankName,
+        bankAccount: bankAccount,
+        bankOwner: bankOwner,
+        registeredBranches: [
+          {
+            'branchName': branchName,
+            'phone': phone,
+            'address': address,
+            'gps': gps,
+          }
+        ],
+      );
+    } catch (e) {
+      print('[BranchRegistrationNotifier] Error submitting branch application: $e');
+      rethrow;
+    }
   }
 
   /// Đăng ký thêm một chi nhánh mới (khi thương hiệu đã được duyệt)

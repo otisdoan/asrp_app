@@ -20,6 +20,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
   final _formKey3 = GlobalKey<FormState>();
 
   int _currentStep = 1; // 1 to 4
+  bool _isLoading = false;
 
   // Controllers
   late TextEditingController _brandNameCtrl;
@@ -123,7 +124,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
     super.dispose();
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     FocusScope.of(context).unfocus();
     final registration = ref.read(branchRegistrationProvider);
     if (_currentStep == 1) {
@@ -176,24 +177,56 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             );
             ref.read(authProvider.notifier).setUser(updatedUser);
           }
+          setState(() {
+            _currentStep = 4;
+          });
         } else {
           // First branch registration
-          ref.read(branchRegistrationProvider.notifier).submitFirstBranch(
-            brandName: _brandNameCtrl.text,
-            category: _categoryCtrl.text,
-            branchName: _branchNameCtrl.text,
-            phone: _phoneCtrl.text,
-            address: _addressCtrl.text,
-            gps: _gpsCtrl.text,
-            taxCode: _taxCodeCtrl.text,
-            bankName: _bankNameCtrl.text,
-            bankAccount: _bankAccountCtrl.text,
-            bankOwner: _bankOwnerCtrl.text,
-          );
+          setState(() {
+            _isLoading = true;
+          });
+          try {
+            await ref.read(branchRegistrationProvider.notifier).submitFirstBranch(
+              brandName: _brandNameCtrl.text,
+              category: _categoryCtrl.text,
+              branchName: _branchNameCtrl.text,
+              phone: _phoneCtrl.text,
+              address: _addressCtrl.text,
+              gps: _gpsCtrl.text,
+              taxCode: _taxCodeCtrl.text,
+              bankName: _bankNameCtrl.text,
+              bankAccount: _bankAccountCtrl.text,
+              bankOwner: _bankOwnerCtrl.text,
+            );
+            setState(() {
+              _currentStep = 4;
+            });
+          } catch (e) {
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('Lỗi đăng ký'),
+                  content: Text(e.toString().replaceAll('Exception: ', '')),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+                    ),
+                  ],
+                ),
+              );
+            }
+          } finally {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          }
         }
-        setState(() {
-          _currentStep = 4;
-        });
       }
     }
   }
@@ -234,7 +267,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
           ),
         ),
         leading: IconButton(
-          onPressed: () => context.pop(),
+          onPressed: _isLoading ? null : () => context.pop(),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
         ),
       ),
@@ -1259,7 +1292,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             Expanded(
               flex: 2,
               child: OutlinedButton(
-                onPressed: _prevStep,
+                onPressed: _isLoading ? null : _prevStep,
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.primary, width: 1.2),
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1285,7 +1318,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
           Expanded(
             flex: 3,
             child: ElevatedButton(
-              onPressed: _nextStep,
+              onPressed: _isLoading ? null : _nextStep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -1293,15 +1326,24 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 elevation: 1,
               ),
-              child: Text(
-                _currentStep == 3 
-                    ? (isApproved ? 'Gửi hồ sơ chi nhánh mới' : 'Gửi hồ sơ đăng ký') 
-                    : 'Tiếp tục',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      _currentStep == 3 
+                          ? (isApproved ? 'Gửi hồ sơ chi nhánh mới' : 'Gửi hồ sơ đăng ký') 
+                          : 'Tiếp tục',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],
