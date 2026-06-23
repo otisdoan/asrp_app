@@ -7,8 +7,14 @@ class BranchRepository {
 
   /// Lấy danh sách chi nhánh từ Backend (GET /api/branches).
   Future<List<BranchListItemModel>> getBranches() async {
+    final token = _dioClient.accessToken;
+    print('[BranchRepository] --- START GET BRANCHES ---');
+    print('[BranchRepository] Access Token: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
+    
     final response = await _dioClient.dio.get(ApiConstants.branches);
     print('[BranchRepository] Response status code: ${response.statusCode}');
+    print('[BranchRepository] Response data: ${response.data}');
+    print('[BranchRepository] --- END GET BRANCHES ---');
 
     final rawData = response.data;
     List<dynamic> list = [];

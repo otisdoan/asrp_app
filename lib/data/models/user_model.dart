@@ -33,18 +33,42 @@ class UserModel {
     required this.updatedAt,
   });
 
+  // Role priority: highest-privilege role wins when user has multiple roles.
+  static const _rolePriority = <String, int>{
+    'SuperAdmin': 0,
+    'Admin': 1,
+    'Manager': 2,
+    'Staff': 3,
+    'Customer': 4,
+  };
+
+  static String _pickHighestRole(List<dynamic> roles) {
+    String best = 'Customer';
+    int bestPriority = _rolePriority['Customer'] ?? 99;
+
+    for (final r in roles) {
+      final String name;
+      if (r is Map) {
+        name = (r['name'] ?? r['roleName'] ?? r['role'] ?? '').toString();
+      } else {
+        name = r.toString();
+      }
+      final priority = _rolePriority[name] ?? 99;
+      if (priority < bestPriority) {
+        bestPriority = priority;
+        best = name;
+      }
+    }
+    return best;
+  }
+
   factory UserModel.fromJson(Map<String, dynamic> json) {
     String resolvedRole = 'Customer';
     if (json['role'] != null) {
       resolvedRole = json['role'].toString();
     } else if (json['roles'] != null) {
       if (json['roles'] is List && (json['roles'] as List).isNotEmpty) {
-        final firstRole = (json['roles'] as List).first;
-        if (firstRole is Map) {
-          resolvedRole = (firstRole['name'] ?? firstRole['roleName'] ?? firstRole['role'] ?? '').toString();
-        } else {
-          resolvedRole = firstRole.toString();
-        }
+        resolvedRole = _pickHighestRole(json['roles'] as List);
       } else {
         resolvedRole = json['roles'].toString();
       }

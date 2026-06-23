@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/repositories/merchant_repository.dart';
 import '../../../providers/branch_provider.dart';
+import '../../../providers/branch_registration_provider.dart';
 
 class StoreSetupPage extends ConsumerStatefulWidget {
   const StoreSetupPage({super.key});
@@ -98,17 +99,32 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
     });
 
     try {
-      // 1. Get branch ID. We fetch the list of branches from BranchRepository
-      final branchRepo = ref.read(branchRepositoryProvider);
-      final branches = await branchRepo.getBranches();
-      
-      if (branches.isEmpty) {
-        throw Exception('Không tìm thấy chi nhánh nào để thiết lập. Vui lòng đăng ký chi nhánh trước.');
+      // 1. Get branch ID. We try to read approvedFirstBranchId from the registration state first.
+      var registrationData = ref.read(branchRegistrationProvider);
+      if (registrationData.approvedFirstBranchId == null || registrationData.approvedFirstBranchId!.isEmpty) {
+        try {
+          await ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus();
+          registrationData = ref.read(branchRegistrationProvider);
+        } catch (e) {
+          print('[StoreSetupPage] Error fetching application status for branch ID: $e');
+        }
       }
 
-      // Use the first branch
-      final firstBranch = branches.first;
-      _branchId = firstBranch.id;
+      _branchId = registrationData.approvedFirstBranchId;
+
+      if (_branchId == null || _branchId!.isEmpty) {
+        // Fallback: Fetch the list of branches from BranchRepository
+        final branchRepo = ref.read(branchRepositoryProvider);
+        final branches = await branchRepo.getBranches();
+        
+        if (branches.isEmpty) {
+          throw Exception('Không tìm thấy chi nhánh nào để thiết lập. Vui lòng đăng ký chi nhánh trước.');
+        }
+
+        // Use the first branch
+        final firstBranch = branches.first;
+        _branchId = firstBranch.id;
+      }
 
       // 2. Fetch settings for this branch
       final merchantRepo = MerchantRepository();
@@ -166,8 +182,13 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
     } catch (e) {
       print('[StoreSetupPage] Error loading branch settings: $e');
       if (mounted) {
+        String errorText = e.toString().replaceAll('Exception: ', '');
+        if (errorText.contains('outside current brand scope') || errorText.contains('outside current scope')) {
+          errorText = 'Lỗi từ máy chủ: Chi nhánh này nằm ngoài phạm vi thương hiệu của tài khoản của bạn.\n\n'
+              'Để thiết lập dữ liệu thật, hồ sơ đăng ký của bạn cần được phê duyệt bởi SuperAdmin trên hệ thống máy chủ (Backend), sau đó bạn cần đăng xuất và đăng nhập lại để nhận Access Token mới chứa quyền Admin và BrandId của bạn.';
+        }
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = errorText;
           _isLoadingData = false;
         });
       }
@@ -890,6 +911,7 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
             context,
             MaterialPageRoute(
               builder: (context) => MockStoreDetailPage(
+                branchId: _branchId,
                 storeName: _nameController.text.trim().isNotEmpty
                     ? _nameController.text.trim()
                     : 'Tên cửa hàng chưa đặt',

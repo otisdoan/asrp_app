@@ -15,6 +15,7 @@ class BranchRegistrationData {
   final String bankAccount;
   final String bankOwner;
   final List<Map<String, String>> registeredBranches;
+  final String? approvedFirstBranchId;
 
   const BranchRegistrationData({
     this.status = 'none',
@@ -29,6 +30,7 @@ class BranchRegistrationData {
     this.bankAccount = '',
     this.bankOwner = '',
     this.registeredBranches = const [],
+    this.approvedFirstBranchId,
   });
 
   BranchRegistrationData copyWith({
@@ -44,6 +46,7 @@ class BranchRegistrationData {
     String? bankAccount,
     String? bankOwner,
     List<Map<String, String>>? registeredBranches,
+    String? approvedFirstBranchId,
   }) {
     return BranchRegistrationData(
       status: status ?? this.status,
@@ -58,6 +61,7 @@ class BranchRegistrationData {
       bankAccount: bankAccount ?? this.bankAccount,
       bankOwner: bankOwner ?? this.bankOwner,
       registeredBranches: registeredBranches ?? this.registeredBranches,
+      approvedFirstBranchId: approvedFirstBranchId ?? this.approvedFirstBranchId,
     );
   }
 }
@@ -198,6 +202,8 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
         }
       }
       
+      final approvedFirstBranchId = payload['approvedFirstBranchId']?.toString();
+      
       state = BranchRegistrationData(
         status: mappedStatus,
         brandName: brandName,
@@ -220,6 +226,7 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
                 }
               ]
             : const [],
+        approvedFirstBranchId: approvedFirstBranchId,
       );
     } catch (e) {
       print('[BranchRegistrationNotifier] Error fetching application status: $e');

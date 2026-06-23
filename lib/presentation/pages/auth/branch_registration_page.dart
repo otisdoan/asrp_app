@@ -437,61 +437,6 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
               ),
               const SizedBox(height: 32),
 
-              // Mock Approve button for easy testing!
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    const newRole = 'Admin';
-
-                    ref.read(branchRegistrationProvider.notifier).approveBrand();
-
-                    final user = ref.read(currentUserProvider);
-                    if (user != null) {
-                      final updatedUser = UserModel(
-                        id: user.id,
-                        username: user.username,
-                        email: user.email,
-                        phone: user.phone,
-                        fullName: user.fullName,
-                        avatar: user.avatar,
-                        gender: user.gender,
-                        birthday: user.birthday,
-                        role: newRole,
-                        isActive: user.isActive,
-                        points: user.points,
-                        tier: user.tier,
-                        address: user.address,
-                        createdAt: user.createdAt,
-                        updatedAt: DateTime.now().toIso8601String(),
-                      );
-                      await ref.read(authProvider.notifier).setUser(updatedUser);
-                    }
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('🚨 [MOCK] Đã phê duyệt thương hiệu! Tài khoản của bạn được nâng cấp thành Admin.'),
-                        backgroundColor: AppColors.success,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.gavel_rounded, color: Colors.white, size: 18),
-                  label: const Text(
-                    'Mock: Phê duyệt thương hiệu',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
               // Back button
               SizedBox(
                 width: double.infinity,

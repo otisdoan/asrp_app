@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -312,6 +313,9 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             // ─── App Bar with image ─────────────────────────────
             _buildSliverAppBar(context, detail),
 
+            // Spacing
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
             // ─── Store Info ─────────────────────────────────────
             SliverToBoxAdapter(child: _buildStoreInfo(detail)),
 
@@ -519,7 +523,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   // ─── Sliver App Bar ──────────────────────────────────────────────────────
   Widget _buildSliverAppBar(BuildContext context, BranchDetailModel? detail) {
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 240,
       pinned: true,
       backgroundColor: AppColors.primary,
       leading: IconButton(
@@ -667,96 +671,110 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          color: AppColors.bgWarm,
-          child: (detail != null && detail.imageUrl.isNotEmpty)
-              ? (detail.imageUrl.startsWith('http')
-                  ? CachedNetworkImage(
-                      imageUrl: detail.imageUrl,
+        background: Stack(
+          children: [
+            // Background Cover Image (Category based fallback)
+            Positioned.fill(
+              child: Builder(
+                builder: (context) {
+                  final coverUrl = _getCoverImageUrl(detail);
+                  if (coverUrl.startsWith('http')) {
+                    return CachedNetworkImage(
+                      imageUrl: coverUrl,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => const Center(
-                        child: SizedBox(
-                          width: 24, height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                        ),
+                        child: CircularProgressIndicator(color: Colors.white),
                       ),
-                      errorWidget: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
-                    )
-                  : Image.asset(
-                      detail.imageUrl,
+                      errorWidget: (_, __, ___) => Container(color: AppColors.bgWarm),
+                    );
+                  } else {
+                    return Image.asset(
+                      coverUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(widget.icon, size: 80, color: AppColors.textTertiary),
-                    ))
-              : Icon(widget.icon, size: 80, color: AppColors.textTertiary),
-        ),
-      ),
-    );
-  }
-
-
-  // ─── Store Info Section ──────────────────────────────────────────────────
-  Widget _buildStoreInfo(BranchDetailModel? detail) {
-    final name = detail?.name ?? widget.storeName;
-    final rating = detail?.rating ?? widget.rating;
-    final reviews = detail?.reviewsCount ?? widget.reviews;
-    final deliveryTime = (detail?.deliveryTime != null && detail!.deliveryTime.isNotEmpty) ? detail.deliveryTime : widget.deliveryTime;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Badge + Name
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // "Yêu thích" badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Yêu thích',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
+                      errorBuilder: (_, __, ___) => Container(color: AppColors.bgWarm),
+                    );
+                  }
+                },
               ),
-              const SizedBox(width: 8),
-              // Verified icon
-              const Icon(Icons.verified, color: AppColors.success, size: 18),
-              const SizedBox(width: 6),
-              // Store name
-              Expanded(
-                child: Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    height: 1.3,
+            ),
+            // Black gradient overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: 0.4),
+                      Colors.black.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: 0.85),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Rating + Reviews + Time + Favorite
-          Row(
-            children: [
-              // Interactive Rating + reviews
-              GestureDetector(
+            ),
+            // Floating Status Badge (positioned lower to avoid toolbar overlap)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 12,
+              right: 12,
+              child: Builder(
+                builder: (context) {
+                  final isClosed = detail != null ? (detail.isActive == false) : false;
+                  final isBusy = detail?.status == 'busy';
+                  
+                  String statusText = 'Đang hoạt động';
+                  Color statusColor = AppColors.success;
+                  Color statusBg = AppColors.successContainer;
+                  
+                  if (isBusy) {
+                    statusText = 'Quán đang bận';
+                    statusColor = AppColors.accent;
+                    statusBg = const Color(0xFFFFF7EC);
+                  } else if (isClosed) {
+                    statusText = 'Tạm đóng cửa';
+                    statusColor = AppColors.error;
+                    statusBg = AppColors.errorContainer;
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: statusBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Floating Rating Badge (positioned lower to avoid toolbar overlap)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 12,
+              left: 12,
+              child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
+                  final name = detail?.name ?? widget.storeName;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => StoreReviewsPage(
                         storeName: name,
-                        category: widget.category,
-                        rating: rating,
-                        reviewsCount: reviews,
-                        deliveryTime: deliveryTime,
+                        category: detail?.category ?? widget.category,
+                        rating: detail?.rating ?? widget.rating,
+                        reviewsCount: detail?.reviewsCount ?? widget.reviews,
+                        deliveryTime: (detail?.deliveryTime != null && detail!.deliveryTime.isNotEmpty) ? detail.deliveryTime : widget.deliveryTime,
                         distance: widget.distance,
                         imageUrl: detail?.imageUrl,
                         icon: widget.icon,
@@ -764,70 +782,197 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                     ),
                   );
                 },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Stars (compact)
-                    ...List.generate(5, (i) {
-                      if (i < rating.floor()) {
-                        return const Icon(Icons.star, size: 14, color: AppColors.star);
-                      } else if (i < rating) {
-                        return const Icon(Icons.star_half, size: 14, color: AppColors.star);
-                      }
-                      return const Icon(Icons.star_border, size: 14, color: AppColors.star);
-                    }),
-                    const SizedBox(width: 4),
-                    // Rating + reviews text
-                    Text(
-                      '$rating ($reviews+ Bình luận) >',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${detail?.rating ?? widget.rating} (${detail?.reviewsCount ?? widget.reviews}+)',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Divider
-              Container(width: 1, height: 14, color: AppColors.outlineVariant),
-              const SizedBox(width: 8),
-              // Delivery time
-              const Icon(Icons.access_time, size: 13, color: AppColors.textSecondary),
-              const SizedBox(width: 3),
-              Text(
-                deliveryTime,
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 12),
-              // Favorite
-              Consumer(
-                builder: (context, ref, child) {
-                  final isFav = ref.watch(favoriteShopsProvider).contains(name);
-                  return GestureDetector(
-                    onTap: () {
-                      ref.read(favoriteShopsProvider.notifier).toggleFavorite(name);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isFav
-                                ? 'Đã xóa "$name" khỏi yêu thích'
-                                : 'Đã thêm "$name" vào yêu thích',
-                          ),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            // Content overlay at the bottom
+            Positioned(
+              bottom: 12,
+              left: 12,
+              right: 12,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Logo/Avatar
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 5,
                         ),
-                      );
-                    },
-                    child: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      size: 20,
-                      color: isFav ? const Color(0xFFFF2A55) : AppColors.textSecondary,
+                      ],
                     ),
-                  );
-                },
+                    child: ClipOval(
+                      child: Builder(
+                        builder: (context) {
+                          final logoUrl = (detail?.imageUrl != null && detail!.imageUrl.isNotEmpty)
+                              ? detail.imageUrl
+                              : widget.imageUrl;
+
+                          if (logoUrl != null && logoUrl.isNotEmpty) {
+                            if (logoUrl.startsWith('http')) {
+                              return CachedNetworkImage(
+                                imageUrl: logoUrl,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Icon(widget.icon, size: 32, color: AppColors.textTertiary),
+                              );
+                            } else {
+                              return Image.file(
+                                File(logoUrl),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  logoUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(widget.icon, size: 32, color: AppColors.textTertiary),
+                                ),
+                              );
+                            }
+                          }
+                          return Icon(widget.icon, size: 32, color: AppColors.textTertiary);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Shop details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          detail?.name ?? widget.storeName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        // Category Chip
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            detail?.category ?? widget.category,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_rounded, color: Colors.white70, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${detail?.openingTime ?? '07:00'} - ${detail?.closingTime ?? '21:30'}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Icon(Icons.phone_rounded, color: Colors.white70, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              (detail?.phone != null && detail!.phone!.isNotEmpty) ? detail.phone! : 'Chưa nhập hotline',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getCoverImageUrl(BranchDetailModel? detail) {
+    if (detail?.coverImageUrl != null && detail!.coverImageUrl!.isNotEmpty) {
+      return detail.coverImageUrl!;
+    }
+    // Fallback based on category
+    final category = (detail?.category ?? widget.category).toLowerCase();
+    if (category.contains('phở') || category.contains('bún')) {
+      return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80';
+    } else if (category.contains('cơm')) {
+      return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80';
+    } else if (category.contains('uống') || category.contains('cà phê') || category.contains('nước')) {
+      return 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&q=80';
+    } else if (category.contains('vặt') || category.contains('fast')) {
+      return 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80';
+    }
+    // Default cozy cover
+    return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80';
+  }
+
+
+  Widget _buildStoreInfo(BranchDetailModel? detail) {
+    final desc = detail?.description;
+    if (desc == null || desc.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: Text(
+          desc,
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+            height: 1.4,
           ),
-        ],
+        ),
       ),
     );
   }

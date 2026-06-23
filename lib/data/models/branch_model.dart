@@ -156,6 +156,11 @@ class BranchDetailModel {
   final double? latitude;
   final double? longitude;
   final bool? isActive;
+  final String? phone;
+  final String? openingTime;
+  final String? closingTime;
+  final String? coverImageUrl;
+  final String? status;
   final List<String>? promos;
   final List<BranchMenuSectionModel>?
       menu; // Menu động theo từng quán (Gồm Tab Name & Items)
@@ -176,6 +181,11 @@ class BranchDetailModel {
     this.latitude,
     this.longitude,
     this.isActive,
+    this.phone,
+    this.openingTime,
+    this.closingTime,
+    this.coverImageUrl,
+    this.status,
     this.promos,
     this.menu,
   });
@@ -231,10 +241,25 @@ class BranchDetailModel {
       longitude: (json['longitude'] as num?)?.toDouble() ??
           (json['lng'] as num?)?.toDouble(),
       isActive: json['isActive'] as bool?,
+      phone: json['phone'] as String?,
+      openingTime: _formatTime(json['openingTime']),
+      closingTime: _formatTime(json['closingTime']),
+      coverImageUrl: json['coverImageUrl'] as String?,
+      status: json['status'] as String?,
       promos:
           (json['promos'] as List<dynamic>?)?.map((e) => e as String).toList(),
       menu: groupedMenu,
     );
+  }
+
+  static String? _formatTime(dynamic timeVal) {
+    if (timeVal == null) return null;
+    final str = timeVal.toString().trim();
+    if (str.isEmpty) return null;
+    if (str.length >= 5) {
+      return str.substring(0, 5);
+    }
+    return str;
   }
 
   Map<String, dynamic> toJson() {
@@ -254,6 +279,11 @@ class BranchDetailModel {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (isActive != null) 'isActive': isActive,
+      if (phone != null) 'phone': phone,
+      if (openingTime != null) 'openingTime': openingTime,
+      if (closingTime != null) 'closingTime': closingTime,
+      if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+      if (status != null) 'status': status,
       if (promos != null) 'promos': promos,
       if (menu != null) 'menu': menu!.map((e) => e.toJson()).toList(),
     };
@@ -275,6 +305,11 @@ class BranchDetailModel {
     double? latitude,
     double? longitude,
     bool? isActive,
+    String? phone,
+    String? openingTime,
+    String? closingTime,
+    String? coverImageUrl,
+    String? status,
     List<String>? promos,
     List<BranchMenuSectionModel>? menu,
   }) {
@@ -294,6 +329,11 @@ class BranchDetailModel {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       isActive: isActive ?? this.isActive,
+      phone: phone ?? this.phone,
+      openingTime: openingTime ?? this.openingTime,
+      closingTime: closingTime ?? this.closingTime,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      status: status ?? this.status,
       promos: promos ?? this.promos,
       menu: menu ?? this.menu,
     );

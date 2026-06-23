@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/api_constants.dart';
@@ -108,11 +109,61 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final token = getToken();
+    _handleRequest(options, handler);
+  }
+
+  Future<void> _handleRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    var token = getToken();
     if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
+      if (_isTokenExpired(token)) {
+        if (!_isRefreshing) {
+          _isRefreshing = true;
+          token = await onRefresh();
+          _isRefreshing = false;
+        } else {
+          while (_isRefreshing) {
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
+          token = getToken();
+        }
+      }
+
+      if (token != null) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
     }
     handler.next(options);
+  }
+
+  bool _isTokenExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+
+      final payload = parts[1];
+      var normalized = payload;
+      switch (normalized.length % 4) {
+        case 2:
+          normalized += '==';
+          break;
+        case 3:
+          normalized += '=';
+          break;
+      }
+
+      final String decoded = utf8.decode(base64Url.decode(normalized));
+      final Map<String, dynamic> claims = jsonDecode(decoded);
+
+      if (claims.containsKey('exp')) {
+        final exp = claims['exp'] as int;
+        final expiryTime = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+        // Refresh if token has less than 30 seconds of lifetime left
+        return DateTime.now().isAfter(expiryTime.subtract(const Duration(seconds: 30)));
+      }
+      return true;
+    } catch (_) {
+      return true;
+    }
   }
 
   @override

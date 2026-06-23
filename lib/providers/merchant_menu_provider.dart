@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/dio_client.dart';
 import '../data/repositories/branch_repository.dart';
+import 'branch_registration_provider.dart';
 
 // ===== Models =====
 
@@ -175,23 +176,40 @@ class MerchantMenuState {
 // ===== Notifier =====
 
 class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
+  final Ref _ref;
   final DioClient _dioClient = DioClient();
   String? _branchId;
 
-  MerchantMenuNotifier() : super(const MerchantMenuState());
+  MerchantMenuNotifier(this._ref) : super(const MerchantMenuState());
 
   Future<void> initializeMenu() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final branchRepo = BranchRepository();
-      final branches = await branchRepo.getBranches();
-      
-      if (branches.isEmpty) {
-        throw Exception('Không tìm thấy chi nhánh nào. Vui lòng đăng ký chi nhánh trước.');
+      // 1. Get branch ID. We try to read approvedFirstBranchId from the registration state first.
+      var registrationData = _ref.read(branchRegistrationProvider);
+      if (registrationData.approvedFirstBranchId == null || registrationData.approvedFirstBranchId!.isEmpty) {
+        try {
+          await _ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus();
+          registrationData = _ref.read(branchRegistrationProvider);
+        } catch (e) {
+          print('[MerchantMenuNotifier] Error fetching application status for branch ID: $e');
+        }
+      }
+
+      String? branchId = registrationData.approvedFirstBranchId;
+
+      if (branchId == null || branchId.isEmpty) {
+        final branchRepo = BranchRepository();
+        final branches = await branchRepo.getBranches();
+        
+        if (branches.isEmpty) {
+          throw Exception('Không tìm thấy chi nhánh nào. Vui lòng đăng ký chi nhánh trước.');
+        }
+        
+        branchId = branches.first.id;
       }
       
-      final firstBranchId = branches.first.id;
-      _branchId = firstBranchId;
+      _branchId = branchId;
       await fetchMenuBuilderDetails();
     } catch (e) {
       print('[MerchantMenuNotifier] Error initializing menu: $e');
@@ -634,5 +652,5 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
 
 final merchantMenuProvider =
     StateNotifierProvider<MerchantMenuNotifier, MerchantMenuState>(
-  (ref) => MerchantMenuNotifier(),
+  (ref) => MerchantMenuNotifier(ref),
 );
