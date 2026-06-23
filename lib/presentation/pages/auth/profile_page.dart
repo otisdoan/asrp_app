@@ -23,6 +23,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     super.initState();
     _appBarOpacityNotifier = ValueNotifier<double>(0.0);
     _scrollController = ScrollController()..addListener(_onScroll);
+
+    // Fetch branch registration status from server on page load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(isAuthenticatedProvider)) {
+        ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus().catchError((err) {
+          print('[ProfilePage] Error fetching branch application status: $err');
+        });
+      }
+    });
   }
 
   void _onScroll() {

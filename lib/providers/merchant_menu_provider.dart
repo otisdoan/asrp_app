@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/network/dio_client.dart';
+import '../data/repositories/branch_repository.dart';
 
 // ===== Models =====
 
@@ -142,22 +144,30 @@ class MerchantMenuState {
   final List<MerchantCategory> categories;
   final Map<String, List<MerchantDish>> categoryDishes; // Key: categoryId
   final String? selectedCategoryId;
+  final bool isLoading;
+  final String? errorMessage;
 
   const MerchantMenuState({
     this.categories = const [],
     this.categoryDishes = const {},
     this.selectedCategoryId,
+    this.isLoading = false,
+    this.errorMessage,
   });
 
   MerchantMenuState copyWith({
     List<MerchantCategory>? categories,
     Map<String, List<MerchantDish>>? categoryDishes,
     String? selectedCategoryId,
+    bool? isLoading,
+    String? errorMessage,
   }) {
     return MerchantMenuState(
       categories: categories ?? this.categories,
       categoryDishes: categoryDishes ?? this.categoryDishes,
       selectedCategoryId: selectedCategoryId ?? this.selectedCategoryId,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -165,94 +175,120 @@ class MerchantMenuState {
 // ===== Notifier =====
 
 class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
-  MerchantMenuNotifier() : super(const MerchantMenuState()) {
-    _loadPrefilledMenu();
+  final DioClient _dioClient = DioClient();
+  String? _branchId;
+
+  MerchantMenuNotifier() : super(const MerchantMenuState());
+
+  Future<void> initializeMenu() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final branchRepo = BranchRepository();
+      final branches = await branchRepo.getBranches();
+      
+      if (branches.isEmpty) {
+        throw Exception('Không tìm thấy chi nhánh nào. Vui lòng đăng ký chi nhánh trước.');
+      }
+      
+      final firstBranchId = branches.first.id;
+      _branchId = firstBranchId;
+      await fetchMenuBuilderDetails();
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error initializing menu: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
   }
 
-  void _loadPrefilledMenu() {
-    final cat1 = MerchantCategory(id: 'cat-phở', name: 'Phở Truyền Thống', priority: 0);
-    final cat2 = MerchantCategory(id: 'cat-drink', name: 'Đồ Uống', priority: 1);
-    final cat3 = MerchantCategory(id: 'cat-topping', name: 'Topping Thêm', priority: 2);
-
-    final sizeOptionGroup = MerchantOptionGroup(
-      id: 'opt-size',
-      groupName: 'Chọn kích cỡ phở',
-      isRequired: true,
-      minSelect: 1,
-      maxSelect: 1,
-      items: const [
-        MerchantOptionItem(id: 'item-sz-nho', itemName: 'Tô vừa (Thường)', extraPrice: 0),
-        MerchantOptionItem(id: 'item-sz-lon', itemName: 'Tô khổng lồ (Lớn)', extraPrice: 15000),
-        MerchantOptionItem(id: 'item-sz-db', itemName: 'Tô đặc biệt VIP', extraPrice: 25000),
-      ],
-    );
-
-    final extraToppingGroup = MerchantOptionGroup(
-      id: 'opt-extras',
-      groupName: 'Thêm Topping ngon',
-      isRequired: false,
-      minSelect: 0,
-      maxSelect: 4,
-      items: const [
-        MerchantOptionItem(id: 'item-tp-trung', itemName: 'Trứng chần hột gà', extraPrice: 5000),
-        MerchantOptionItem(id: 'item-tp-quay', itemName: 'Quẩy giòn rụm', extraPrice: 5000),
-        MerchantOptionItem(id: 'item-tp-bo', itemName: 'Thịt bò tái thêm', extraPrice: 20000),
-        MerchantOptionItem(id: 'item-tp-tiet', itemName: 'Tiết hột gà thơm ngon', extraPrice: 10000),
-      ],
-    );
-
-    final dish1 = MerchantDish(
-      id: 'dish-pho-dac-biet',
-      name: 'Phở Đặc Biệt DineX',
-      originalPrice: 65000,
-      discountPrice: 59000,
-      description: 'Phở bò tái, nạm, gầu, gân, bò viên đầy đủ hành thơm lừng bánh phở tươi.',
-      imageUrl: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&q=80',
-      optionGroups: [sizeOptionGroup, extraToppingGroup],
-    );
-
-    final dish2 = MerchantDish(
-      id: 'dish-pho-tai-chin',
-      name: 'Phở Tái Chín Thơm Ngon',
-      originalPrice: 50000,
-      description: 'Phở bò nạm tái chín vừa ngọt thanh thanh nước dùng xương hầm 24h.',
-      imageUrl: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&q=80',
-      optionGroups: [sizeOptionGroup],
-    );
-
-    final dish3 = MerchantDish(
-      id: 'dish-tra-da',
-      name: 'Trà Đá Mát Lạnh',
-      originalPrice: 5000,
-      description: 'Ly trà đá đậm vị mát rượi giải nhiệt.',
-      imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&q=80',
-    );
-
-    final dish4 = MerchantDish(
-      id: 'dish-sua-dau-nanh',
-      name: 'Sữa Đậu Nành Organic',
-      originalPrice: 15000,
-      description: 'Sữa đậu nành nguyên chất thơm phức béo ngậy.',
-      imageUrl: 'https://images.unsplash.com/photo-1464454709291-11881a4c7940?w=500&q=80',
-    );
-
-    final dish5 = MerchantDish(
-      id: 'dish-quay',
-      name: 'Quẩy Giòn Vàng',
-      originalPrice: 5000,
-      description: 'Quẩy giòn ăn kèm nước lèo phở ngon nhức nách.',
-      imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&q=80',
-    );
-
-    state = MerchantMenuState(
-      categories: [cat1, cat2, cat3],
-      categoryDishes: {
-        'cat-phở': [dish1, dish2],
-        'cat-drink': [dish3, dish4],
-        'cat-topping': [dish5],
-      },
-      selectedCategoryId: 'cat-phở',
-    );
+  Future<void> fetchMenuBuilderDetails() async {
+    if (_branchId == null) return;
+    
+    try {
+      final response = await _dioClient.dio.get('/branches/$_branchId/menu-builder');
+      final data = response.data['data'] ?? response.data;
+      final rawCategories = data['categories'] as List<dynamic>? ?? [];
+      
+      final List<MerchantCategory> categories = [];
+      final Map<String, List<MerchantDish>> categoryDishes = {};
+      
+      for (final rawCat in rawCategories) {
+        final catId = rawCat['id'].toString();
+        final category = MerchantCategory(
+          id: catId,
+          name: rawCat['name'].toString(),
+          priority: rawCat['priority'] as int? ?? 0,
+          isActive: rawCat['isActive'] as bool? ?? true,
+        );
+        categories.add(category);
+        
+        final List<MerchantDish> dishes = [];
+        final rawItems = rawCat['items'] as List<dynamic>? ?? [];
+        for (final rawItem in rawItems) {
+          final rawGroups = rawItem['optionGroups'] as List<dynamic>? ?? [];
+          final List<MerchantOptionGroup> optionGroups = [];
+          
+          for (final rawGroup in rawGroups) {
+            final rawOptionItems = rawGroup['items'] as List<dynamic>? ?? [];
+            final List<MerchantOptionItem> optionItems = [];
+            for (final rawOpt in rawOptionItems) {
+              optionItems.add(MerchantOptionItem(
+                id: rawOpt['id'].toString(),
+                itemName: rawOpt['itemName'].toString(),
+                extraPrice: (rawOpt['extraPrice'] as num?)?.toDouble() ?? 0.0,
+                isAvailable: rawOpt['isAvailable'] as bool? ?? true,
+              ));
+            }
+            
+            optionGroups.add(MerchantOptionGroup(
+              id: rawGroup['id'].toString(),
+              groupName: rawGroup['groupName'].toString(),
+              minSelect: rawGroup['minSelect'] as int? ?? 0,
+              maxSelect: rawGroup['maxSelect'] as int? ?? 1,
+              isRequired: rawGroup['isRequired'] as bool? ?? false,
+              items: optionItems,
+            ));
+          }
+          
+          dishes.add(MerchantDish(
+            id: rawItem['id'].toString(),
+            name: rawItem['name'].toString(),
+            originalPrice: (rawItem['originalPrice'] as num).toDouble(),
+            discountPrice: (rawItem['discountPrice'] as num?)?.toDouble(),
+            imageUrl: rawItem['imageUrl']?.toString() ?? '',
+            description: rawItem['description']?.toString() ?? '',
+            availability: rawItem['availability']?.toString() ?? 'available',
+            optionGroups: optionGroups,
+          ));
+        }
+        
+        categoryDishes[catId] = dishes;
+      }
+      
+      // Sort categories by priority
+      categories.sort((a, b) => a.priority.compareTo(b.priority));
+      
+      String? selectedId = state.selectedCategoryId;
+      if (selectedId == null || !categories.any((c) => c.id == selectedId)) {
+        selectedId = categories.isNotEmpty ? categories.first.id : null;
+      }
+      
+      state = MerchantMenuState(
+        categories: categories,
+        categoryDishes: categoryDishes,
+        selectedCategoryId: selectedId,
+        isLoading: false,
+        errorMessage: null,
+      );
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error fetching menu details: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('Exception: ', ''),
+      );
+      rethrow;
+    }
   }
 
   // ===== Category Operations =====
@@ -261,51 +297,97 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
     state = state.copyWith(selectedCategoryId: id);
   }
 
-  void addCategory(String name) {
-    final id = 'cat-${DateTime.now().millisecondsSinceEpoch}';
-    final priority = state.categories.length;
-    final newCat = MerchantCategory(id: id, name: name, priority: priority);
+  Future<void> addCategory(String name) async {
+    if (_branchId == null) return;
     
-    state = state.copyWith(
-      categories: [...state.categories, newCat],
-      categoryDishes: {
-        ...state.categoryDishes,
-        id: [],
-      },
-      selectedCategoryId: state.selectedCategoryId ?? id,
-    );
-  }
-
-  void updateCategory(String id, String name) {
-    final updatedList = state.categories.map((c) {
-      if (c.id == id) return c.copyWith(name: name);
-      return c;
-    }).toList();
-
-    state = state.copyWith(categories: updatedList);
-  }
-
-  void deleteCategory(String id) {
-    final updatedCats = state.categories.where((c) => c.id != id).toList();
-    
-    // Clean dishes
-    final updatedDishes = Map<String, List<MerchantDish>>.from(state.categoryDishes)..remove(id);
-
-    String? newSelected = state.selectedCategoryId;
-    if (newSelected == id) {
-      newSelected = updatedCats.isNotEmpty ? updatedCats.first.id : null;
+    try {
+      final priority = state.categories.length;
+      final response = await _dioClient.dio.post(
+        '/branches/$_branchId/menu-builder/categories',
+        data: {
+          'name': name,
+          'priority': priority,
+        },
+      );
+      
+      final data = response.data['data'] ?? response.data;
+      final newCat = MerchantCategory(
+        id: data['id'].toString(),
+        name: data['name'].toString(),
+        priority: data['priority'] as int? ?? priority,
+        isActive: data['isActive'] as bool? ?? true,
+      );
+      
+      state = state.copyWith(
+        categories: [...state.categories, newCat],
+        categoryDishes: {
+          ...state.categoryDishes,
+          newCat.id: [],
+        },
+        selectedCategoryId: state.selectedCategoryId ?? newCat.id,
+      );
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error adding category: $e');
+      rethrow;
     }
-
-    state = state.copyWith(
-      categories: updatedCats,
-      categoryDishes: updatedDishes,
-      selectedCategoryId: newSelected,
-    );
   }
 
-  void reorderCategories(int oldIndex, int newIndex) {
-    final list = List<MerchantCategory>.from(state.categories);
+  Future<void> updateCategory(String id, String name) async {
+    if (_branchId == null) return;
     
+    try {
+      final category = state.categories.firstWhere((c) => c.id == id);
+      await _dioClient.dio.patch(
+        '/branches/$_branchId/menu-builder/categories/$id',
+        data: {
+          'name': name,
+          'priority': category.priority,
+        },
+      );
+      
+      final updatedList = state.categories.map((c) {
+        if (c.id == id) return c.copyWith(name: name);
+        return c;
+      }).toList();
+      
+      state = state.copyWith(categories: updatedList);
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error updating category: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCategory(String id) async {
+    if (_branchId == null) return;
+    
+    try {
+      await _dioClient.dio.delete(
+        '/branches/$_branchId/menu-builder/categories/$id',
+      );
+      
+      final updatedCats = state.categories.where((c) => c.id != id).toList();
+      final updatedDishes = Map<String, List<MerchantDish>>.from(state.categoryDishes)..remove(id);
+      
+      String? newSelected = state.selectedCategoryId;
+      if (newSelected == id) {
+        newSelected = updatedCats.isNotEmpty ? updatedCats.first.id : null;
+      }
+      
+      state = state.copyWith(
+        categories: updatedCats,
+        categoryDishes: updatedDishes,
+        selectedCategoryId: newSelected,
+      );
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error deleting category: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> reorderCategories(int oldIndex, int newIndex) async {
+    if (_branchId == null) return;
+    
+    final list = List<MerchantCategory>.from(state.categories);
     int index = newIndex;
     if (oldIndex < newIndex) {
       index -= 1;
@@ -313,61 +395,240 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
     
     final item = list.removeAt(oldIndex);
     list.insert(index, item);
-
+    
     // Update priorities
     final prioritized = List.generate(list.length, (i) {
       return list[i].copyWith(priority: i);
     });
-
+    
     state = state.copyWith(categories: prioritized);
+    
+    try {
+      final payload = {
+        'categories': prioritized.map((c) => {
+          'categoryId': c.id,
+          'priority': c.priority,
+        }).toList()
+      };
+      
+      await _dioClient.dio.patch(
+        '/branches/$_branchId/menu-builder/categories/reorder',
+        data: payload,
+      );
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error reordering categories: $e');
+      await fetchMenuBuilderDetails();
+    }
   }
 
   // ===== Dish Operations =====
 
-  void addDish(String categoryId, MerchantDish dish) {
-    final dishes = List<MerchantDish>.from(state.categoryDishes[categoryId] ?? []);
-    dishes.add(dish);
-
-    final updatedMap = Map<String, List<MerchantDish>>.from(state.categoryDishes)
-      ..[categoryId] = dishes;
-
-    state = state.copyWith(categoryDishes: updatedMap);
-  }
-
-  void updateDish(String categoryId, MerchantDish dish) {
-    final dishes = List<MerchantDish>.from(state.categoryDishes[categoryId] ?? []);
-    final index = dishes.indexWhere((d) => d.id == dish.id);
-    if (index != -1) {
-      dishes[index] = dish;
+  Future<void> _syncOptionGroups(
+    String itemId,
+    List<MerchantOptionGroup> originalGroups,
+    List<MerchantOptionGroup> updatedGroups,
+  ) async {
+    // 1. Delete groups that are in original but not in updated
+    final updatedGroupIds = updatedGroups.map((g) => g.id).toSet();
+    for (final origGroup in originalGroups) {
+      if (!updatedGroupIds.contains(origGroup.id)) {
+        try {
+          await _dioClient.dio.delete(
+            '/branches/$_branchId/menu-builder/items/$itemId/option-groups/${origGroup.id}',
+          );
+        } catch (e) {
+          print('[MerchantMenuNotifier] Error deleting option group ${origGroup.id}: $e');
+        }
+      } else {
+        // Group still exists, check for deleted items within it
+        final updatedGroup = updatedGroups.firstWhere((g) => g.id == origGroup.id);
+        final updatedItemIds = updatedGroup.items.map((it) => it.id).toSet();
+        for (final origItem in origGroup.items) {
+          if (!updatedItemIds.contains(origItem.id)) {
+            try {
+              await _dioClient.dio.delete(
+                '/branches/$_branchId/menu-builder/items/$itemId/option-groups/${origGroup.id}/option-items/${origItem.id}',
+              );
+            } catch (e) {
+              print('[MerchantMenuNotifier] Error deleting option item ${origItem.id}: $e');
+            }
+          }
+        }
+      }
     }
 
-    final updatedMap = Map<String, List<MerchantDish>>.from(state.categoryDishes)
-      ..[categoryId] = dishes;
+    // 2. Create or Update groups
+    for (final group in updatedGroups) {
+      final isNewGroup = group.id.startsWith('opt-grp-');
+      if (isNewGroup) {
+        // Create new group
+        final groupRes = await _dioClient.dio.post(
+          '/branches/$_branchId/menu-builder/items/$itemId/option-groups',
+          data: {
+            'groupName': group.groupName,
+            'minSelect': group.minSelect,
+            'maxSelect': group.maxSelect,
+            'isRequired': group.isRequired,
+          },
+        );
+        final newGroupData = groupRes.data['data'] ?? groupRes.data;
+        final newGroupId = newGroupData['id'].toString();
 
-    state = state.copyWith(categoryDishes: updatedMap);
-  }
+        // Create items for this new group
+        for (final item in group.items) {
+          await _dioClient.dio.post(
+            '/branches/$_branchId/menu-builder/items/$itemId/option-groups/$newGroupId/option-items',
+            data: {
+              'itemName': item.itemName,
+              'extraPrice': item.extraPrice,
+              'isAvailable': item.isAvailable,
+            },
+          );
+        }
+      } else {
+        // Update existing group
+        await _dioClient.dio.patch(
+          '/branches/$_branchId/menu-builder/items/$itemId/option-groups/${group.id}',
+          data: {
+            'groupName': group.groupName,
+            'minSelect': group.minSelect,
+            'maxSelect': group.maxSelect,
+            'isRequired': group.isRequired,
+          },
+        );
 
-  void deleteDish(String categoryId, String dishId) {
-    final dishes = List<MerchantDish>.from(state.categoryDishes[categoryId] ?? [])
-      ..removeWhere((d) => d.id == dishId);
-
-    final updatedMap = Map<String, List<MerchantDish>>.from(state.categoryDishes)
-      ..[categoryId] = dishes;
-
-    state = state.copyWith(categoryDishes: updatedMap);
-  }
-
-  void toggleDishAvailability(String categoryId, String dishId, String availability) {
-    final dishes = List<MerchantDish>.from(state.categoryDishes[categoryId] ?? []);
-    final index = dishes.indexWhere((d) => d.id == dishId);
-    if (index != -1) {
-      dishes[index] = dishes[index].copyWith(availability: availability);
+        // Update items inside existing group
+        for (final item in group.items) {
+          final isNewItem = item.id.startsWith('item-');
+          if (isNewItem) {
+            await _dioClient.dio.post(
+              '/branches/$_branchId/menu-builder/items/$itemId/option-groups/${group.id}/option-items',
+              data: {
+                'itemName': item.itemName,
+                'extraPrice': item.extraPrice,
+                'isAvailable': item.isAvailable,
+              },
+            );
+          } else {
+            await _dioClient.dio.patch(
+              '/branches/$_branchId/menu-builder/items/$itemId/option-groups/${group.id}/option-items/${item.id}',
+              data: {
+                'itemName': item.itemName,
+                'extraPrice': item.extraPrice,
+                'isAvailable': item.isAvailable,
+              },
+            );
+          }
+        }
+      }
     }
+  }
 
-    final updatedMap = Map<String, List<MerchantDish>>.from(state.categoryDishes)
-      ..[categoryId] = dishes;
+  Future<void> addDish(String categoryId, MerchantDish dish) async {
+    if (_branchId == null) return;
+    try {
+      final response = await _dioClient.dio.post(
+        '/branches/$_branchId/menu-builder/items',
+        data: {
+          'name': dish.name,
+          'originalPrice': dish.originalPrice,
+          'discountPrice': dish.discountPrice,
+          'imageUrl': dish.imageUrl,
+          'description': dish.description,
+          'availability': dish.availability,
+          'categoryId': categoryId,
+        },
+      );
+      
+      final newItemData = response.data['data'] ?? response.data;
+      final newItemId = newItemData['id'].toString();
+      
+      // Sync option groups
+      await _syncOptionGroups(newItemId, [], dish.optionGroups);
+      
+      // Refresh local menu state from server
+      await fetchMenuBuilderDetails();
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error adding dish: $e');
+      rethrow;
+    }
+  }
 
-    state = state.copyWith(categoryDishes: updatedMap);
+  Future<void> updateDish(String categoryId, MerchantDish dish) async {
+    if (_branchId == null) return;
+    try {
+      await _dioClient.dio.patch(
+        '/branches/$_branchId/menu-builder/items/${dish.id}',
+        data: {
+          'name': dish.name,
+          'originalPrice': dish.originalPrice,
+          'discountPrice': dish.discountPrice,
+          'imageUrl': dish.imageUrl,
+          'description': dish.description,
+          'availability': dish.availability,
+          'categoryId': categoryId,
+        },
+      );
+      
+      // Find original option groups from local state to compute diff
+      final originalDishes = state.categoryDishes[categoryId] ?? [];
+      final originalDish = originalDishes.firstWhere((d) => d.id == dish.id, orElse: () => dish);
+      
+      // Sync option groups
+      await _syncOptionGroups(dish.id, originalDish.optionGroups, dish.optionGroups);
+      
+      // Refresh local menu state from server
+      await fetchMenuBuilderDetails();
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error updating dish: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteDish(String categoryId, String dishId) async {
+    if (_branchId == null) return;
+    try {
+      await _dioClient.dio.delete(
+        '/branches/$_branchId/menu-builder/items/$dishId',
+      );
+      
+      final dishes = List<MerchantDish>.from(state.categoryDishes[categoryId] ?? [])
+        ..removeWhere((d) => d.id == dishId);
+
+      final updatedMap = Map<String, List<MerchantDish>>.from(state.categoryDishes)
+        ..[categoryId] = dishes;
+
+      state = state.copyWith(categoryDishes: updatedMap);
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error deleting dish: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> toggleDishAvailability(String categoryId, String dishId, String availability) async {
+    if (_branchId == null) return;
+    try {
+      await _dioClient.dio.patch(
+        '/branches/$_branchId/menu-builder/items/$dishId/availability',
+        data: {
+          'availability': availability,
+        },
+      );
+      
+      final dishes = List<MerchantDish>.from(state.categoryDishes[categoryId] ?? []);
+      final index = dishes.indexWhere((d) => d.id == dishId);
+      if (index != -1) {
+        dishes[index] = dishes[index].copyWith(availability: availability);
+      }
+
+      final updatedMap = Map<String, List<MerchantDish>>.from(state.categoryDishes)
+        ..[categoryId] = dishes;
+
+      state = state.copyWith(categoryDishes: updatedMap);
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error toggling dish availability: $e');
+      rethrow;
+    }
   }
 }
 

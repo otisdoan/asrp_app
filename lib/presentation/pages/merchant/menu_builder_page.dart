@@ -22,6 +22,10 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(merchantMenuProvider.notifier).initializeMenu();
+    });
   }
 
   @override
@@ -80,20 +84,63 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // TAB 1: Món ăn & Topping
-          categories.isEmpty
-              ? _buildEmptyState()
-              : _buildDishesTab(activeCategory, dishes, categories),
+      body: menuState.isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: AppColors.primary),
+                  SizedBox(height: 16),
+                  Text(
+                    'Đang tải thực đơn...',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  ),
+                ],
+              ),
+            )
+          : (menuState.errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 64),
+                        const SizedBox(height: 16),
+                        Text(
+                          menuState.errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.read(merchantMenuProvider.notifier).initializeMenu(),
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Thử lại'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // TAB 1: Món ăn & Topping
+                    categories.isEmpty
+                        ? _buildEmptyState()
+                        : _buildDishesTab(activeCategory, dishes, categories),
 
-          // TAB 2: Quản lý Danh mục
-          categories.isEmpty
-              ? _buildEmptyState()
-              : _buildCategoriesTab(categories),
-        ],
-      ),
+                    // TAB 2: Quản lý Danh mục
+                    categories.isEmpty
+                        ? _buildEmptyState()
+                        : _buildCategoriesTab(categories),
+                  ],
+                )),
       // Floating Action Button only shown on Tab 1
       floatingActionButton: _tabController.index == 0 && activeCategory != null
           ? FloatingActionButton.extended(
@@ -427,8 +474,28 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                         ],
                       ),
                     ),
-                    onSelected: (String statusVal) {
-                      ref.read(merchantMenuProvider.notifier).toggleDishAvailability(catId, dish.id, statusVal);
+                    onSelected: (String statusVal) async {
+                      final scaffoldMessenger = ScaffoldMessenger.of(context);
+                      try {
+                        await ref.read(merchantMenuProvider.notifier).toggleDishAvailability(catId, dish.id, statusVal);
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: const Text('Đã cập nhật trạng thái hoạt động món ăn.'),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      } catch (e) {
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: Text('Lỗi khi cập nhật trạng thái: ${e.toString().replaceAll('Exception: ', '')}'),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      }
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(
@@ -666,23 +733,49 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
   void _confirmDeleteCategory(BuildContext context, MerchantCategory category) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Xác nhận xóa danh mục', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           content: Text(
-            'Hành động này sẽ xóa danh mục "${category.name}" cùng tất cả món ăn đi kèm. Bạn chắc chắn muốn xóa?',
+            'Hành động này sẽ xóa danh mục "${category.name}". Bạn chắc chắn muốn xóa?',
             style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(
-              onPressed: () => context.pop(),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
-              onPressed: () {
-                ref.read(merchantMenuProvider.notifier).deleteCategory(category.id);
-                context.pop();
+              onPressed: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(ctx);
+                try {
+                  await ref.read(merchantMenuProvider.notifier).deleteCategory(category.id);
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Đã xóa danh mục "${category.name}" thành công.'),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                } catch (e) {
+                  navigator.pop();
+                  String errorMsg = e.toString().replaceAll('Exception: ', '');
+                  if (errorMsg.contains('Category has menu items') || errorMsg.contains('400')) {
+                    errorMsg = 'Không thể xóa danh mục vì vẫn còn món ăn bên trong. Vui lòng xóa hết món ăn trước.';
+                  }
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Không thể xóa: $errorMsg'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
@@ -703,7 +796,7 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (ctx) {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -712,18 +805,70 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
           child: _DishEditorSheetContent(
             categoryId: catId,
             dish: dish,
-            onSave: (updatedDish) {
-              if (dish == null) {
-                ref.read(merchantMenuProvider.notifier).addDish(catId, updatedDish);
-              } else {
-                ref.read(merchantMenuProvider.notifier).updateDish(catId, updatedDish);
+            onSave: (updatedDish) async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              try {
+                if (dish == null) {
+                  await ref.read(merchantMenuProvider.notifier).addDish(catId, updatedDish);
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Đã thêm món "${updatedDish.name}" thành công.'),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                } else {
+                  await ref.read(merchantMenuProvider.notifier).updateDish(catId, updatedDish);
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Đã cập nhật món "${updatedDish.name}" thành công.'),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
+                navigator.pop();
+              } catch (e) {
+                navigator.pop();
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Lỗi khi lưu món ăn: ${e.toString().replaceAll('Exception: ', '')}'),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
               }
-              context.pop();
             },
             onDelete: dish != null
-                ? () {
-                    ref.read(merchantMenuProvider.notifier).deleteDish(catId, dish.id);
-                    context.pop();
+                ? () async {
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(ctx);
+                    try {
+                      await ref.read(merchantMenuProvider.notifier).deleteDish(catId, dish.id);
+                      navigator.pop();
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: const Text('Đã xóa món ăn thành công.'),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    } catch (e) {
+                      navigator.pop();
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Lỗi khi xóa món ăn: ${e.toString().replaceAll('Exception: ', '')}'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    }
                   }
                 : null,
           ),

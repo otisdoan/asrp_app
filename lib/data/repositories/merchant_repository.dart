@@ -70,6 +70,40 @@ class MerchantRepository {
     }
   }
 
+  /// Lấy đơn đăng ký chi nhánh hiện tại (GET /api/merchant-applications/me)
+  Future<Map<String, dynamic>?> getMyMerchantApplication() async {
+    final token = _dioClient.accessToken;
+    print('[MerchantRepository] --- START API GET MY MERCHANT APPLICATION ---');
+    print('[MerchantRepository] Target URL: ${_dioClient.dio.options.baseUrl}/merchant-applications/me');
+    print('[MerchantRepository] Access Token in DioClient: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
+
+    try {
+      final response = await _dioClient.dio.get(
+        '/merchant-applications/me',
+      );
+      print('[MerchantRepository] Response status code: ${response.statusCode}');
+      print('[MerchantRepository] Response data: ${response.data}');
+      print('[MerchantRepository] --- END API GET MY MERCHANT APPLICATION (SUCCESS) ---');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      print('[MerchantRepository] --- API ERROR DETECTED ---');
+      print('[MerchantRepository] Status code: ${e.response?.statusCode}');
+      print('[MerchantRepository] Response error data: ${e.response?.data}');
+      print('[MerchantRepository] Error message: ${e.message}');
+      print('[MerchantRepository] --- END API GET MY MERCHANT APPLICATION (ERROR) ---');
+
+      if (e.response?.statusCode == 404) {
+        return null; // Không tìm thấy đơn đăng ký nào
+      }
+
+      final serverDetail = e.response?.data?['detail'] ?? e.response?.data?['message'];
+      if (serverDetail != null) {
+        throw Exception('Lỗi từ máy chủ: $serverDetail');
+      }
+      rethrow;
+    }
+  }
+
   /// Lấy cấu hình chi nhánh (GET /api/branches/{branchId}/settings)
   Future<Map<String, dynamic>> getBranchSettings(String branchId) async {
     final token = _dioClient.accessToken;

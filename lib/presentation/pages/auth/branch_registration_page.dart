@@ -21,6 +21,36 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
 
   int _currentStep = 1; // 1 to 4
   bool _isLoading = false;
+  bool _isCheckingStatus = true;
+
+  Future<void> _checkStatusAndPrefill() async {
+    if (!mounted) return;
+    setState(() {
+      _isCheckingStatus = true;
+    });
+    try {
+      await ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus();
+      final registration = ref.read(branchRegistrationProvider);
+      
+      if (registration.status == 'approved') {
+        _currentStep = 2; // Direct to branch setup
+        _brandNameCtrl.text = registration.brandName;
+        _categoryCtrl.text = registration.category;
+        _taxCodeCtrl.text = registration.taxCode;
+        _bankNameCtrl.text = registration.bankName;
+        _bankAccountCtrl.text = registration.bankAccount;
+        _bankOwnerCtrl.text = registration.bankOwner.toUpperCase();
+      }
+    } catch (e) {
+      print('[BranchRegistrationPage] Error loading status: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingStatus = false;
+        });
+      }
+    }
+  }
 
   // Controllers
   late TextEditingController _brandNameCtrl;
@@ -80,20 +110,9 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
     _bankAccountFocus = FocusNode();
     _bankOwnerFocus = FocusNode();
 
-    // Schedule prefill if brand is already approved
+    // Schedule status check and prefill
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final registration = ref.read(branchRegistrationProvider);
-      if (registration.status == 'approved') {
-        setState(() {
-          _currentStep = 2; // Direct to branch setup
-          _brandNameCtrl.text = registration.brandName;
-          _categoryCtrl.text = registration.category;
-          _taxCodeCtrl.text = registration.taxCode;
-          _bankNameCtrl.text = registration.bankName;
-          _bankAccountCtrl.text = registration.bankAccount;
-          _bankOwnerCtrl.text = registration.bankOwner;
-        });
-      }
+      _checkStatusAndPrefill();
     });
   }
 
@@ -244,6 +263,15 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingStatus) {
+      return const Scaffold(
+        backgroundColor: AppColors.bgMain,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
     final registration = ref.watch(branchRegistrationProvider);
 
     // If brand registration is pending approval, immediately intercept and show pending screen

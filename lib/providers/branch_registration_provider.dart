@@ -149,6 +149,83 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
   void reset() {
     state = const BranchRegistrationData();
   }
+
+  /// Đồng bộ trạng thái đơn đăng ký chi nhánh từ server
+  Future<void> fetchApplicationStatus() async {
+    try {
+      final data = await _merchantRepository.getMyMerchantApplication();
+      if (data == null) {
+        state = const BranchRegistrationData();
+        return;
+      }
+      
+      // Unwrap data envelope if wrapped
+      final payload = data['data'] ?? data;
+      
+      final statusVal = payload['status'];
+      String mappedStatus = 'none';
+      if (statusVal == 1 || statusVal == 'Pending' || statusVal == 'pending') {
+        mappedStatus = 'pending';
+      } else if (statusVal == 2 || statusVal == 'Approved' || statusVal == 'approved') {
+        mappedStatus = 'approved';
+      } else if (statusVal == 3 || statusVal == 'Rejected' || statusVal == 'rejected') {
+        mappedStatus = 'rejected';
+      } else if (statusVal == 4 || statusVal == 'Cancelled' || statusVal == 'cancelled') {
+        mappedStatus = 'cancelled';
+      }
+      
+      final brandName = payload['brandName']?.toString() ?? '';
+      final category = payload['category']?.toString() ?? '';
+      final taxCode = payload['taxCode']?.toString() ?? '';
+      final bankName = payload['bankName']?.toString() ?? '';
+      final bankAccount = payload['bankAccount']?.toString() ?? '';
+      final bankOwner = payload['bankOwner']?.toString() ?? '';
+      
+      final firstBranch = payload['firstBranch'];
+      String branchName = '';
+      String phone = '';
+      String address = '';
+      String gps = '';
+      
+      if (firstBranch is Map<String, dynamic>) {
+        branchName = (firstBranch['name'] ?? firstBranch['firstBranchName'])?.toString() ?? '';
+        phone = (firstBranch['phone'] ?? firstBranch['firstBranchPhone'])?.toString() ?? '';
+        address = (firstBranch['address'] ?? firstBranch['firstBranchAddress'])?.toString() ?? '';
+        final lat = firstBranch['latitude'] ?? firstBranch['firstBranchLatitude'];
+        final lng = firstBranch['longitude'] ?? firstBranch['firstBranchLongitude'];
+        if (lat != null && lng != null) {
+          gps = '$lat, $lng';
+        }
+      }
+      
+      state = BranchRegistrationData(
+        status: mappedStatus,
+        brandName: brandName,
+        category: category,
+        branchName: branchName,
+        phone: phone,
+        address: address,
+        gps: gps,
+        taxCode: taxCode,
+        bankName: bankName,
+        bankAccount: bankAccount,
+        bankOwner: bankOwner,
+        registeredBranches: branchName.isNotEmpty
+            ? [
+                {
+                  'branchName': branchName,
+                  'phone': phone,
+                  'address': address,
+                  'gps': gps,
+                }
+              ]
+            : const [],
+      );
+    } catch (e) {
+      print('[BranchRegistrationNotifier] Error fetching application status: $e');
+      rethrow;
+    }
+  }
 }
 
 final branchRegistrationProvider =
