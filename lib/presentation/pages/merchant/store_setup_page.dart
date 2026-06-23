@@ -5,6 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import 'mock_store_detail_page.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import '../../../data/repositories/merchant_repository.dart';
+import '../../../providers/branch_provider.dart';
 
 class StoreSetupPage extends ConsumerStatefulWidget {
   const StoreSetupPage({super.key});
@@ -49,19 +51,127 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
   late String _selectedCoverUrl;
   bool _isSaving = false;
 
+  // Real data state
+  bool _isLoadingData = true;
+  String? _errorMessage;
+  String? _branchId;
+
   @override
   void initState() {
     super.initState();
-    // Default initial mock values
-    _nameController =
-        TextEditingController(text: 'Phở Đặc Biệt DineX - Chi Nhánh 1');
-    _hotlineController = TextEditingController(text: '0901234567');
+    // Default initial mock values (will be overwritten by API data if successful)
+    _nameController = TextEditingController();
+    _hotlineController = TextEditingController();
 
     _nameFocusNode = FocusNode();
     _hotlineFocusNode = FocusNode();
 
     _selectedLogoUrl = _mockLogos[0];
     _selectedCoverUrl = _mockCovers[0];
+
+    // Load actual settings
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBranchAndSettings();
+    });
+  }
+
+  // Parse time string formatted as HH:mm:ss or HH:mm into TimeOfDay
+  TimeOfDay _parseTimeString(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return const TimeOfDay(hour: 6, minute: 0);
+    try {
+      final parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+        return TimeOfDay(hour: hour, minute: minute);
+      }
+    } catch (e) {
+      print('[StoreSetupPage] Error parsing time string $timeStr: $e');
+    }
+    return const TimeOfDay(hour: 6, minute: 0);
+  }
+
+  Future<void> _loadBranchAndSettings() async {
+    setState(() {
+      _isLoadingData = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 1. Get branch ID. We fetch the list of branches from BranchRepository
+      final branchRepo = ref.read(branchRepositoryProvider);
+      final branches = await branchRepo.getBranches();
+      
+      if (branches.isEmpty) {
+        throw Exception('Không tìm thấy chi nhánh nào để thiết lập. Vui lòng đăng ký chi nhánh trước.');
+      }
+
+      // Use the first branch
+      final firstBranch = branches.first;
+      _branchId = firstBranch.id;
+
+      // 2. Fetch settings for this branch
+      final merchantRepo = MerchantRepository();
+      final settings = await merchantRepo.getBranchSettings(_branchId!);
+
+      // Support backend API envelopes (like settings['data'] or settings directly)
+      final data = settings['data'] ?? settings;
+
+      if (mounted) {
+        setState(() {
+          _nameController.text = data['name']?.toString() ?? '';
+          _hotlineController.text = data['phone']?.toString() ?? '';
+          
+          final category = data['category']?.toString();
+          const categories = ['Phở & Bún', 'Cơm Việt Nam', 'Đồ Ăn Vặt', 'Đồ Uống', 'Bánh Mì'];
+          if (category != null && category.isNotEmpty) {
+            if (categories.contains(category)) {
+              _selectedCategory = category;
+            } else {
+              _selectedCategory = categories.first;
+            }
+          }
+
+          final status = data['status']?.toString().toLowerCase();
+          if (status == 'active' || status == 'busy' || status == 'closed') {
+            _storeStatus = status!;
+          }
+
+          final logo = data['imageUrl']?.toString();
+          if (logo != null && logo.isNotEmpty) {
+            if (logo.startsWith('http') || File(logo).existsSync()) {
+              _selectedLogoUrl = logo;
+              _customLogoPath = logo;
+            } else {
+              _selectedLogoUrl = _mockLogos[0];
+            }
+          }
+
+          final cover = data['coverImageUrl']?.toString();
+          if (cover != null && cover.isNotEmpty) {
+            if (cover.startsWith('http') || File(cover).existsSync()) {
+              _selectedCoverUrl = cover;
+              _customCoverPath = cover;
+            } else {
+              _selectedCoverUrl = _mockCovers[0];
+            }
+          }
+
+          _openingTime = _parseTimeString(data['openingTime']?.toString());
+          _closingTime = _parseTimeString(data['closingTime']?.toString());
+
+          _isLoadingData = false;
+        });
+      }
+    } catch (e) {
+      print('[StoreSetupPage] Error loading branch settings: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoadingData = false;
+        });
+      }
+    }
   }
 
   @override
@@ -121,63 +231,160 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
         imageQuality: 85,
       );
 
-      if (image != null) {
-        setState(() {
-          if (isLogo) {
-            _customLogoPath = image.path;
-            _selectedLogoUrl = image.path;
-          } else {
-            _customCoverPath = image.path;
-            _selectedCoverUrl = image.path;
-          }
-        });
+      if (image == null) return;
+
+      if (_branchId == null) {
+        throw Exception('Không tìm thấy ID chi nhánh để tải ảnh lên.');
       }
-    } catch (e) {
-      print('Error picking image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể chọn ảnh từ thiết bị: $e'),
-          backgroundColor: AppColors.error,
+
+      // Show uploading dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.primary),
+                  SizedBox(height: 16),
+                  Text('Đang tải ảnh lên...', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
         ),
       );
+
+      final merchantRepo = MerchantRepository();
+      final uploadedUrl = await merchantRepo.uploadImage(
+        image.path,
+        'branches/$_branchId',
+      );
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      setState(() {
+        if (isLogo) {
+          _customLogoPath = uploadedUrl;
+          _selectedLogoUrl = uploadedUrl;
+        } else {
+          _customCoverPath = uploadedUrl;
+          _selectedCoverUrl = uploadedUrl;
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tải ảnh lên thành công!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if open
+      if (mounted) {
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
+      }
+      
+      print('Error picking/uploading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tải ảnh: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
+  String _formatTimeOfDayToAPI(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
   // Submit / Save settings
-  void _saveSettings() {
+  Future<void> _saveSettings() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_branchId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không tìm thấy ID chi nhánh để cập nhật.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isSaving = true;
     });
 
-    // Mock network call
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-      });
+    try {
+      final merchantRepo = MerchantRepository();
+      
+      final payload = {
+        "name": _nameController.text.trim(),
+        "phone": _hotlineController.text.trim(),
+        "category": _selectedCategory,
+        "imageUrl": _selectedLogoUrl,
+        "coverImageUrl": _selectedCoverUrl,
+        "openingTime": _formatTimeOfDayToAPI(_openingTime),
+        "closingTime": _formatTimeOfDayToAPI(_closingTime),
+        "status": _storeStatus,
+      };
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Lưu thiết lập cửa hàng thành công!',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
+      await merchantRepo.updateBranchSettings(_branchId!, payload);
+
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Lưu thiết lập cửa hàng thành công!',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      context.pop();
-    });
+        );
+        context.pop();
+      }
+    } catch (e) {
+      print('[StoreSetupPage] Error saving branch settings: $e');
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lưu thất bại: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -203,9 +410,13 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: Stack(
-        children: [
-          SafeArea(
+      body: _isLoadingData
+          ? _buildLoadingIndicator()
+          : (_errorMessage != null
+              ? _buildErrorView()
+              : Stack(
+                  children: [
+                    SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               // Safe padding at the bottom (chừa trống cho Save Button dính ở dưới)
@@ -345,6 +556,67 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
             ),
           ),
         ],
+      )),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: AppColors.primary),
+          SizedBox(height: 16),
+          Text(
+            'Đang tải thiết lập cửa hàng...',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage ?? 'Đã xảy ra lỗi không xác định',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadBranchAndSettings,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Thử lại'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -744,10 +1016,19 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
                           : null,
                     ),
                     child: ClipOval(
-                      child: Image.file(
-                        File(_customLogoPath!),
-                        fit: BoxFit.cover,
-                      ),
+                      child: _customLogoPath!.startsWith('http')
+                          ? Image.network(
+                              _customLogoPath!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(color: AppColors.primaryContainer),
+                            )
+                          : Image.file(
+                              File(_customLogoPath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(color: AppColors.primaryContainer),
+                            ),
                     ),
                   ),
                 ),
@@ -890,10 +1171,19 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(5),
-                      child: Image.file(
-                        File(_customCoverPath!),
-                        fit: BoxFit.cover,
-                      ),
+                      child: _customCoverPath!.startsWith('http')
+                          ? Image.network(
+                              _customCoverPath!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(color: AppColors.surfaceContainer),
+                            )
+                          : Image.file(
+                              File(_customCoverPath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(color: AppColors.surfaceContainer),
+                            ),
                     ),
                   ),
                 ),

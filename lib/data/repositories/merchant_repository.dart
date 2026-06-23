@@ -69,4 +69,108 @@ class MerchantRepository {
       rethrow;
     }
   }
+
+  /// Lấy cấu hình chi nhánh (GET /api/branches/{branchId}/settings)
+  Future<Map<String, dynamic>> getBranchSettings(String branchId) async {
+    final token = _dioClient.accessToken;
+    print('[MerchantRepository] --- START API GET BRANCH SETTINGS ---');
+    print('[MerchantRepository] Target URL: ${_dioClient.dio.options.baseUrl}/branches/$branchId/settings');
+    print('[MerchantRepository] Access Token in DioClient: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
+
+    try {
+      final response = await _dioClient.dio.get(
+        '/branches/$branchId/settings',
+      );
+      print('[MerchantRepository] Response status code: ${response.statusCode}');
+      print('[MerchantRepository] Response data: ${response.data}');
+      print('[MerchantRepository] --- END API GET BRANCH SETTINGS (SUCCESS) ---');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      print('[MerchantRepository] --- API ERROR DETECTED ---');
+      print('[MerchantRepository] Status code: ${e.response?.statusCode}');
+      print('[MerchantRepository] Response error data: ${e.response?.data}');
+      print('[MerchantRepository] Error message: ${e.message}');
+      print('[MerchantRepository] --- END API GET BRANCH SETTINGS (ERROR) ---');
+      
+      final serverDetail = e.response?.data?['detail'] ?? e.response?.data?['message'];
+      if (serverDetail != null) {
+        throw Exception('Lỗi từ máy chủ: $serverDetail');
+      }
+      rethrow;
+    }
+  }
+
+  /// Cập nhật cấu hình chi nhánh (PATCH /api/branches/{branchId}/settings)
+  Future<void> updateBranchSettings(String branchId, Map<String, dynamic> payload) async {
+    final token = _dioClient.accessToken;
+    print('[MerchantRepository] --- START API UPDATE BRANCH SETTINGS ---');
+    print('[MerchantRepository] Target URL: ${_dioClient.dio.options.baseUrl}/branches/$branchId/settings');
+    print('[MerchantRepository] Access Token in DioClient: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
+    print('[MerchantRepository] Payload data: $payload');
+
+    try {
+      final response = await _dioClient.dio.patch(
+        '/branches/$branchId/settings',
+        data: payload,
+      );
+      print('[MerchantRepository] Response status code: ${response.statusCode}');
+      print('[MerchantRepository] Response data: ${response.data}');
+      print('[MerchantRepository] --- END API UPDATE BRANCH SETTINGS (SUCCESS) ---');
+    } on DioException catch (e) {
+      print('[MerchantRepository] --- API ERROR DETECTED ---');
+      print('[MerchantRepository] Status code: ${e.response?.statusCode}');
+      print('[MerchantRepository] Response error data: ${e.response?.data}');
+      print('[MerchantRepository] Error message: ${e.message}');
+      print('[MerchantRepository] --- END API UPDATE BRANCH SETTINGS (ERROR) ---');
+      
+      final serverDetail = e.response?.data?['detail'] ?? e.response?.data?['message'];
+      if (serverDetail != null) {
+        throw Exception('Lỗi từ máy chủ: $serverDetail');
+      }
+      rethrow;
+    }
+  }
+
+  /// Tải ảnh lên server (POST /api/storage/images)
+  Future<String> uploadImage(String filePath, String folder) async {
+    final token = _dioClient.accessToken;
+    print('[MerchantRepository] --- START API UPLOAD IMAGE ---');
+    print('[MerchantRepository] Target URL: ${_dioClient.dio.options.baseUrl}/storage/images');
+    print('[MerchantRepository] Access Token in DioClient: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
+    print('[MerchantRepository] File path: $filePath, Folder: $folder');
+
+    try {
+      final fileName = filePath.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+        'folder': folder,
+      });
+
+      final response = await _dioClient.dio.post(
+        '/storage/images',
+        data: formData,
+      );
+
+      print('[MerchantRepository] Response status code: ${response.statusCode}');
+      print('[MerchantRepository] Response data: ${response.data}');
+      print('[MerchantRepository] --- END API UPLOAD IMAGE (SUCCESS) ---');
+
+      // The backend returns StorageUploadResult: { imageKey, imageUrl }
+      final data = response.data['data'] ?? response.data;
+      final imageUrl = data['imageUrl'] as String;
+      return imageUrl;
+    } on DioException catch (e) {
+      print('[MerchantRepository] --- API ERROR DETECTED ---');
+      print('[MerchantRepository] Status code: ${e.response?.statusCode}');
+      print('[MerchantRepository] Response error data: ${e.response?.data}');
+      print('[MerchantRepository] Error message: ${e.message}');
+      print('[MerchantRepository] --- END API UPLOAD IMAGE (ERROR) ---');
+      
+      final serverDetail = e.response?.data?['detail'] ?? e.response?.data?['message'];
+      if (serverDetail != null) {
+        throw Exception('Lỗi từ máy chủ: $serverDetail');
+      }
+      rethrow;
+    }
+  }
 }
