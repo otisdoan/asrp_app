@@ -226,57 +226,66 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
     try {
       final response = await _dioClient.dio.get('/branches/$_branchId/menu-builder');
       final data = response.data['data'] ?? response.data;
-      final rawCategories = data['categories'] as List<dynamic>? ?? [];
+      print('[MerchantMenuNotifier] API Response Data: $data');
+      final rawCategories = data['categories'] as List<dynamic>? ?? data['Categories'] as List<dynamic>? ?? [];
       
       final List<MerchantCategory> categories = [];
       final Map<String, List<MerchantDish>> categoryDishes = {};
       
       for (final rawCat in rawCategories) {
-        final catId = rawCat['id'].toString();
+        final catId = (rawCat['id'] ?? rawCat['Id']).toString();
         final category = MerchantCategory(
           id: catId,
-          name: rawCat['name'].toString(),
-          priority: rawCat['priority'] as int? ?? 0,
-          isActive: rawCat['isActive'] as bool? ?? true,
+          name: (rawCat['name'] ?? rawCat['Name']).toString(),
+          priority: (rawCat['priority'] ?? rawCat['Priority']) as int? ?? 0,
+          isActive: (rawCat['isActive'] ?? rawCat['IsActive']) as bool? ?? true,
         );
         categories.add(category);
         
         final List<MerchantDish> dishes = [];
-        final rawItems = rawCat['items'] as List<dynamic>? ?? [];
+        final rawItems = rawCat['items'] as List<dynamic>? ?? rawCat['Items'] as List<dynamic>? ?? [];
         for (final rawItem in rawItems) {
-          final rawGroups = rawItem['optionGroups'] as List<dynamic>? ?? [];
+          final rawGroups = rawItem['optionGroups'] as List<dynamic>? ?? 
+                             rawItem['OptionGroups'] as List<dynamic>? ?? 
+                             rawItem['customizationGroups'] as List<dynamic>? ?? 
+                             rawItem['CustomizationGroups'] as List<dynamic>? ?? [];
           final List<MerchantOptionGroup> optionGroups = [];
           
           for (final rawGroup in rawGroups) {
-            final rawOptionItems = rawGroup['items'] as List<dynamic>? ?? [];
+            final rawOptionItems = rawGroup['items'] as List<dynamic>? ?? 
+                                   rawGroup['Items'] as List<dynamic>? ?? 
+                                   rawGroup['toppings'] as List<dynamic>? ?? 
+                                   rawGroup['Toppings'] as List<dynamic>? ?? [];
             final List<MerchantOptionItem> optionItems = [];
             for (final rawOpt in rawOptionItems) {
               optionItems.add(MerchantOptionItem(
-                id: rawOpt['id'].toString(),
-                itemName: rawOpt['itemName'].toString(),
-                extraPrice: (rawOpt['extraPrice'] as num?)?.toDouble() ?? 0.0,
-                isAvailable: rawOpt['isAvailable'] as bool? ?? true,
+                id: (rawOpt['id'] ?? rawOpt['Id'])?.toString() ?? '',
+                itemName: (rawOpt['itemName'] ?? rawOpt['ItemName'] ?? rawOpt['toppingName'] ?? rawOpt['ToppingName'] ?? rawOpt['label'] ?? rawOpt['Label'] ?? '').toString(),
+                extraPrice: ((rawOpt['extraPrice'] ?? rawOpt['ExtraPrice'] ?? rawOpt['toppingPrice'] ?? rawOpt['ToppingPrice'] ?? rawOpt['price'] ?? rawOpt['Price'] ?? 0.0) as num).toDouble(),
+                isAvailable: (rawOpt['isAvailable'] ?? rawOpt['IsAvailable'] ?? true) as bool? ?? true,
               ));
             }
             
             optionGroups.add(MerchantOptionGroup(
-              id: rawGroup['id'].toString(),
-              groupName: rawGroup['groupName'].toString(),
-              minSelect: rawGroup['minSelect'] as int? ?? 0,
-              maxSelect: rawGroup['maxSelect'] as int? ?? 1,
-              isRequired: rawGroup['isRequired'] as bool? ?? false,
+              id: (rawGroup['id'] ?? rawGroup['Id'])?.toString() ?? '',
+              groupName: (rawGroup['groupName'] ?? rawGroup['GroupName'] ?? rawGroup['label'] ?? rawGroup['Label'] ?? '').toString(),
+              minSelect: (rawGroup['minSelect'] ?? rawGroup['MinSelect'] ?? 0) as int,
+              maxSelect: (rawGroup['maxSelect'] ?? rawGroup['MaxSelect'] ?? 1) as int,
+              isRequired: (rawGroup['isRequired'] ?? rawGroup['IsRequired'] ?? false) as bool,
               items: optionItems,
             ));
           }
           
           dishes.add(MerchantDish(
-            id: rawItem['id'].toString(),
-            name: rawItem['name'].toString(),
-            originalPrice: (rawItem['originalPrice'] as num).toDouble(),
-            discountPrice: (rawItem['discountPrice'] as num?)?.toDouble(),
-            imageUrl: rawItem['imageUrl']?.toString() ?? '',
-            description: rawItem['description']?.toString() ?? '',
-            availability: rawItem['availability']?.toString() ?? 'available',
+            id: (rawItem['id'] ?? rawItem['Id']).toString(),
+            name: (rawItem['name'] ?? rawItem['Name']).toString(),
+            originalPrice: ((rawItem['originalPrice'] ?? rawItem['OriginalPrice'] ?? 0.0) as num).toDouble(),
+            discountPrice: (rawItem['discountPrice'] ?? rawItem['DiscountPrice']) != null
+                ? ((rawItem['discountPrice'] ?? rawItem['DiscountPrice']) as num).toDouble()
+                : null,
+            imageUrl: (rawItem['imageUrl'] ?? rawItem['ImageUrl'])?.toString() ?? '',
+            description: (rawItem['description'] ?? rawItem['Description'])?.toString() ?? '',
+            availability: (rawItem['availability'] ?? rawItem['Availability'])?.toString() ?? 'available',
             optionGroups: optionGroups,
           ));
         }

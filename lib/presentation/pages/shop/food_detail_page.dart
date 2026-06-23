@@ -447,6 +447,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           icon: widget.icon,
                           imageUrl: widget.imageUrl,
                           menuItemId: widget.menuItemId,
+                          branchId: widget.branchId,
                         ),
                       ));
                   if (result != null && context.mounted) {
@@ -802,6 +803,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           icon: widget.icon,
                           imageUrl: widget.imageUrl,
                           menuItemId: widget.menuItemId,
+                          branchId: widget.branchId,
                         ),
                       ));
                   if (result != null && context.mounted) {

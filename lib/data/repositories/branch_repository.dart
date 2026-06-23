@@ -131,4 +131,29 @@ class BranchRepository {
       rethrow;
     }
   }
+
+  /// Lấy chi tiết món ăn (GET /api/branches/{branchId}/menu-items/{menuItemId})
+  Future<Map<String, dynamic>> getMenuItemDetail({
+    required String branchId,
+    required String menuItemId,
+  }) async {
+    try {
+      final response = await _dioClient.dio.get(
+        '/branches/$branchId/menu-items/$menuItemId',
+      );
+      print('[BranchRepository] MenuItem Detail Response status: ${response.statusCode}');
+      
+      final rawData = response.data;
+      if (rawData is Map<String, dynamic>) {
+        if (rawData['data'] is Map<String, dynamic>) {
+          return rawData['data'] as Map<String, dynamic>;
+        }
+        return rawData;
+      }
+      throw Exception('Invalid response structure for menu item detail');
+    } catch (e) {
+      print('[BranchRepository] Error getting menu item detail: $e');
+      rethrow;
+    }
+  }
 }

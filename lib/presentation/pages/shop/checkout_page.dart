@@ -512,6 +512,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   void _editOrderItem(CartItemModel item) async {
+    final cart = ref.read(cartProvider);
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -520,15 +521,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           price: '${item.priceAmount}đ',
           icon: widget.icon,
           imageUrl: item.imageUrl,
+          menuItemId: item.menuItemId,
+          branchId: widget.branchId ?? cart.branchId,
           initialQuantity: item.quantity,
-          initialSelectedToppings: item.selectedToppings
-              .where((t) => !t.name.startsWith('Size'))
-              .map((t) => t.name)
-              .toList(),
-          initialSize: item.selectedToppings
-              .where((t) => t.name.startsWith('Size'))
-              .map((t) => t.name.replaceAll('Size ', ''))
-              .firstOrNull,
+          initialSelectedToppings: item.selectedToppings,
           initialNote: item.note,
           isEditing: true,
         ),
