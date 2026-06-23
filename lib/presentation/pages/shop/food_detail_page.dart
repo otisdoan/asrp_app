@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/branch_repository.dart';
 import 'add_to_cart_page.dart';
 
 /// Food Item Detail Page — shows food image, info, price, and reviews.
@@ -12,6 +13,7 @@ class FoodDetailPage extends StatefulWidget {
   final IconData icon;
   final String? imageUrl;
   final String? menuItemId;
+  final String? branchId;
 
   const FoodDetailPage({
     super.key,
@@ -22,6 +24,7 @@ class FoodDetailPage extends StatefulWidget {
     required this.icon,
     this.imageUrl,
     this.menuItemId,
+    this.branchId,
   });
 
   @override
@@ -35,12 +38,104 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   bool _isProductLiked = false;
   late int _productLikes;
 
+  List<Map<String, dynamic>> _reviews = [];
+  bool _isLoadingReviews = true;
+  String? _reviewsErrorMessage;
+
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _productLikes = widget.likes;
+    _fetchReviews();
+  }
+
+  Future<void> _fetchReviews() async {
+    final branchId = widget.branchId;
+    final menuItemId = widget.menuItemId;
+    
+    if (branchId == null || branchId.isEmpty || menuItemId == null || menuItemId.isEmpty) {
+      setState(() {
+        _reviews = [];
+        _isLoadingReviews = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingReviews = true;
+      _reviewsErrorMessage = null;
+    });
+
+    try {
+      final repo = BranchRepository();
+      final rawReviews = await repo.getMenuItemReviews(
+        branchId: branchId,
+        menuItemId: menuItemId,
+      );
+
+      final mapped = rawReviews.map((r) => _mapBackendReviewToUi(r)).toList();
+
+      setState(() {
+        _reviews = mapped;
+        _isLoadingReviews = false;
+      });
+    } catch (e) {
+      print('[FoodDetailPage] Error fetching reviews: $e');
+      setState(() {
+        _reviewsErrorMessage = 'Không thể tải bình luận: $e';
+        _isLoadingReviews = false;
+      });
+    }
+  }
+
+  Map<String, dynamic> _mapBackendReviewToUi(Map<String, dynamic> review) {
+    final user = review['customerName'] ?? review['CustomerName'] ?? 'Người dùng';
+    final rating = (review['rating'] ?? review['Rating'] ?? 5) as int;
+    final content = review['content'] ?? review['Content'] ?? '';
+
+    String dateStr = '';
+    final rawDate = review['createdAt'] ?? review['CreatedAt'];
+    if (rawDate != null) {
+      try {
+        final parsedDate = DateTime.parse(rawDate.toString());
+        final day = parsedDate.day.toString().padLeft(2, '0');
+        final month = parsedDate.month.toString().padLeft(2, '0');
+        final year = parsedDate.year;
+        final hour = parsedDate.hour.toString().padLeft(2, '0');
+        final minute = parsedDate.minute.toString().padLeft(2, '0');
+        dateStr = '$day-$month-$year $hour:$minute';
+      } catch (e) {
+        dateStr = rawDate.toString();
+      }
+    }
+
+    final imageCount = (review['imageCount'] ?? review['ImageCount'] ?? 0) as int;
+    final tags = List<String>.from(review['tags'] ?? review['Tags'] ?? []);
+
+    String replyContent = '';
+    final rawReply = review['reply'] ?? review['Reply'];
+    if (rawReply != null) {
+      if (rawReply is Map) {
+        replyContent = rawReply['content'] ?? rawReply['Content'] ?? '';
+      } else {
+        replyContent = rawReply.toString();
+      }
+    }
+
+    final likes = (review['likeCount'] ?? review['LikeCount'] ?? review['helpfulCount'] ?? review['HelpfulCount'] ?? 0) as int;
+
+    return {
+      'user': user,
+      'rating': rating,
+      'date': dateStr,
+      'content': content,
+      'imageCount': imageCount,
+      'tags': tags,
+      'reply': replyContent,
+      'likes': likes,
+    };
   }
 
   @override
@@ -74,54 +169,6 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     }
   }
 
-  // Mock reviews
-  static const _reviews = [
-    {
-      'user': '_nntruc17_',
-      'rating': 5,
-      'date': '19-05-2026 22:45',
-      'content': 'Bánh gà phô mai hơi nhỏ xo với tưởng tượng🥲',
-      'imageCount': 3,
-      'tags': ['BÁNH GÀ PHÔ MAI'],
-      'reply': 'C.ơn quý khách đã dùng cơm 🤗🤗🤗🤗',
-      'likes': 12,
-    },
-    {
-      'user': '47w_lslctd',
-      'rating': 5,
-      'date': '03-05-2026 19:32',
-      'content':
-          'Gà chiên giòn rụm, nước sốt đậm đà. Phần ăn to, giá hợp lý. Sẽ quay lại ủng hộ!',
-      'imageCount': 4,
-      'tags': ['GÀ RÁN'],
-      'reply': '',
-      'likes': 8,
-    },
-    {
-      'user': 'foodie_saigon',
-      'rating': 4,
-      'date': '01-05-2026 14:20',
-      'content':
-          'Đồ ăn ngon, giao hàng nhanh. Nhưng lần này thiếu nước chấm 😅',
-      'imageCount': 2,
-      'tags': ['GÀ SỐT CAY'],
-      'reply':
-          'Xin lỗi bạn vì sự thiếu sót. Lần sau mình sẽ kiểm tra kỹ hơn ạ! Mong bạn thông cảm 🙏',
-      'likes': 5,
-    },
-    {
-      'user': 'minh_an_99',
-      'rating': 5,
-      'date': '28-04-2026 20:15',
-      'content':
-          'Lần đầu order thử, không ngờ ngon quá! Gà giòn, cơm dẻo, nước sốt đậm đà. 10 điểm!',
-      'imageCount': 0,
-      'tags': [],
-      'reply': 'Cảm ơn bạn nhiều lắm ạ! Hẹn gặp lại bạn lần sau nha 💛',
-      'likes': 0,
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,15 +185,39 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           // ─── Reviews Section ────────────────────────────────
           SliverToBoxAdapter(child: _buildReviewsHeader()),
 
-          // ─── Review List ────────────────────────────────────
-          _reviews.isNotEmpty
-              ? SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildReviewCard(_reviews[index]),
-                    childCount: _reviews.length,
+          // ─── Review List or Loading ─────────────────────────
+          _isLoadingReviews
+              ? const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 )
-              : SliverToBoxAdapter(child: _buildEmptyReviews()),
+              : (_reviewsErrorMessage != null
+                  ? SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            _reviewsErrorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.error),
+                          ),
+                        ),
+                      ),
+                    )
+                  : (_reviews.isNotEmpty
+                      ? SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => _buildReviewCard(_reviews[index]),
+                            childCount: _reviews.length,
+                          ),
+                        )
+                      : SliverToBoxAdapter(child: _buildEmptyReviews()))),
 
           // Bottom spacing
           const SliverToBoxAdapter(child: SizedBox(height: 80)),

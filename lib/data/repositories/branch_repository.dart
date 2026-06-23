@@ -92,4 +92,43 @@ class BranchRepository {
 
     return detail.copyWith(menu: menuData);
   }
+
+  /// Lấy đánh giá của món ăn (GET /api/branches/{branchId}/menu-items/{menuItemId}/reviews)
+  Future<List<Map<String, dynamic>>> getMenuItemReviews({
+    required String branchId,
+    required String menuItemId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    try {
+      final response = await _dioClient.dio.get(
+        '/branches/$branchId/menu-items/$menuItemId/reviews',
+        queryParameters: {
+          'page': page,
+          'pageSize': pageSize,
+        },
+      );
+      print('[BranchRepository] Reviews Response status: ${response.statusCode}');
+      
+      final rawData = response.data;
+      List<dynamic> list = [];
+      
+      if (rawData is List) {
+        list = rawData;
+      } else if (rawData is Map<String, dynamic>) {
+        if (rawData['data'] is List) {
+          list = rawData['data'] as List;
+        } else if (rawData['items'] is List) {
+          list = rawData['items'] as List;
+        } else if (rawData['reviews'] is List) {
+          list = rawData['reviews'] as List;
+        }
+      }
+      
+      return list.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('[BranchRepository] Error getting menu item reviews: $e');
+      rethrow;
+    }
+  }
 }

@@ -1174,6 +1174,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             icon: icon,
             imageUrl: imageUrl,
             menuItemId: menuItemId,
+            branchId: widget.branchId ?? _lastResolvedDetail?.id,
           ),
         ));
         _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon, menuItemId: menuItemId);
@@ -1309,6 +1310,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             icon: icon,
             imageUrl: imageUrl,
             menuItemId: menuItemId,
+            branchId: widget.branchId ?? _lastResolvedDetail?.id,
           ),
         ));
         _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon, menuItemId: menuItemId);
