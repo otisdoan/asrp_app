@@ -1517,7 +1517,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                     initialValue: grp.groupName,
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                     onChanged: (val) {
-                      _optionGroups[grpIdx] = grp.copyWith(groupName: val);
+                      final currentGrp = _optionGroups[grpIdx];
+                      _optionGroups[grpIdx] = currentGrp.copyWith(groupName: val);
                     },
                     decoration: InputDecoration(
                       isDense: true,
@@ -1546,7 +1547,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                   activeColor: AppColors.primary,
                   onChanged: (val) {
                     setState(() {
-                      _optionGroups[grpIdx] = grp.copyWith(isRequired: val ?? false, minSelect: (val ?? false) ? 1 : 0);
+                      final currentGrp = _optionGroups[grpIdx];
+                      _optionGroups[grpIdx] = currentGrp.copyWith(isRequired: val ?? false, minSelect: (val ?? false) ? 1 : 0);
                     });
                   },
                 ),
@@ -1561,7 +1563,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                   onChanged: (val) {
                     if (val != null) {
                       setState(() {
-                        _optionGroups[grpIdx] = grp.copyWith(maxSelect: val);
+                        final currentGrp = _optionGroups[grpIdx];
+                        _optionGroups[grpIdx] = currentGrp.copyWith(maxSelect: val);
                       });
                     }
                   },
@@ -1599,9 +1602,10 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                         initialValue: item.itemName,
                         style: const TextStyle(fontSize: 12),
                         onChanged: (val) {
-                          final newItems = List<MerchantOptionItem>.from(grp.items);
-                          newItems[itemIdx] = item.copyWith(itemName: val);
-                          _optionGroups[grpIdx] = grp.copyWith(items: newItems);
+                          final currentGrp = _optionGroups[grpIdx];
+                          final newItems = List<MerchantOptionItem>.from(currentGrp.items);
+                          newItems[itemIdx] = newItems[itemIdx].copyWith(itemName: val);
+                          _optionGroups[grpIdx] = currentGrp.copyWith(items: newItems);
                         },
                         decoration: InputDecoration(
                           isDense: true,
@@ -1622,9 +1626,10 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                         style: const TextStyle(fontSize: 12),
                         keyboardType: TextInputType.number,
                         onChanged: (val) {
-                          final newItems = List<MerchantOptionItem>.from(grp.items);
-                          newItems[itemIdx] = item.copyWith(extraPrice: double.tryParse(val) ?? 0.0);
-                          _optionGroups[grpIdx] = grp.copyWith(items: newItems);
+                          final currentGrp = _optionGroups[grpIdx];
+                          final newItems = List<MerchantOptionItem>.from(currentGrp.items);
+                          newItems[itemIdx] = newItems[itemIdx].copyWith(extraPrice: double.tryParse(val) ?? 0.0);
+                          _optionGroups[grpIdx] = currentGrp.copyWith(items: newItems);
                         },
                         decoration: InputDecoration(
                           isDense: true,
