@@ -76,7 +76,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
       if (mounted) {
         final role = response.user.role.toLowerCase();
-        if (role == 'customer') {
+        if (role == 'customer' || role == 'staff' || role == 'manager') {
           final hasOnboarded = await storage.read(key: 'onboarding_completed');
           if (!mounted) return;
           if (hasOnboarded == 'true') {
@@ -84,12 +84,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           } else {
             context.go(AppConstants.routeOnboarding);
           }
-        } else if (role == 'staff') {
-          context.go(AppConstants.routeStaffHome);
         } else if (role == 'admin') {
           context.go('/admin/dashboard');
-        } else if (role == 'manager') {
-          context.go(AppConstants.routeCashier);
         } else {
           context.go(AppConstants.routeCashier);
         }

@@ -6,8 +6,10 @@ import '../../../providers/cart_provider.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/topping_selection_model.dart';
 import '../../../data/repositories/order_repository.dart';
+import '../../../providers/order_provider.dart';
 import 'add_to_cart_page.dart';
 import 'order_success_page.dart';
+import 'qr_payment_page.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
 /// Business: No delivery. Customer orders online, picks up at store.
@@ -43,7 +45,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   bool _isExpanded = false;
 
-  int get _serviceFee => 3000;
+  int get _serviceFee => 0;
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
@@ -158,7 +160,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
-    if (cart.items.isEmpty) {
+    if (cart.items.isEmpty && !_isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
@@ -1073,6 +1075,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final paymentResponse =
           await _orderRepository.initiatePayment(orderId, paymentPayload);
       final checkoutUrl = paymentResponse['checkoutUrl'] as String?;
+      final qrCode = paymentResponse['qrCode'] as String?;
+      final amountVal = (paymentResponse['amount'] as num?)?.toDouble() ?? finalAmount.toDouble();
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('Không nhận được liên kết thanh toán từ PayOS');
@@ -1081,39 +1085,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // 4. Clear cart after ordering successfully
       ref.read(cartProvider.notifier).clearCart();
 
-      // 5. Open PayOS Checkout Page using url_launcher
-      final uri = Uri.parse(checkoutUrl);
-      try {
-        // Try platformDefault first (opens Custom Tabs on Android / SafariViewController on iOS)
-        final launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
-        if (!launched) {
-          // Try inAppBrowserView as fallback
-          final launchedInApp =
-              await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
-          if (!launchedInApp) {
-            throw Exception('Không thể khởi chạy liên kết thanh toán.');
-          }
-        }
-      } catch (e) {
-        // Last fallback: try externalApplication
-        try {
-          final launchedExternal =
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-          if (!launchedExternal) {
-            throw Exception(
-                'Không thể khởi chạy liên kết thanh toán qua ứng dụng ngoài.');
-          }
-        } catch (_) {
-          throw Exception('Không thể mở liên kết thanh toán: $e');
-        }
-      }
+      // Refresh orders list to include the newly placed order
+      ref.read(orderProvider.notifier).fetchMyOrders();
 
-      // Navigate to success page
+      // 5. Navigate to QrPaymentPage
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => OrderSuccessPage(orderId: orderId),
+            builder: (_) => QrPaymentPage(
+              orderId: orderId,
+              qrCode: qrCode ?? '',
+              amount: amountVal,
+              checkoutUrl: checkoutUrl,
+            ),
           ),
         );
       }

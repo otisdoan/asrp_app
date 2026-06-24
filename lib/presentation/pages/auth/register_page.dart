@@ -117,7 +117,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 if (mounted) {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                   final role = response.user.role.toLowerCase();
-                  if (role == 'customer') {
+                  if (role == 'customer' || role == 'staff' || role == 'manager') {
                     final hasOnboarded = await storage.read(key: 'onboarding_completed');
                     if (!mounted) return;
                     if (hasOnboarded == 'true') {
@@ -125,9 +125,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     } else {
                       context.go(AppConstants.routeOnboarding);
                     }
-                  } else if (role == 'staff') {
-                    context.go(AppConstants.routeStaffHome);
-                  } else if (role == 'admin' || role == 'manager') {
+                  } else if (role == 'admin') {
                     context.go(AppConstants.routeCashier);
                   } else {
                     context.go(AppConstants.routeCashier);
@@ -590,7 +588,7 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
         final role = response.user.role.toLowerCase();
-        if (role == 'customer') {
+        if (role == 'customer' || role == 'staff' || role == 'manager') {
           final hasOnboarded = await storage.read(key: 'onboarding_completed');
           if (!mounted) return;
           if (hasOnboarded == 'true') {
@@ -598,9 +596,7 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
           } else {
             GoRouter.of(context).go(AppConstants.routeOnboarding);
           }
-        } else if (role == 'staff') {
-          GoRouter.of(context).go(AppConstants.routeStaffHome);
-        } else if (role == 'admin' || role == 'manager') {
+        } else if (role == 'admin') {
           GoRouter.of(context).go(AppConstants.routeCashier);
         } else {
           GoRouter.of(context).go(AppConstants.routeCashier);

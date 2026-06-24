@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import '../../../data/repositories/order_repository.dart';
 import 'cancel_success_page.dart';
+import 'qr_payment_page.dart';
 
 /// OrderDetailPage — Displays detailed progress and order information for a single order.
 /// Follows self-pickup business model (No delivery, customer picks up at store, QR payment).
@@ -52,6 +55,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(orderProvider.notifier).fetchOrderDetail(widget.orderId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final allOrders = ref.watch(orderProvider);
     final order = allOrders.firstWhere(
@@ -66,26 +77,35 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         pickupTime: DateTime.now(),
         originalMinutes: 15,
         timeline: [],
+        paymentStatus: 'Pending',
+        orderType: 'Online',
       ),
     );
 
     String appBarTitle = 'Đã đặt hàng';
-    switch (order.status) {
-      case MockOrderStatus.pendingConfirm:
+    if (order.status == MockOrderStatus.pendingConfirm) {
+      if (!order.isPaid && order.isQrPayment) {
+        appBarTitle = 'Chờ thanh toán';
+      } else {
         appBarTitle = 'Chờ xác nhận';
-        break;
-      case MockOrderStatus.preparing:
-        appBarTitle = 'Đang chuẩn bị';
-        break;
-      case MockOrderStatus.ready:
-        appBarTitle = 'Chờ nhận món';
-        break;
-      case MockOrderStatus.completed:
-        appBarTitle = 'Hoàn tất đơn hàng';
-        break;
-      case MockOrderStatus.cancelled:
-        appBarTitle = 'Đã hủy đơn';
-        break;
+      }
+    } else {
+      switch (order.status) {
+        case MockOrderStatus.pendingConfirm:
+          break;
+        case MockOrderStatus.preparing:
+          appBarTitle = 'Đang chuẩn bị';
+          break;
+        case MockOrderStatus.ready:
+          appBarTitle = 'Chờ nhận món';
+          break;
+        case MockOrderStatus.completed:
+          appBarTitle = 'Hoàn tất đơn hàng';
+          break;
+        case MockOrderStatus.cancelled:
+          appBarTitle = 'Đã hủy đơn';
+          break;
+      }
     }
 
     final pickupTimeStr =
@@ -110,18 +130,27 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── Stepper Progress ────────────────────────────────────────────
-            _buildProgressStepper(order.status),
-            const SizedBox(height: 12),
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(orderProvider.notifier).fetchOrderDetail(widget.orderId),
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── Stepper Progress ────────────────────────────────────────────
+              _buildProgressStepper(order.status),
+              const SizedBox(height: 12),
 
             // ─── Status Informative Banner ───────────────────────────────────
             _buildStatusBanner(order, pickupTimeStr),
             const SizedBox(height: 12),
+
+            if (order.hasNotification) ...[
+              _buildProposedTimeBanner(order),
+              const SizedBox(height: 12),
+            ],
 
             // ─── Shop & Items Details Card ───────────────────────────────────
             _buildShopItemsCard(order),
@@ -137,6 +166,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           ],
         ),
       ),
+    ),
       bottomNavigationBar: _buildBottomActions(order),
     );
   }
@@ -299,13 +329,23 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     Color iconColor = AppColors.primary;
     Color containerColor = AppColors.primaryContainer;
 
-    switch (order.status) {
-      case MockOrderStatus.pendingConfirm:
+    if (order.status == MockOrderStatus.pendingConfirm) {
+      if (!order.isPaid && order.isQrPayment) {
+        bannerIcon = Icons.account_balance_wallet_outlined;
+        titleText = 'Chờ thanh toán';
+        subText = 'Vui lòng hoàn tất thanh toán chuyển khoản qua QR để quán bắt đầu chuẩn bị món.';
+        iconColor = Colors.orange;
+        containerColor = const Color(0xFFFFF9F5);
+      } else {
         bannerIcon = Icons.hourglass_empty_rounded;
         titleText = 'Chờ quán xác nhận';
         subText = 'Quán đang kiểm tra đơn hàng và chuẩn bị xác nhận thời gian chuẩn bị món ăn.';
         iconColor = Colors.orange;
         containerColor = const Color(0xFFFFF9F5);
+      }
+    } else {
+      switch (order.status) {
+      case MockOrderStatus.pendingConfirm:
         break;
       case MockOrderStatus.preparing:
         bannerIcon = Icons.soup_kitchen_outlined;
@@ -330,6 +370,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         break;
       case MockOrderStatus.cancelled:
         return const SizedBox.shrink(); // Stepper already displays cancel info
+      }
     }
 
     return Container(
@@ -529,7 +570,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildMetadataRow('Mã đơn hàng', order.id, isCopyable: true),
+          _buildMetadataRow(
+            'Mã đơn hàng',
+            order.orderNumber.isNotEmpty ? '#${order.orderNumber}' : order.id,
+            isCopyable: true,
+            copyValue: order.orderNumber.isNotEmpty ? order.orderNumber : order.id,
+          ),
           const SizedBox(height: 10),
           _buildMetadataRow('Thời gian đặt hàng', '$orderTimeStr ngày $orderDateStr'),
           const SizedBox(height: 10),
@@ -537,7 +583,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           const SizedBox(height: 10),
           _buildMetadataRow('Phương thức nhận hàng', 'Tự đến lấy tại quán'),
           const SizedBox(height: 10),
-          _buildMetadataRow('Phương thức thanh toán', 'Quét mã QR tại quán'),
+          _buildMetadataRow(
+            'Phương thức thanh toán',
+            order.payments.isNotEmpty
+                ? (order.payments.first.method == 'Tiền mặt' ? 'Thanh toán tiền mặt' : 'Quét mã QR (VietQR/PayOS)')
+                : 'Quét mã QR tại quán',
+          ),
           const Divider(height: 24, color: AppColors.outlineVariant),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -557,7 +608,76 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
   }
 
-  Widget _buildMetadataRow(String label, String value, {bool isCopyable = false}) {
+  Widget _buildProposedTimeBanner(MockOrder order) {
+    final newTimeStr = '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'Quán đề xuất thời gian mới',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange.shade900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Cửa hàng đề xuất thời gian nhận hàng mới vào lúc $newTimeStr (xin thêm phút do quá tải). Bạn có đồng ý không?',
+            style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () {
+                  ref.read(orderProvider.notifier).declineProposedTime(order.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đã từ chối đề xuất và hủy đơn hàng.')),
+                  );
+                },
+                child: Text('Từ chối', style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () {
+                  ref.read(orderProvider.notifier).acceptProposedTime(order.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đã đồng ý thời gian nhận mới!')),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: const Text('Đồng ý', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetadataRow(String label, String value, {bool isCopyable = false, String? copyValue}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -575,9 +695,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               const SizedBox(width: 4),
               GestureDetector(
                 onTap: () {
+                  Clipboard.setData(ClipboardData(text: copyValue ?? value));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Đã sao chép mã đơn hàng!'),
+                      content: Text('Đã sao chép mã đơn hàng vào bộ nhớ tạm!'),
                       duration: Duration(seconds: 1),
                     ),
                   );
@@ -714,6 +835,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     }
 
     final bottomSafe = MediaQuery.of(context).padding.bottom;
+    final isUnpaidQr = !order.isPaid && order.isQrPayment;
+
     return Container(
       padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottomSafe + 8),
       decoration: const BoxDecoration(
@@ -726,25 +849,27 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             child: SizedBox(
               height: 44,
               child: OutlinedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      title: const Text('Liên hệ quán'),
-                      content: Text('Số điện thoại hotline của quán ${order.storeName} là: 1900 1234'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Đóng', style: TextStyle(color: AppColors.primary)),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                onPressed: isUnpaidQr 
+                    ? () => _showCancelReasonsSheet(order.id)
+                    : () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            title: const Text('Liên hệ quán'),
+                            content: Text('Số điện thoại hotline của quán ${order.storeName} là: 1900 1234'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Đóng', style: TextStyle(color: AppColors.primary)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
                   side: const BorderSide(color: AppColors.outlineVariant),
@@ -752,7 +877,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),
-                child: const Text('Liên hệ quán', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                child: Text(
+                  isUnpaidQr ? 'Hủy đơn hàng' : 'Liên hệ quán',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
           ),
@@ -761,7 +889,49 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             child: SizedBox(
               height: 44,
               child: ElevatedButton(
-                onPressed: () => _showCancelReasonsSheet(order.id),
+                onPressed: isUnpaidQr
+                    ? () async {
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
+                        try {
+                          final paymentPayload = {
+                            "method": 1, // QrBankTransfer (Enum PaymentMethod index 1)
+                            "transactionReference": null,
+                            "note": "Thanh toan don hang ${order.id}",
+                            "returnUrl": "dinex://payment-success?orderId=${order.id}",
+                            "cancelUrl": "dinex://payment-cancel?orderId=${order.id}"
+                          };
+                          final response = await OrderRepository().initiatePayment(order.id, paymentPayload);
+                          final checkoutUrl = response['checkoutUrl'] as String?;
+                          final qrCode = response['qrCode'] as String?;
+                          final amountVal = (response['amount'] as num?)?.toDouble() ?? order.totalAmount.toDouble();
+
+                          if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+                            if (mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => QrPaymentPage(
+                                    orderId: order.id,
+                                    qrCode: qrCode ?? '',
+                                    amount: amountVal,
+                                    checkoutUrl: checkoutUrl,
+                                  ),
+                                ),
+                              );
+                            }
+                          } else {
+                            throw Exception('Không nhận được liên kết thanh toán từ PayOS');
+                          }
+                        } catch (e) {
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Lỗi khởi tạo thanh toán: ${e.toString().replaceAll('Exception: ', '')}'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    : () => _showCancelReasonsSheet(order.id),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -770,7 +940,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text('Hủy đơn hàng', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text(
+                  isUnpaidQr ? 'Thanh toán ngay' : 'Hủy đơn hàng',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),

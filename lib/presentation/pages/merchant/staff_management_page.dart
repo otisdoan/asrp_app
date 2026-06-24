@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/branch_registration_provider.dart';
+import '../../../providers/branch_provider.dart';
 import '../../../providers/staff_management_provider.dart';
 import '../../../data/models/staff_member_model.dart';
+import '../../../data/models/branch_model.dart';
 
 class StaffManagementPage extends ConsumerStatefulWidget {
   const StaffManagementPage({super.key});
@@ -15,9 +17,12 @@ class StaffManagementPage extends ConsumerStatefulWidget {
 }
 
 class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with WidgetsBindingObserver {
-  // Lọc chi nhánh dành cho SuperAdmin: 'Tất cả' | 'Quận 1' | 'Quận 3' | 'Phú Nhuận'
+  // Lọc chi nhánh dành cho SuperAdmin: 'Tất cả' | các chi nhánh động
   String _selectedBranchTab = 'Tất cả';
-  final List<String> _branchOptions = ['Quận 1', 'Quận 3', 'Phú Nhuận'];
+  List<String> _branchOptions = [];
+  Map<String, String> _branchNameToId = {};
+  List<BranchListItemModel> _realBranches = [];
+  bool _isInitialized = false;
 
   // Search state and controller
   String _searchQuery = '';
@@ -46,6 +51,43 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
     }
   }
 
+  Future<void> _fetchStaffList() async {
+    final notifier = ref.read(staffManagementProvider.notifier);
+    final user = ref.read(currentUserProvider);
+    final registration = ref.read(branchRegistrationProvider);
+    final isMultiBranch = registration.registeredBranches.length > 1;
+    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' || user?.role.toLowerCase() == 'admin';
+    final isSuperAdmin = isBrandOwner && isMultiBranch;
+
+    if (isSuperAdmin) {
+      if (_selectedBranchTab == 'Tất cả') {
+        try {
+          final results = await Future.wait(
+            _realBranches.map((b) => notifier.getStaffListForBranch(b.id))
+          );
+          final combined = results.expand((list) => list).toList();
+          notifier.setStaffList(combined);
+        } catch (e) {
+          print('[StaffManagementPage] Error fetching staff for all branches: $e');
+        }
+      } else {
+        final bId = _branchNameToId[_selectedBranchTab];
+        if (bId != null) {
+          await notifier.fetchStaffMembers(bId);
+        }
+      }
+    } else {
+      final bId = user?.branchId ?? registration.approvedFirstBranchId;
+      if (bId != null && bId.isNotEmpty) {
+        await notifier.fetchStaffMembers(bId);
+      } else {
+        if (_realBranches.isNotEmpty) {
+          await notifier.fetchStaffMembers(_realBranches.first.id);
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
@@ -56,10 +98,36 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
     // Chỉ hiển thị giao diện đa chi nhánh nếu là Chủ thương hiệu và có trên 1 chi nhánh thực tế
     final isSuperAdmin = isBrandOwner && isMultiBranch;
 
-    // Chi nhánh của Admin (lấy từ chi nhánh đăng ký đầu tiên, hoặc mặc định 'Quận 1')
-    final adminBranch = registration.registeredBranches.isNotEmpty
-        ? (registration.registeredBranches.first['branchName'] ?? 'Quận 1')
-        : 'Quận 1';
+    // Chi nhánh của Admin/Manager
+    String adminBranch = 'Quận 1';
+    final userBranchId = user?.branchId;
+    if (userBranchId != null) {
+      final userBranch = _realBranches.any((b) => b.id == userBranchId)
+          ? _realBranches.firstWhere((b) => b.id == userBranchId)
+          : null;
+      if (userBranch != null) {
+        adminBranch = userBranch.name;
+      }
+    } else if (registration.registeredBranches.isNotEmpty) {
+      adminBranch = registration.registeredBranches.first['branchName'] ?? 'Quận 1';
+    } else if (_realBranches.isNotEmpty) {
+      adminBranch = _realBranches.first.name;
+    }
+
+    final branchesAsyncValue = ref.watch(branchesFutureProvider);
+
+    branchesAsyncValue.whenData((branches) {
+      if (!_isInitialized) {
+        _realBranches = branches;
+        _branchOptions = branches.map((b) => b.name).toList();
+        _branchNameToId = {for (var b in branches) b.name: b.id};
+        _isInitialized = true;
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fetchStaffList();
+        });
+      }
+    });
 
     // Lấy toàn bộ danh sách từ provider
     final rawStaffList = ref.watch(staffManagementProvider);
@@ -75,9 +143,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
             .toList();
       }
     } else {
-      // Admin chỉ thấy nhân viên chi nhánh của mình
-      filteredList =
-          rawStaffList.where((m) => m.branchName == adminBranch).toList();
+      // Admin/Manager chỉ thấy nhân viên chi nhánh của mình (đã lọc ở API cấp backend)
+      filteredList = rawStaffList;
     }
 
     // Lọc tiếp theo từ khóa tìm kiếm
@@ -123,18 +190,25 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
 
             // ─── Staff List Directory ──────────────────────────────────────────
             Expanded(
-              child: filteredList.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      itemCount: filteredList.length,
-                      itemBuilder: (context, index) {
-                        final member = filteredList[index];
-                        return _buildStaffCard(
-                            member, isSuperAdmin, adminBranch);
-                      },
-                    ),
+              child: branchesAsyncValue.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(child: Text('Lỗi tải chi nhánh: $err')),
+                data: (_) {
+                  if (filteredList.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    itemCount: filteredList.length,
+                    itemBuilder: (context, index) {
+                      final member = filteredList[index];
+                      return _buildStaffCard(
+                          member, isSuperAdmin, adminBranch);
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -241,6 +315,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
                   setState(() {
                     _selectedBranchTab = tab;
                   });
+                  _fetchStaffList();
                 }
               },
               selectedColor: AppColors.primary,
@@ -416,7 +491,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
                 IconButton(
                   icon: const Icon(Icons.delete_outline_rounded,
                       color: Colors.red, size: 20),
-                  onPressed: () => _confirmDelete(member.id, member.fullName),
+                  onPressed: () => _confirmDelete(member),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(8),
                 ),
@@ -446,6 +521,10 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
             isSuperAdmin: isSuperAdmin,
             adminBranch: adminBranch,
             branchOptions: _branchOptions,
+            branchNameToId: _branchNameToId,
+            onSaveSuccess: () {
+              _fetchStaffList();
+            },
           ),
         );
       },
@@ -453,7 +532,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
   }
 
   // ─── Delete Confirmation Dialog ────────────────────────────────────────────
-  void _confirmDelete(String id, String fullName) {
+  void _confirmDelete(StaffMemberModel member) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -475,7 +554,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
             ],
           ),
           content: Text(
-            'Bạn có chắc chắn muốn xóa nhân sự "$fullName" ra khỏi hệ thống chi nhánh không? Nhân viên này sẽ không thể tiếp tục đăng nhập bán hàng.',
+            'Bạn có chắc chắn muốn xóa nhân sự "${member.fullName}" ra khỏi hệ thống chi nhánh không? Nhân viên này sẽ không thể tiếp tục đăng nhập bán hàng.',
             style:
                 const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
@@ -486,18 +565,35 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
                   style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
-              onPressed: () {
-                ref
-                    .read(staffManagementProvider.notifier)
-                    .deleteStaffMember(id);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đã xóa nhân sự thành công.'),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+              onPressed: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(ctx);
+                try {
+                  final bId = _branchNameToId[member.branchName] ?? ref.read(staffManagementProvider.notifier).activeBranchId;
+                  if (bId != null) {
+                    await ref
+                        .read(staffManagementProvider.notifier)
+                        .toggleStaffStatus(member.id, false);
+                    await _fetchStaffList();
+                  }
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Đã vô hiệu hóa nhân sự thành công.'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } catch (e) {
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Lỗi khi vô hiệu hóa: ${e.toString().replaceAll('Exception: ', '')}'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -561,12 +657,16 @@ class _StaffEditorSheetContent extends ConsumerStatefulWidget {
   final bool isSuperAdmin;
   final String adminBranch;
   final List<String> branchOptions;
+  final Map<String, String> branchNameToId;
+  final VoidCallback onSaveSuccess;
 
   const _StaffEditorSheetContent({
     this.existing,
     required this.isSuperAdmin,
     required this.adminBranch,
     required this.branchOptions,
+    required this.branchNameToId,
+    required this.onSaveSuccess,
   });
 
   @override
@@ -873,39 +973,58 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             if (_formKey.currentState!.validate()) {
                               final notifier = ref.read(staffManagementProvider.notifier);
-                              if (widget.existing == null) {
-                                final newMember = StaffMemberModel(
-                                  id: 'staff-generated-${DateTime.now().millisecondsSinceEpoch}',
-                                  fullName: _nameController.text.trim(),
-                                  phone: _phoneController.text.trim(),
-                                  role: _selectedRole,
-                                  branchName: _selectedBranch,
-                                  createdAt: DateTime.now().toIso8601String(),
-                                );
-                                notifier.addStaffMember(newMember);
-                              } else {
-                                final updated = widget.existing!.copyWith(
-                                  fullName: _nameController.text.trim(),
-                                  phone: _phoneController.text.trim(),
-                                  role: _selectedRole,
-                                  branchName: _selectedBranch,
-                                );
-                                notifier.updateStaffMember(updated);
-                              }
+                              final scaffoldMessenger = ScaffoldMessenger.of(context);
+                              final navigator = Navigator.of(context);
                               
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(widget.existing == null
-                                      ? 'Đã thêm thành công nhân sự mới.'
-                                      : 'Đã cập nhật thông tin nhân viên.'),
-                                  backgroundColor: AppColors.success,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              try {
+                                if (widget.existing == null) {
+                                  final targetBranchId = widget.branchNameToId[_selectedBranch] ?? notifier.activeBranchId;
+                                  
+                                  final newMember = StaffMemberModel(
+                                    id: '',
+                                    fullName: _nameController.text.trim(),
+                                    phone: _phoneController.text.trim(),
+                                    role: _selectedRole,
+                                    branchName: _selectedBranch,
+                                    createdAt: DateTime.now().toIso8601String(),
+                                  );
+                                  await notifier.addStaffMember(newMember, targetBranchId: targetBranchId);
+                                } else {
+                                  final targetBranchId = widget.branchNameToId[_selectedBranch] ?? notifier.activeBranchId;
+                                  
+                                  final updated = widget.existing!.copyWith(
+                                    fullName: _nameController.text.trim(),
+                                    phone: _phoneController.text.trim(),
+                                    role: _selectedRole,
+                                    branchName: _selectedBranch,
+                                  );
+                                  await notifier.updateStaffMember(updated, targetBranchId: targetBranchId);
+                                }
+                                
+                                widget.onSaveSuccess();
+                                navigator.pop();
+                                
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(widget.existing == null
+                                        ? 'Đã thêm thành công nhân sự mới.'
+                                        : 'Đã cập nhật thông tin nhân viên.'),
+                                    backgroundColor: AppColors.success,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              } catch (e) {
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}'),
+                                    backgroundColor: AppColors.error,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
                             }
                           },
                           style: ElevatedButton.styleFrom(

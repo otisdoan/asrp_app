@@ -35,12 +35,12 @@ class StaffMemberModel {
 
   factory StaffMemberModel.fromJson(Map<String, dynamic> json) {
     return StaffMemberModel(
-      id: json['id']?.toString() ?? '',
-      fullName: json['fullName']?.toString() ?? '',
-      phone: json['phone']?.toString() ?? '',
-      role: json['role']?.toString() ?? 'Staff',
-      branchName: json['branchName']?.toString() ?? 'Quận 1',
-      createdAt: json['createdAt']?.toString() ?? '',
+      id: (json['id'] ?? json['Id'])?.toString() ?? '',
+      fullName: (json['fullName'] ?? json['FullName'])?.toString() ?? '',
+      phone: (json['phone'] ?? json['Phone'] ?? json['phoneNumber'] ?? json['PhoneNumber'])?.toString() ?? '',
+      role: (json['role'] ?? json['Role'])?.toString() ?? 'Staff',
+      branchName: (json['branchName'] ?? json['BranchName'])?.toString() ?? 'Quận 1',
+      createdAt: (json['createdAt'] ?? json['CreatedAt'])?.toString() ?? '',
     );
   }
 

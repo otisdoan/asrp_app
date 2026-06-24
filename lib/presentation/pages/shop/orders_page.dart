@@ -8,9 +8,14 @@ import 'order_status_page.dart';
 /// Business: No delivery, customer picks up at store, QR payment.
 /// Status flow: Chờ thanh toán → Chờ xác nhận → Chờ nhận đơn → Chờ đánh giá → Trả hàng
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class OrdersPage extends ConsumerWidget {
+class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
 
+  @override
+  ConsumerState<OrdersPage> createState() => _OrdersPageState();
+}
+
+class _OrdersPageState extends ConsumerState<OrdersPage> {
   // Mock suggested stores (10 items for grid)
   static const _suggestedStores = [
     {'name': 'Hiên Coffee', 'rating': 4.7, 'distance': '0.3km', 'time': '15 phút', 'badge': 'Giảm 11%', 'icon': Icons.coffee},
@@ -26,20 +31,30 @@ class OrdersPage extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(orderProvider.notifier).fetchMyOrders();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final allOrders = ref.watch(orderProvider);
 
-    // Tính toán số đơn thực tế từ provider
-    final pendingConfirmCount = allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm).length;
+    // Tính toán số đơn thực tế từ provider dựa trên business mapping
+    final pendingPaymentCount = allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && !o.isPaid && o.isQrPayment).length;
+    final pendingConfirmCount = allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && (o.isPaid || !o.isQrPayment)).length;
     final preparingAndReadyCount = allOrders.where((o) => o.status == MockOrderStatus.preparing || o.status == MockOrderStatus.ready).length;
     final completedCount = allOrders.where((o) => o.status == MockOrderStatus.completed).length;
+    final cancelledCount = allOrders.where((o) => o.status == MockOrderStatus.cancelled).length;
 
     final statusCategories = [
-      {'icon': Icons.account_balance_wallet_outlined, 'label': 'Chờ thanh\ntoán', 'count': 0},
+      {'icon': Icons.account_balance_wallet_outlined, 'label': 'Chờ thanh\ntoán', 'count': pendingPaymentCount},
       {'icon': Icons.hourglass_top_rounded, 'label': 'Chờ xác\nnhận', 'count': pendingConfirmCount},
       {'icon': Icons.takeout_dining_outlined, 'label': 'Chờ nhận\nđơn', 'count': preparingAndReadyCount},
       {'icon': Icons.rate_review_outlined, 'label': 'Chờ đánh\ngiá', 'count': completedCount},
-      {'icon': Icons.replay_rounded, 'label': 'Trả hàng', 'count': 0},
+      {'icon': Icons.replay_rounded, 'label': 'Trả hàng', 'count': cancelledCount},
     ];
 
     return Column(
@@ -67,15 +82,20 @@ class OrdersPage extends ConsumerWidget {
 
         // ─── Content ─────────────────────────────────────────
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                // Suggested stores grid
-                _buildSuggestedStores(),
-                const SizedBox(height: 40),
-              ],
+          child: RefreshIndicator(
+            onRefresh: () => ref.read(orderProvider.notifier).fetchMyOrders(),
+            color: AppColors.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  // Suggested stores grid
+                  _buildSuggestedStores(),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),

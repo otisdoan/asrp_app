@@ -13,6 +13,7 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/category_provider.dart';
+import '../../../providers/order_provider.dart';
 import 'cart_page.dart';
 import 'payment_page.dart';
 import 'orders_page.dart';
@@ -265,6 +266,9 @@ class _HomePageState extends ConsumerState<HomePage> {
         setState(() {
           _currentTabIndex = index;
         });
+        if (index == 2) {
+          ref.read(orderProvider.notifier).fetchMyOrders();
+        }
       },
       child: SizedBox(
         width: 80,

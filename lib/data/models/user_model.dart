@@ -7,6 +7,8 @@ class UserModel {
   final String? avatar;
   final String? gender;
   final String? birthday;
+  final String? brandId;
+  final String? branchId;
   final String role; // 'Admin' | 'Staff' | 'Customer'
   final bool isActive;
   final int points;
@@ -24,6 +26,8 @@ class UserModel {
     this.avatar,
     this.gender,
     this.birthday,
+    this.brandId,
+    this.branchId,
     required this.role,
     required this.isActive,
     this.points = 0,
@@ -87,6 +91,8 @@ class UserModel {
       avatar: json['avatar']?.toString(),
       gender: json['gender']?.toString(),
       birthday: json['birthday']?.toString(),
+      brandId: json['brandId']?.toString(),
+      branchId: json['branchId']?.toString(),
       role: resolvedRole,
       isActive: json['isActive'] is bool
           ? json['isActive'] as bool
@@ -110,6 +116,8 @@ class UserModel {
         'avatar': avatar,
         'gender': gender,
         'birthday': birthday,
+        'brandId': brandId,
+        'branchId': branchId,
         'role': role,
         'roles': [role],
         'isActive': isActive,

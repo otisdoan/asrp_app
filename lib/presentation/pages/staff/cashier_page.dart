@@ -7,6 +7,8 @@ import '../../../data/models/category_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/order_provider.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../data/models/branch_model.dart';
 
 
 /// Cashier Page — receives orders from staff + creates takeaway orders.
@@ -75,8 +77,28 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
     _MenuItem(name: 'Chè khúc bạch', price: 25000, imageUrl: 'assets/images/tra_sua.jpg', category: 'Tráng miệng'),
   ];
 
-  List<_MenuItem> get _filteredItems {
-    var items = _menuItems;
+  List<_MenuItem> getDynamicMenuItems(BranchDetailModel? detail) {
+    if (detail == null || detail.menu == null || detail.menu!.isEmpty) {
+      return _menuItems;
+    }
+    final List<_MenuItem> items = [];
+    for (final section in detail.menu!) {
+      for (final item in section.items) {
+        final priceVal = int.tryParse(item.price.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+        items.add(_MenuItem(
+          id: item.menuItemId ?? item.id,
+          name: item.name,
+          price: priceVal,
+          imageUrl: item.imageUrl,
+          category: section.name,
+        ));
+      }
+    }
+    return items;
+  }
+
+  List<_MenuItem> _getFilteredItems(List<_MenuItem> allItems) {
+    var items = allItems;
     if (_selectedCategoryName != 'Tất cả') {
       items = items.where((i) => i.category == _selectedCategoryName).toList();
     }
@@ -93,6 +115,10 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(currentUserProvider);
+      ref.read(orderProvider.notifier).fetchBranchOrders(branchId: user?.branchId);
+    });
   }
 
   @override
@@ -138,6 +164,15 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final branchId = user?.branchId;
+
+    BranchDetailModel? branchDetail;
+    if (branchId != null && branchId.isNotEmpty) {
+      final detailAsync = ref.watch(branchDetailFutureProvider(branchId));
+      branchDetail = detailAsync.asData?.value;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -147,15 +182,15 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildPendingOrdersTab(),
-                _buildTakeawayTab(),
+                _buildPendingOrdersTab(branchId),
+                _buildTakeawayTab(branchDetail),
               ],
             ),
           ),
         ],
       ),
       bottomNavigationBar: _tabController.index == 1 && _takeawayItems.isNotEmpty
-          ? _buildTakeawayBar()
+          ? _buildTakeawayBar(branchId)
           : null,
     );
   }
@@ -397,85 +432,93 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
   }
 
   // ─── Pending Orders Tab ────────────────────────────────────────────────
-  Widget _buildPendingOrdersTab() {
+  Widget _buildPendingOrdersTab(String? branchId) {
     final customerOrders = ref.watch(orderProvider);
 
-    if (_pendingOrders.isEmpty && customerOrders.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_outlined, size: 56, color: AppColors.textTertiary),
-            SizedBox(height: 12),
-            Text('Chưa có đơn chờ', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
-          ],
-        ),
-      );
-    }
+    return RefreshIndicator(
+      onRefresh: () => ref.read(orderProvider.notifier).fetchBranchOrders(branchId: branchId),
+      color: AppColors.primary,
+      child: customerOrders.isEmpty && _pendingOrders.isEmpty
+          ? SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.6,
+                alignment: Alignment.center,
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.inbox_outlined, size: 56, color: AppColors.textTertiary),
+                    SizedBox(height: 12),
+                    Text('Chưa có đơn chờ', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                // 1. Phân hệ đơn hàng Self-Pickup từ Khách trực tuyến
+                if (customerOrders.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.takeout_dining_rounded, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'ĐƠN SELF-PICKUP KHÁCH ĐẶT',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${customerOrders.length}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...customerOrders.map((order) => _buildCustomerPickupOrderCard(order)),
+                  const SizedBox(height: 20),
+                  const Divider(height: 1, color: AppColors.divider),
+                  const SizedBox(height: 20),
+                ],
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // 1. Phân hệ đơn hàng Self-Pickup từ Khách trực tuyến
-        if (customerOrders.isNotEmpty) ...[
-          Row(
-            children: [
-              const Icon(Icons.takeout_dining_rounded, color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'ĐƠN SELF-PICKUP KHÁCH ĐẶT',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${customerOrders.length}',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...customerOrders.map((order) => _buildCustomerPickupOrderCard(order)),
-          const SizedBox(height: 20),
-          const Divider(height: 1, color: AppColors.divider),
-          const SizedBox(height: 20),
-        ],
-
-        // 2. Đơn phục vụ tại bàn của Nhân viên gửi lên
-        if (_pendingOrders.isNotEmpty) ...[
-          const Row(
-            children: [
-              Icon(Icons.table_restaurant_rounded, color: AppColors.textSecondary, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'ĐƠN PHỤC VỤ TẠI BÀN',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(
-            _pendingOrders.length,
-            (index) => _buildPendingOrderCard(_pendingOrders[index], index),
-          ),
-        ],
-      ],
+                // 2. Đơn phục vụ tại bàn của Nhân viên gửi lên
+                if (_pendingOrders.isNotEmpty) ...[
+                  const Row(
+                    children: [
+                      Icon(Icons.table_restaurant_rounded, color: AppColors.textSecondary, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'ĐƠN PHỤC VỤ TẠI BÀN',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...List.generate(
+                    _pendingOrders.length,
+                    (index) => _buildPendingOrderCard(_pendingOrders[index], index),
+                  ),
+                ],
+              ],
+            ),
     );
   }
 
@@ -548,7 +591,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
               ),
               const SizedBox(width: 8),
               Text(
-                order.id,
+                order.orderNumber.isNotEmpty ? '#${order.orderNumber}' : order.id,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               const Spacer(),
@@ -902,8 +945,13 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
     );
   }
 
-  Widget _buildTakeawayTab() {
+  Widget _buildTakeawayTab(BranchDetailModel? detail) {
     final categoriesAsync = ref.watch(categoriesFutureProvider);
+    final allItems = getDynamicMenuItems(detail);
+    final filteredItems = _getFilteredItems(allItems);
+
+    // Dynamic categories from branch detail menu
+    final dynamicCategories = detail?.menu?.map((m) => CategoryModel(id: m.name, name: m.name, imageUrl: '')).toList();
 
     return Column(
       children: [
@@ -933,18 +981,21 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
         ),
         // Categories
         categoriesAsync.when(
-          data: (categories) => _buildCategories(categories),
-          loading: () => _buildCategories(const []),
-          error: (_, __) => _buildCategories(const []),
+          data: (categories) {
+            final cats = dynamicCategories ?? categories;
+            return _buildCategories(cats);
+          },
+          loading: () => _buildCategories(dynamicCategories ?? const []),
+          error: (_, __) => _buildCategories(dynamicCategories ?? const []),
         ),
         const SizedBox(height: 8),
         // Menu list
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-            itemCount: _filteredItems.length,
+            itemCount: filteredItems.length,
             itemBuilder: (_, index) {
-              final item = _filteredItems[index];
+              final item = filteredItems[index];
               final qty = _getTakeawayQty(item);
               return Container(
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -962,7 +1013,21 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                       decoration: BoxDecoration(color: AppColors.bgSoft, borderRadius: BorderRadius.circular(10)),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.asset(item.imageUrl, fit: BoxFit.cover, width: 44, height: 44),
+                        child: item.imageUrl.startsWith('http')
+                            ? Image.network(
+                                item.imageUrl,
+                                fit: BoxFit.cover,
+                                width: 44,
+                                height: 44,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, color: AppColors.textTertiary),
+                              )
+                            : Image.asset(
+                                item.imageUrl,
+                                fit: BoxFit.cover,
+                                width: 44,
+                                height: 44,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, color: AppColors.textTertiary),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1009,7 +1074,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
   }
 
   // ─── Takeaway Bottom Bar ───────────────────────────────────────────────
-  Widget _buildTakeawayBar() {
+  Widget _buildTakeawayBar(String? branchId) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       decoration: const BoxDecoration(
@@ -1035,7 +1100,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
               ),
             ),
             ElevatedButton(
-              onPressed: _confirmTakeaway,
+              onPressed: () => _confirmTakeaway(branchId),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
@@ -1051,7 +1116,46 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
     );
   }
 
-  void _confirmTakeaway() {
+  void _confirmTakeaway(String? branchId) async {
+    if (branchId == null || branchId.isEmpty) {
+      _showSuccessDialog();
+      return;
+    }
+
+    // Hiển thị loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    try {
+      final itemsPayload = _takeawayItems.map((item) {
+        return {
+          'menuItemId': item.menuItem.id ?? '',
+          'quantity': item.quantity,
+          'note': '',
+        };
+      }).toList();
+
+      await ref.read(orderProvider.notifier).createKioskOrder(
+        branchId: branchId,
+        items: itemsPayload,
+      );
+
+      Navigator.pop(context); // Đóng loading dialog
+      _showSuccessDialog();
+    } catch (e) {
+      Navigator.pop(context); // Đóng loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi tạo đơn hàng: $e')),
+      );
+    }
+  }
+
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1191,12 +1295,13 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
 // ─── Models ──────────────────────────────────────────────────────────────
 
 class _MenuItem {
+  final String? id;
   final String name;
   final int price;
   final String imageUrl;
   final String category;
 
-  _MenuItem({required this.name, required this.price, required this.imageUrl, this.category = ''});
+  _MenuItem({this.id, required this.name, required this.price, required this.imageUrl, this.category = ''});
 }
 
 class _OrderItem {

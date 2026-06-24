@@ -58,6 +58,9 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(orderProvider.notifier).fetchMyOrders();
+    });
   }
 
   @override
@@ -122,76 +125,80 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
         children: [
           // 0. Tất cả
           _buildTabContent(allOrders),
-          // 1. Chờ thanh toán (Rỗng cho self-pickup)
-          _buildTabContent(const []),
-          // 2. Chờ xác nhận (pendingConfirm)
-          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm).toList()),
+          // 1. Chờ thanh toán
+          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && !o.isPaid && o.isQrPayment).toList()),
+          // 2. Chờ xác nhận
+          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && (o.isPaid || !o.isQrPayment)).toList()),
           // 3. Chờ nhận đơn (preparing, ready)
           _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.preparing || o.status == MockOrderStatus.ready).toList()),
           // 4. Chờ đánh giá (completed)
           _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.completed).toList()),
-          // 5. Trả hàng (Rỗng)
-          _buildTabContent(const []),
+          // 5. Trả hàng (Cancelled)
+          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.cancelled).toList()),
         ],
       ),
     );
   }
 
   Widget _buildTabContent(List<MockOrder> orders) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        children: [
-          if (orders.isNotEmpty) ...[
-            ...orders.map((o) => _buildOrderCard(o)),
-            const SizedBox(height: 24),
-          ] else ...[
-            // Màn hình rỗng
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.circular(24),
+    return RefreshIndicator(
+      onRefresh: () => ref.read(orderProvider.notifier).fetchMyOrders(),
+      color: AppColors.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          children: [
+            if (orders.isNotEmpty) ...[
+              ...orders.map((o) => _buildOrderCard(o)),
+              const SizedBox(height: 24),
+            ] else ...[
+              // Màn hình rỗng
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Icon(Icons.receipt_long_outlined, size: 24, color: AppColors.primary),
                   ),
-                  child: const Icon(Icons.receipt_long_outlined, size: 24, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Không có đơn hàng liên quan',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Không có đơn hàng liên quan',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Bắt đầu khám phá và tìm sản phẩm bạn yêu thích',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
+                        SizedBox(height: 2),
+                        Text(
+                          'Bắt đầu khám phá và tìm sản phẩm bạn yêu thích',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
+                ],
+              ),
+              const SizedBox(height: 28),
+            ],
+            // Luôn luôn hiển thị gợi ý cửa hàng ở phía dưới danh sách
+            _buildSuggestedStores(),
+            const SizedBox(height: 32),
           ],
-          // Luôn luôn hiển thị gợi ý cửa hàng ở phía dưới danh sách
-          _buildSuggestedStores(),
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
@@ -202,8 +209,13 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
 
     switch (order.status) {
       case MockOrderStatus.pendingConfirm:
-        statusTextColor = Colors.orange.shade800;
-        statusText = 'Chờ xác nhận';
+        if (!order.isPaid && order.isQrPayment) {
+          statusTextColor = Colors.orange.shade800;
+          statusText = 'Chờ thanh toán';
+        } else {
+          statusTextColor = Colors.blue.shade700;
+          statusText = 'Chờ xác nhận';
+        }
         break;
       case MockOrderStatus.preparing:
         statusTextColor = AppColors.primary;
@@ -272,18 +284,20 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                         ),
                         const SizedBox(width: 4),
                         const Icon(Icons.chevron_right, size: 16, color: AppColors.textTertiary),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEE8E7),
-                            borderRadius: BorderRadius.circular(4),
+                        if (order.discountPercentage > 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE8E7),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Giảm ${order.discountPercentage}%',
+                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            ),
                           ),
-                          child: const Text(
-                            'Giảm 11%',
-                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary),
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -296,34 +310,66 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
               const SizedBox(height: 8),
 
               // 2. ETA Shipping Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.bgSoft,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      order.status == MockOrderStatus.cancelled ? Icons.cancel_outlined : Icons.takeout_dining_outlined,
-                      size: 16,
-                      color: order.status == MockOrderStatus.cancelled ? Colors.red : AppColors.primary,
+              Builder(
+                builder: (context) {
+                  String shippingText = '';
+                  Color shippingColor = AppColors.primary;
+                  IconData shippingIcon = Icons.takeout_dining_outlined;
+
+                  if (order.status == MockOrderStatus.cancelled) {
+                    shippingText = 'Đơn hàng tự đến lấy này đã bị hủy.';
+                    shippingColor = Colors.red;
+                    shippingIcon = Icons.cancel_outlined;
+                  } else if (order.status == MockOrderStatus.pendingConfirm) {
+                    if (!order.isPaid && order.isQrPayment) {
+                      shippingText = 'Vui lòng thanh toán đơn hàng này để cửa hàng bắt đầu chuẩn bị.';
+                      shippingColor = Colors.orange.shade800;
+                      shippingIcon = Icons.payment_outlined;
+                    } else {
+                      shippingText = 'Đơn hàng đang chờ cửa hàng xác nhận.';
+                      shippingColor = Colors.blue.shade700;
+                      shippingIcon = Icons.hourglass_empty_rounded;
+                    }
+                  } else if (order.status == MockOrderStatus.completed) {
+                    shippingText = 'Đơn hàng đã hoàn thành.';
+                    shippingColor = Colors.grey.shade700;
+                    shippingIcon = Icons.check_circle_outline;
+                  } else {
+                    final diffMins = order.pickupTime.difference(DateTime.now()).inMinutes;
+                    final remainingMins = diffMins > 0 ? diffMins : order.originalMinutes;
+                    shippingText = 'Dự kiến sẵn sàng: $pickupTimeStr (sau ${remainingMins}p)';
+                    shippingColor = AppColors.primary;
+                    shippingIcon = Icons.takeout_dining_outlined;
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: shippingColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        order.status == MockOrderStatus.cancelled
-                            ? 'Đơn hàng tự đến lấy này đã bị hủy.'
-                            : 'Dự kiến sẵn sàng: $pickupTimeStr (sau ${order.pickupTime.difference(DateTime.now()).inMinutes > 0 ? order.pickupTime.difference(DateTime.now()).inMinutes : order.originalMinutes}p)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: order.status == MockOrderStatus.cancelled ? Colors.red : AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                    child: Row(
+                      children: [
+                        Icon(
+                          shippingIcon,
+                          size: 16,
+                          color: shippingColor,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            shippingText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: shippingColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
 
