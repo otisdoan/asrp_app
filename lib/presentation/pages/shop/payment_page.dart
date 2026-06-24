@@ -24,7 +24,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     final allOrders = ref.watch(orderProvider);
-    
+
     // Flatten all payments across all orders and sort by date descending
     final List<Map<String, dynamic>> allPayments = [];
     for (var order in allOrders) {
@@ -193,7 +193,6 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 20),
           if (transactions.isEmpty)
             // Empty state
             Center(
@@ -229,12 +228,13 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: transactions.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.outlineVariant),
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: AppColors.outlineVariant),
               itemBuilder: (context, index) {
                 final tx = transactions[index];
                 final storeName = tx['storeName'] as String;
                 final payment = tx['payment'] as MockPayment;
-                
+
                 IconData statusIcon = Icons.pending_outlined;
                 Color statusColor = Colors.orange;
                 if (payment.status == 'Đã thanh toán') {
@@ -251,7 +251,8 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                   statusColor = Colors.blue;
                 }
 
-                final formattedDate = '${payment.date.day.toString().padLeft(2, '0')}/${payment.date.month.toString().padLeft(2, '0')} ${payment.date.hour.toString().padLeft(2, '0')}:${payment.date.minute.toString().padLeft(2, '0')}';
+                final formattedDate =
+                    '${payment.date.day.toString().padLeft(2, '0')}/${payment.date.month.toString().padLeft(2, '0')} ${payment.date.hour.toString().padLeft(2, '0')}:${payment.date.minute.toString().padLeft(2, '0')}';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -338,8 +339,8 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
   }
 }
