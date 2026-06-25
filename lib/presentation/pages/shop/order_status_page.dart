@@ -22,33 +22,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
 
   static const _tabs = ['Tất cả', 'Chờ thanh toán', 'Chờ xác nhận', 'Chờ nhận đơn', 'Chờ đánh giá', 'Trả hàng'];
 
-  // Mock suggested stores
-  static const _suggestedStores = [
-    {
-      'name': 'Hiên Coffee - 32 Hồ Văn Huê',
-      'rating': 4.7,
-      'distance': '0.3km',
-      'time': '15 phút',
-      'badge': 'Mã giảm 11%',
-      'icon': Icons.coffee,
-    },
-    {
-      'name': 'Trạm Cà Phê - 77 Nguyễn Diêu',
-      'rating': 5.0,
-      'distance': '0.3km',
-      'time': '22 phút',
-      'badge': 'Mã giảm 11%',
-      'icon': Icons.local_cafe,
-    },
-    {
-      'name': 'Cơm Tấm Sài Gòn - A Vũ',
-      'rating': 4.8,
-      'distance': '1.2km',
-      'time': '30 phút',
-      'badge': 'Mã giảm 15%',
-      'icon': Icons.rice_bowl,
-    },
-  ];
+  // Removed unused static const _suggestedStores
+
 
   @override
   void initState() {
@@ -116,7 +91,6 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
           unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           indicatorColor: AppColors.primary,
           indicatorWeight: 2.5,
-          tabAlignment: TabAlignment.start,
           tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),
@@ -124,34 +98,144 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
         controller: _tabController,
         children: [
           // 0. Tất cả
-          _buildTabContent(allOrders),
+          OrderTabContent(orders: allOrders),
           // 1. Chờ thanh toán
-          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && !o.isPaid && o.isQrPayment).toList()),
+          OrderTabContent(
+              orders: allOrders
+                  .where((o) =>
+                      o.status == MockOrderStatus.pendingConfirm &&
+                      !o.isPaid &&
+                      o.isQrPayment)
+                  .toList()),
           // 2. Chờ xác nhận
-          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && (o.isPaid || !o.isQrPayment)).toList()),
+          OrderTabContent(
+              orders: allOrders
+                  .where((o) =>
+                      o.status == MockOrderStatus.pendingConfirm &&
+                      (o.isPaid || !o.isQrPayment))
+                  .toList()),
           // 3. Chờ nhận đơn (preparing, ready)
-          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.preparing || o.status == MockOrderStatus.ready).toList()),
+          OrderTabContent(
+              orders: allOrders
+                  .where((o) =>
+                      o.status == MockOrderStatus.preparing ||
+                      o.status == MockOrderStatus.ready)
+                  .toList()),
           // 4. Chờ đánh giá (completed)
-          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.completed).toList()),
+          OrderTabContent(
+              orders: allOrders
+                  .where((o) => o.status == MockOrderStatus.completed)
+                  .toList()),
           // 5. Trả hàng (Cancelled)
-          _buildTabContent(allOrders.where((o) => o.status == MockOrderStatus.cancelled).toList()),
+          OrderTabContent(
+              orders: allOrders
+                  .where((o) => o.status == MockOrderStatus.cancelled)
+                  .toList()),
         ],
       ),
     );
   }
+}
 
-  Widget _buildTabContent(List<MockOrder> orders) {
+/// Paginated tab content for Order Status Page.
+class OrderTabContent extends ConsumerStatefulWidget {
+  final List<MockOrder> orders;
+
+  const OrderTabContent({super.key, required this.orders});
+
+  @override
+  ConsumerState<OrderTabContent> createState() => _OrderTabContentState();
+}
+
+class _OrderTabContentState extends ConsumerState<OrderTabContent> {
+  final ScrollController _scrollController = ScrollController();
+  int _displayCount = 10;
+  bool _isLoadingMore = false;
+
+  // Mock suggested stores
+  static const _suggestedStores = [
+    {
+      'name': 'Hiên Coffee - 32 Hồ Văn Huê',
+      'rating': 4.7,
+      'distance': '0.3km',
+      'time': '15 phút',
+      'badge': 'Mã giảm 11%',
+      'icon': Icons.coffee,
+    },
+    {
+      'name': 'Trạm Cà Phê - 77 Nguyễn Diêu',
+      'rating': 5.0,
+      'distance': '0.3km',
+      'time': '22 phút',
+      'badge': 'Mã giảm 11%',
+      'icon': Icons.local_cafe,
+    },
+    {
+      'name': 'Cơm Tấm Sài Gòn - A Vũ',
+      'rating': 4.8,
+      'distance': '1.2km',
+      'time': '30 phút',
+      'badge': 'Mã giảm 15%',
+      'icon': Icons.rice_bowl,
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 150) {
+      _loadMore();
+    }
+  }
+
+  void _loadMore() {
+    final totalCount = widget.orders.length;
+    if (_isLoadingMore || _displayCount >= totalCount) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _displayCount = (_displayCount + 10).clamp(0, totalCount);
+          _isLoadingMore = false;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleOrders = widget.orders.take(_displayCount).toList();
+    final hasMore = _displayCount < widget.orders.length;
+
     return RefreshIndicator(
       onRefresh: () => ref.read(orderProvider.notifier).fetchMyOrders(),
       color: AppColors.primary,
       child: SingleChildScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            if (orders.isNotEmpty) ...[
-              ...orders.map((o) => _buildOrderCard(o)),
-              const SizedBox(height: 24),
+            if (visibleOrders.isNotEmpty) ...[
+              ...visibleOrders.map((o) => _buildOrderCard(o)),
+              const SizedBox(height: 12),
             ] else ...[
               // Màn hình rỗng
               const SizedBox(height: 20),
@@ -164,7 +248,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                       color: AppColors.primaryContainer,
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: const Icon(Icons.receipt_long_outlined, size: 24, color: AppColors.primary),
+                    child: const Icon(Icons.receipt_long_outlined,
+                        size: 24, color: AppColors.primary),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -194,6 +279,50 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
               ),
               const SizedBox(height: 28),
             ],
+
+            // Loading / end of list indicators
+            if (_isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Đang tải thêm đơn hàng...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (!hasMore && widget.orders.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'Đã hiển thị tất cả đơn hàng',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 12),
             // Luôn luôn hiển thị gợi ý cửa hàng ở phía dưới danh sách
             _buildSuggestedStores(),
             const SizedBox(height: 32),
@@ -235,7 +364,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
         break;
     }
 
-    final pickupTimeStr = '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
+    final pickupTimeStr =
+        '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
     final hasAlert = order.hasNotification;
 
     return GestureDetector(
@@ -273,28 +403,37 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.storefront_outlined, size: 16, color: AppColors.textPrimary),
+                        const Icon(Icons.storefront_outlined,
+                            size: 16, color: AppColors.textPrimary),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
                             order.storeName.split(' - ')[0], // Tên ngắn gọn
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right, size: 16, color: AppColors.textTertiary),
+                        const Icon(Icons.chevron_right,
+                            size: 16, color: AppColors.textTertiary),
                         if (order.discountPercentage > 0) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEE8E7),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'Giảm ${order.discountPercentage}%',
-                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary),
                             ),
                           ),
                         ],
@@ -303,7 +442,10 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                   ),
                   Text(
                     statusText,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: statusTextColor),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: statusTextColor),
                   ),
                 ],
               ),
@@ -322,7 +464,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                     shippingIcon = Icons.cancel_outlined;
                   } else if (order.status == MockOrderStatus.pendingConfirm) {
                     if (!order.isPaid && order.isQrPayment) {
-                      shippingText = 'Vui lòng thanh toán đơn hàng này để cửa hàng bắt đầu chuẩn bị.';
+                      shippingText =
+                          'Vui lòng thanh toán đơn hàng này để cửa hàng bắt đầu chuẩn bị.';
                       shippingColor = Colors.orange.shade800;
                       shippingIcon = Icons.payment_outlined;
                     } else {
@@ -335,15 +478,19 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                     shippingColor = Colors.grey.shade700;
                     shippingIcon = Icons.check_circle_outline;
                   } else {
-                    final diffMins = order.pickupTime.difference(DateTime.now()).inMinutes;
-                    final remainingMins = diffMins > 0 ? diffMins : order.originalMinutes;
-                    shippingText = 'Dự kiến sẵn sàng: $pickupTimeStr (sau ${remainingMins}p)';
+                    final diffMins =
+                        order.pickupTime.difference(DateTime.now()).inMinutes;
+                    final remainingMins =
+                        diffMins > 0 ? diffMins : order.originalMinutes;
+                    shippingText =
+                        'Dự kiến sẵn sàng: $pickupTimeStr (sau ${remainingMins}p)';
                     shippingColor = AppColors.primary;
                     shippingIcon = Icons.takeout_dining_outlined;
                   }
 
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: shippingColor.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
@@ -414,32 +561,45 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                           children: [
                             Text(
                               item.name,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (item.sizeLabel != null && item.sizeLabel!.isNotEmpty) ...[
+                            if (item.sizeLabel != null &&
+                                item.sizeLabel!.isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(
                                 'Size: ${item.sizeLabel}',
-                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500),
                               ),
                             ],
-                            if (item.extras != null && item.extras!.trim().isNotEmpty) ...[
+                            if (item.extras != null &&
+                                item.extras!.trim().isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(
                                 item.extras!.split('\n').join(', '),
-                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
-                            if (item.note != null && item.note!.trim().isNotEmpty) ...[
+                            if (item.note != null &&
+                                item.note!.trim().isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.edit_note_rounded, size: 14, color: AppColors.primary),
+                                  const Icon(Icons.edit_note_rounded,
+                                      size: 14, color: AppColors.primary),
                                   const SizedBox(width: 2),
                                   Expanded(
                                     child: Text(
@@ -466,12 +626,14 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                         children: [
                           Text(
                             '${_formatPrice(item.price)}đ',
-                            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            style: const TextStyle(
+                                fontSize: 13, color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'x${item.quantity}',
-                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -480,20 +642,24 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                 );
               }),
 
-              if (order.storeNote != null && order.storeNote!.trim().isNotEmpty) ...[
+              if (order.storeNote != null &&
+                  order.storeNote!.trim().isNotEmpty) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: AppColors.bgWarm.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                      border: Border.all(
+                          color: AppColors.outlineVariant.withValues(alpha: 0.5)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.sticky_note_2_rounded, size: 16, color: AppColors.primary),
+                        const Icon(Icons.sticky_note_2_rounded,
+                            size: 16, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -522,21 +688,27 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                     children: [
                       Text(
                         'Xem thêm',
-                        style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textTertiary),
                       ),
                       SizedBox(width: 2),
-                      Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textTertiary),
+                      Icon(Icons.keyboard_arrow_down_rounded,
+                          size: 16, color: AppColors.textTertiary),
                     ],
                   ),
                   Row(
                     children: [
                       const Text(
                         'Tổng: ',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
                       ),
                       Text(
                         '${_formatPrice(order.totalAmount)}đ',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary),
                       ),
                     ],
                   ),
@@ -554,12 +726,15 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.outlineVariant),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                       ),
                       child: const Text(
                         'Hủy đơn hàng',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        style:
+                            TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -704,7 +879,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CancelSuccessPage(orderId: id),
+                                    builder: (_) =>
+                                        CancelSuccessPage(orderId: id),
                                   ),
                                 );
                               },
@@ -713,7 +889,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                           disabledBackgroundColor:
                               AppColors.primary.withValues(alpha: 0.3),
                           foregroundColor: Colors.white,
-                          disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
+                          disabledForegroundColor:
+                              Colors.white.withValues(alpha: 0.6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -735,8 +912,6 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
       },
     );
   }
-
-
 
   Widget _buildSuggestedStores() {
     return Column(
@@ -820,18 +995,21 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                       const SizedBox(width: 3),
                       Text(
                         '${store['rating']}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textPrimary),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         '${store['distance']}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary),
                       ),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
                           '${store['time']}',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textSecondary),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -839,7 +1017,8 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.primaryContainer,
                       borderRadius: BorderRadius.circular(4),

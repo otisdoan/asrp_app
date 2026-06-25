@@ -13,11 +13,53 @@ class PaymentPage extends ConsumerStatefulWidget {
 }
 
 class _PaymentPageState extends ConsumerState<PaymentPage> {
+  final ScrollController _scrollController = ScrollController();
+  int _displayCount = 10;
+  bool _isLoadingMore = false;
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(orderProvider.notifier).fetchMyOrders();
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 150) {
+      _loadMore();
+    }
+  }
+
+  void _loadMore() {
+    final allOrders = ref.read(orderProvider);
+    int totalPayments = 0;
+    for (var o in allOrders) {
+      totalPayments += o.payments.length;
+    }
+    if (_isLoadingMore || _displayCount >= totalPayments) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _displayCount = (_displayCount + 10).clamp(0, totalPayments);
+          _isLoadingMore = false;
+        });
+      }
     });
   }
 
@@ -33,19 +75,26 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
           'orderId': order.id,
           'storeName': order.storeName,
           'payment': payment,
+          'orderTime': order.orderTime,
         });
       }
     }
     allPayments.sort((a, b) {
-      final dateA = (a['payment'] as MockPayment).date;
-      final dateB = (b['payment'] as MockPayment).date;
+      final paymentA = a['payment'] as MockPayment;
+      final paymentB = b['payment'] as MockPayment;
+      final dateA = paymentA.status == 'Đã thanh toán' ? paymentA.date : (a['orderTime'] as DateTime);
+      final dateB = paymentB.status == 'Đã thanh toán' ? paymentB.date : (b['orderTime'] as DateTime);
       return dateB.compareTo(dateA);
     });
+
+    final visiblePayments = allPayments.take(_displayCount).toList();
+    final hasMore = _displayCount < allPayments.length;
 
     return RefreshIndicator(
       onRefresh: () => ref.read(orderProvider.notifier).fetchMyOrders(),
       color: AppColors.primary,
       child: SingleChildScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +106,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
             _buildAddCardButton(),
 
             // ─── Recent Transactions ──────────────────────────────
-            _buildRecentTransactions(allPayments),
+            _buildRecentTransactions(visiblePayments, hasMore: hasMore),
           ],
         ),
       ),
@@ -178,7 +227,10 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
   }
 
   // ─── Recent Transactions ───────────────────────────────────────────────
-  Widget _buildRecentTransactions(List<Map<String, dynamic>> transactions) {
+  Widget _buildRecentTransactions(
+    List<Map<String, dynamic>> transactions, {
+    required bool hasMore,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 28, 12, 40),
       child: Column(
@@ -222,7 +274,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 ],
               ),
             )
-          else
+          else ...[
             // Real transactions list
             ListView.separated(
               shrinkWrap: true,
@@ -234,6 +286,8 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 final tx = transactions[index];
                 final storeName = tx['storeName'] as String;
                 final payment = tx['payment'] as MockPayment;
+                final orderTime = tx['orderTime'] as DateTime;
+                final txDate = payment.status == 'Đã thanh toán' ? payment.date : orderTime;
 
                 IconData statusIcon = Icons.pending_outlined;
                 Color statusColor = Colors.orange;
@@ -252,7 +306,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 }
 
                 final formattedDate =
-                    '${payment.date.day.toString().padLeft(2, '0')}/${payment.date.month.toString().padLeft(2, '0')} ${payment.date.hour.toString().padLeft(2, '0')}:${payment.date.minute.toString().padLeft(2, '0')}';
+                    '${txDate.day.toString().padLeft(2, '0')}/${txDate.month.toString().padLeft(2, '0')} ${txDate.hour.toString().padLeft(2, '0')}:${txDate.minute.toString().padLeft(2, '0')}';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -332,6 +386,47 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 );
               },
             ),
+            if (_isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Đang tải...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (!hasMore && transactions.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'Đã hiển thị tất cả giao dịch',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
