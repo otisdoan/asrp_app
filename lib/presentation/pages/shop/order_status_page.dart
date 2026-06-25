@@ -380,14 +380,30 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Product image mock container
+                      // Product image container
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           width: 56,
                           height: 56,
                           color: AppColors.bgWarm,
-                          child: const Icon(Icons.fastfood_outlined, size: 26, color: AppColors.textTertiary),
+                          child: item.effectiveImageUrl.isNotEmpty
+                              ? Image.network(
+                                  item.effectiveImageUrl,
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.fastfood_outlined,
+                                    size: 26,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.fastfood_outlined,
+                                  size: 26,
+                                  color: AppColors.textTertiary,
+                                ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -399,16 +415,45 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                             Text(
                               item.name,
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (item.extras != null) ...[
+                            if (item.sizeLabel != null && item.sizeLabel!.isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(
-                                item.extras!.replaceAll('\n', ', '),
-                                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                                maxLines: 1,
+                                'Size: ${item.sizeLabel}',
+                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                            if (item.extras != null && item.extras!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                item.extras!.split('\n').join(', '),
+                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            if (item.note != null && item.note!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.edit_note_rounded, size: 14, color: AppColors.primary),
+                                  const SizedBox(width: 2),
+                                  Expanded(
+                                    child: Text(
+                                      'Ghi chú: ${item.note}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],
@@ -434,6 +479,37 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
                   ),
                 );
               }),
+
+              if (order.storeNote != null && order.storeNote!.trim().isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgWarm.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.sticky_note_2_rounded, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Ghi chú đơn hàng: ${order.storeNote}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
 
               const Divider(height: 1, color: AppColors.outlineVariant),
               const SizedBox(height: 10),

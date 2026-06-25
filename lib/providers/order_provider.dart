@@ -8,13 +8,39 @@ class MockOrderItem {
   final int price;
   final int quantity;
   final String? extras;
+  final String? imageUrl;
+  final String? note;
+  final String? sizeLabel;
 
   const MockOrderItem({
     required this.name,
     required this.price,
     required this.quantity,
     this.extras,
+    this.imageUrl,
+    this.note,
+    this.sizeLabel,
   });
+
+  String get effectiveImageUrl {
+    if (imageUrl != null && imageUrl!.isNotEmpty) return imageUrl!;
+    
+    final lowerName = name.toLowerCase();
+    if (lowerName.contains('cơm')) {
+      return 'https://i-giadinh.vnecdn.net/2023/11/11/Bc5Thnhphm15-1699693079-2955-1699693082.jpg';
+    } else if (lowerName.contains('phở')) {
+      return 'https://asrp-image.s3.ap-southeast-1.amazonaws.com/categories/ec3f1f78-2b21-4a30-80e8-14a374220f13/2026/06/77bd7af24dce42e79c4e302a4a2f09e5.jpg';
+    } else if (lowerName.contains('bún')) {
+      return 'https://monngonmoingay.com/wp-content/uploads/2018/08/bun-bo-gio-heo-500-min.jpg';
+    } else if (lowerName.contains('hủ tiếu') || lowerName.contains('hủ tiêú')) {
+      return 'https://cooponline.vn/tin-tuc/wp-content/uploads/2025/10/hu-tieu-nam-vang-cong-thuc-nau-chuan-vi-sai-gon-nuoc-dung-ngot-thanh-dam-da-topping.png';
+    } else if (lowerName.contains('trà') || lowerName.contains('cà phê') || lowerName.contains('nước') || lowerName.contains('juice') || lowerName.contains('sữa') || lowerName.contains('đá') || lowerName.contains('chanh') || lowerName.contains('tắc') || lowerName.contains('cam') || lowerName.contains('milo') || lowerName.contains('bạc xỉu')) {
+      return 'https://asrp-image.s3.ap-southeast-1.amazonaws.com/categories/b09f7c22-222d-47c9-b11f-d9c9688680c5/2026/06/c5178a8af27b4ea686d827c58fa5715d.jpg';
+    } else if (lowerName.contains('bánh') || lowerName.contains('nem') || lowerName.contains('chả') || lowerName.contains('khoai') || lowerName.contains('ngô') || lowerName.contains('ăn vặt') || lowerName.contains('khai vị')) {
+      return 'https://asrp-image.s3.ap-southeast-1.amazonaws.com/categories/e528a1ba-1b91-4d1a-8e2b-ec1d2e1b1012/2026/06/be86c1bfc2864284ab8f78d89522dcec.jpg';
+    }
+    return 'https://asrp-image.s3.ap-southeast-1.amazonaws.com/staging/menu-items/2026/05/25df19375e8346cbb501c3587210674c.jpg';
+  }
 
   factory MockOrderItem.fromJson(Map<String, dynamic> json) {
     final toppings = json['toppings'] as List<dynamic>? ?? [];
@@ -30,6 +56,9 @@ class MockOrderItem {
       price: (json['priceAtTime'] as num?)?.toInt() ?? (json['price'] as num?)?.toInt() ?? 0,
       quantity: json['quantity'] as int? ?? 1,
       extras: toppingNames.isNotEmpty ? toppingNames : null,
+      imageUrl: json['productImageUrl'] as String? ?? json['imageUrl'] as String? ?? json['product']?['imageUrl'] as String?,
+      note: json['note'] as String? ?? json['productNote'] as String? ?? json['itemNote'] as String?,
+      sizeLabel: json['sizeLabel'] as String?,
     );
   }
 }

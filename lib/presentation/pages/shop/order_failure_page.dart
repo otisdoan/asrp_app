@@ -11,6 +11,11 @@ class OrderFailurePage extends StatelessWidget {
 
   const OrderFailurePage({super.key, required this.orderId});
 
+  void _goToHome(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    context.go(AppConstants.routeHome);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,7 +25,7 @@ class OrderFailurePage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => context.go(AppConstants.routeHome),
+          onPressed: () => _goToHome(context),
         ),
         centerTitle: true,
         title: const Text(
@@ -101,10 +106,7 @@ class OrderFailurePage extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Go back to home screen
-                        context.go(AppConstants.routeHome);
-                      },
+                      onPressed: () => _goToHome(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,

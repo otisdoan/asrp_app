@@ -40,6 +40,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _isLoading = true;
   bool _isFirstLoad = true;
   int _previewDiscount = 0;
+  int? _previewSubtotal;
+  int? _previewTotal;
   final OrderRepository _orderRepository = OrderRepository();
 
   bool _isExpanded = false;
@@ -116,37 +118,47 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     };
   }
 
-  Future<void> _fetchOrderPreview() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _fetchOrderPreview({bool showLoader = true}) async {
+    if (showLoader) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final cart = ref.read(cartProvider);
       final payload =
           _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      print('[Checkout] Payload sent to preview: $payload');
       final response = await _orderRepository.previewOrder(payload);
+      print('[Checkout] Response from preview: $response');
 
-      setState(() {
-        _availablePickupTimes =
-            List<String>.from(response['availablePickupTimes'] ?? []);
-        if (_availablePickupTimes.isNotEmpty && _selectedPickupTime == null) {
-          _selectedPickupTime = _availablePickupTimes.first;
-        }
-        _previewDiscount = (response['discountAmount'] as num?)?.toInt() ?? 0;
-        _isLoading = false;
-        _isFirstLoad = false;
-      });
+      if (mounted) {
+        setState(() {
+          _availablePickupTimes =
+              List<String>.from(response['availablePickupTimes'] ?? []);
+          if (_availablePickupTimes.isNotEmpty && _selectedPickupTime == null) {
+            _selectedPickupTime = _availablePickupTimes.first;
+          }
+          _previewDiscount = (response['discountAmount'] as num?)?.toInt() ?? 0;
+          _previewSubtotal = (response['subtotal'] as num?)?.toInt();
+          _previewTotal = (response['finalAmount'] as num?)?.toInt() ?? (response['totalAmount'] as num?)?.toInt();
+          _isLoading = false;
+          _isFirstLoad = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _isFirstLoad = false;
-      });
-      TopNotification.show(
-        context,
-        message: 'Không thể tính toán giá đơn hàng: $e',
-        isError: true,
-      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isFirstLoad = false;
+        });
+        TopNotification.show(
+          context,
+          message: 'Không thể tính toán giá đơn hàng: $e',
+          isError: true,
+        );
+      }
     }
   }
 
@@ -161,6 +173,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
+
+    // Listen to changes in the cart to fetch updated discount in the background
+    ref.listen<CartState>(cartProvider, (previous, next) {
+      if (next.items.isNotEmpty) {
+        _fetchOrderPreview(showLoader: false);
+      }
+    });
+
     if (cart.items.isEmpty && !_isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.canPop(context)) {
@@ -183,6 +203,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
     }
 
+    // Always calculate subtotal and total based on local cart items first,
+    // to maintain 100% visual consistency with the items list (as requested).
+    // The backend preview's discount is subtracted if available.
     final subtotal = cart.subtotal;
     final total =
         (subtotal - _previewDiscount + _serviceFee).clamp(0, 99999999);
@@ -1048,8 +1071,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // 1. Call preview again to chốt final price
       final previewPayload =
           _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      print('[Checkout] Confirm checkout payload: $previewPayload');
       final previewResponse =
           await _orderRepository.previewOrder(previewPayload);
+      print('[Checkout] Confirm checkout previewResponse: $previewResponse');
 
       final finalAmount =
           (previewResponse['finalAmount'] as num?)?.toInt() ?? total;
