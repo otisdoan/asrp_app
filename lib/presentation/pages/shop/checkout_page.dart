@@ -142,7 +142,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           }
           _previewDiscount = (response['discountAmount'] as num?)?.toInt() ?? 0;
           _previewSubtotal = (response['subtotal'] as num?)?.toInt();
-          _previewTotal = (response['finalAmount'] as num?)?.toInt() ?? (response['totalAmount'] as num?)?.toInt();
+          _previewTotal = (response['finalAmount'] as num?)?.toInt() ??
+              (response['totalAmount'] as num?)?.toInt();
           _isLoading = false;
           _isFirstLoad = false;
         });
@@ -595,20 +596,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.access_time_filled,
-                    size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  'Thời gian nhận hàng',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
+            const Text(
+              'Thời gian nhận hàng',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
             const Text(
@@ -630,20 +624,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.access_time_filled,
-                    size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  'Thời gian nhận hàng',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
+            const Text(
+              'Thời gian nhận hàng',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
             Container(
@@ -695,20 +682,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.access_time_filled,
-                    size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  'Thời gian nhận hàng',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
+            const Text(
+              'Thời gian nhận hàng',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -740,126 +720,186 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final selectedFormatted =
         '${selectedDT.hour.toString().padLeft(2, '0')}:${selectedDT.minute.toString().padLeft(2, '0')}';
 
-    final diffMins = selectedDT.difference(DateTime.now()).inMinutes;
-    final String timeSubText =
-        diffMins > 0 ? '(sau $diffMins phút nữa)' : '(ngay bây giờ)';
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.access_time_filled,
-                  size: 20, color: AppColors.primary),
-              const SizedBox(width: 8),
-              const Text(
-                'Chọn thời gian nhận hàng',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
           const Text(
-            'Kéo thanh trượt để chọn giờ bạn muốn đến quán để lấy đồ',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppColors.primary,
-              inactiveTrackColor: AppColors.outlineVariant,
-              thumbColor: AppColors.primary,
-              overlayColor: AppColors.primary.withValues(alpha: 0.12),
-              valueIndicatorColor: AppColors.primary,
-              trackHeight: 6.0,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
-            ),
-            child: Slider(
-              min: minVal,
-              max: maxVal,
-              value: currentVal,
-              onChanged: (value) {
-                final roundedMs = (value / 60000).round() * 60000;
-                DateTime finalDT =
-                    DateTime.fromMillisecondsSinceEpoch(roundedMs);
-                if (finalDT.isBefore(minDateTime!)) {
-                  finalDT = minDateTime;
-                } else if (finalDT.isAfter(maxDateTime!)) {
-                  finalDT = maxDateTime;
-                }
-                setState(() {
-                  _selectedPickupTime = _dateTimeToIsoUtcString(finalDT);
-                });
-              },
+            'Thời gian nhận hàng',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Sớm nhất: ${_formatTimeSlot(minTimeStr)}',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Muộn nhất: ${_formatTimeSlot(maxTimeStr)}',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.bold),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.outlineVariant, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.timer_outlined,
-                    color: AppColors.primary, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  'Nhận hàng lúc: ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary.withValues(alpha: 0.8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Thời gian lấy món dự kiến',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                selectedFormatted,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primary,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.restaurant_menu_rounded,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  selectedFormatted,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: AppColors.outlineVariant),
+                const SizedBox(height: 8),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor:
+                        AppColors.outlineVariant.withValues(alpha: 0.5),
+                    thumbColor: AppColors.primary,
+                    overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                    valueIndicatorColor: AppColors.primary,
+                    trackHeight: 6.0,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 10.0,
+                      elevation: 3.0,
+                      pressedElevation: 6.0,
+                    ),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 20.0),
+                  ),
+                  child: Slider(
+                    min: minVal,
+                    max: maxVal,
+                    value: currentVal,
+                    onChanged: (value) {
+                      final roundedMs = (value / 60000).round() * 60000;
+                      DateTime finalDT =
+                          DateTime.fromMillisecondsSinceEpoch(roundedMs);
+                      if (finalDT.isBefore(minDateTime!)) {
+                        finalDT = minDateTime;
+                      } else if (finalDT.isAfter(maxDateTime!)) {
+                        finalDT = maxDateTime;
+                      }
+                      setState(() {
+                        _selectedPickupTime =
+                            _dateTimeToIsoUtcString(finalDT);
+                      });
+                    },
                   ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  timeSubText,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.storefront_outlined,
+                              size: 13, color: AppColors.textTertiary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Sớm nhất: ${_formatTimeSlot(minTimeStr)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded,
+                              size: 13, color: AppColors.textTertiary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Muộn nhất: ${_formatTimeSlot(maxTimeStr)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: AppColors.outlineVariant),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 14, color: AppColors.textTertiary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Quán sẽ căn chỉnh chuẩn bị để món ăn luôn nóng hổi và sẵn sàng khi bạn tới nhận.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                            fontWeight: FontWeight.w400,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1100,7 +1140,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           await _orderRepository.initiatePayment(orderId, paymentPayload);
       final checkoutUrl = paymentResponse['checkoutUrl'] as String?;
       final qrCode = paymentResponse['qrCode'] as String?;
-      final amountVal = (paymentResponse['amount'] as num?)?.toDouble() ?? finalAmount.toDouble();
+      final amountVal = (paymentResponse['amount'] as num?)?.toDouble() ??
+          finalAmount.toDouble();
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('Không nhận được liên kết thanh toán từ PayOS');

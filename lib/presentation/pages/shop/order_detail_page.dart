@@ -658,7 +658,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           const SizedBox(height: 10),
           _buildMetadataRow('Thời gian đặt hàng', '$orderTimeStr ngày $orderDateStr'),
           const SizedBox(height: 10),
-          _buildMetadataRow('Thời gian nhận dự kiến', '$pickupTimeStr (sau ${order.originalMinutes}p)'),
+          _buildMetadataRow('Thời gian nhận dự kiến', pickupTimeStr),
           const SizedBox(height: 10),
           _buildMetadataRow('Phương thức nhận hàng', 'Tự đến lấy tại quán'),
           const SizedBox(height: 10),

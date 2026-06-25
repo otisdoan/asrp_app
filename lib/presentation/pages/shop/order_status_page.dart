@@ -479,12 +479,7 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                     shippingColor = Colors.grey.shade700;
                     shippingIcon = Icons.check_circle_outline;
                   } else {
-                    final diffMins =
-                        order.pickupTime.difference(DateTime.now()).inMinutes;
-                    final remainingMins =
-                        diffMins > 0 ? diffMins : order.originalMinutes;
-                    shippingText =
-                        'Dự kiến sẵn sàng: $pickupTimeStr (sau ${remainingMins}p)';
+                    shippingText = 'Dự kiến sẵn sàng: $pickupTimeStr';
                     shippingColor = AppColors.primary;
                     shippingIcon = Icons.takeout_dining_outlined;
                   }
