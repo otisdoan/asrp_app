@@ -91,6 +91,7 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
           unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           indicatorColor: AppColors.primary,
           indicatorWeight: 2.5,
+          tabAlignment: TabAlignment.start,
           tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),
