@@ -113,7 +113,7 @@ class BranchListItemModel {
 }
 
 class BranchMenuSectionModel {
-  final String name; // Tên danh mục (ví dụ: "Món phổ biến", "Phở & Bún"...)
+  final String name; // Tên danh mục (ví dụ: "Món phổ biến", "Phở & bún"...)
   final List<MenuItemModel> items; // Danh sách món ăn thuộc danh mục này
 
   const BranchMenuSectionModel({

@@ -17,7 +17,8 @@ class StaffManagementPage extends ConsumerStatefulWidget {
       _StaffManagementPageState();
 }
 
-class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with WidgetsBindingObserver {
+class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
+    with WidgetsBindingObserver {
   // Lọc chi nhánh dành cho SuperAdmin: 'Tất cả' | các chi nhánh động
   String _selectedBranchTab = 'Tất cả';
   List<String> _branchOptions = [];
@@ -46,7 +47,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
 
   @override
   void didChangeMetrics() {
-    final bottomInset = WidgetsBinding.instance.platformDispatcher.views.first.viewInsets.bottom;
+    final bottomInset = WidgetsBinding
+        .instance.platformDispatcher.views.first.viewInsets.bottom;
     if (bottomInset == 0 && _searchFocusNode.hasFocus) {
       _searchFocusNode.unfocus();
     }
@@ -57,19 +59,20 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
     final user = ref.read(currentUserProvider);
     final registration = ref.read(branchRegistrationProvider);
     final isMultiBranch = registration.registeredBranches.length > 1;
-    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' || user?.role.toLowerCase() == 'admin';
+    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
+        user?.role.toLowerCase() == 'admin';
     final isSuperAdmin = isBrandOwner && isMultiBranch;
 
     if (isSuperAdmin) {
       if (_selectedBranchTab == 'Tất cả') {
         try {
           final results = await Future.wait(
-            _realBranches.map((b) => notifier.getStaffListForBranch(b.id))
-          );
+              _realBranches.map((b) => notifier.getStaffListForBranch(b.id)));
           final combined = results.expand((list) => list).toList();
           notifier.setStaffList(combined);
         } catch (e) {
-          print('[StaffManagementPage] Error fetching staff for all branches: $e');
+          print(
+              '[StaffManagementPage] Error fetching staff for all branches: $e');
         }
       } else {
         final bId = _branchNameToId[_selectedBranchTab];
@@ -94,7 +97,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
     final user = ref.watch(currentUserProvider);
     final registration = ref.watch(branchRegistrationProvider);
     final isMultiBranch = registration.registeredBranches.length > 1;
-    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' || user?.role.toLowerCase() == 'admin';
+    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
+        user?.role.toLowerCase() == 'admin';
 
     // Chỉ hiển thị giao diện đa chi nhánh nếu là Chủ thương hiệu và có trên 1 chi nhánh thực tế
     final isSuperAdmin = isBrandOwner && isMultiBranch;
@@ -110,7 +114,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
         adminBranch = userBranch.name;
       }
     } else if (registration.registeredBranches.isNotEmpty) {
-      adminBranch = registration.registeredBranches.first['branchName'] ?? 'Quận 1';
+      adminBranch =
+          registration.registeredBranches.first['branchName'] ?? 'Quận 1';
     } else if (_realBranches.isNotEmpty) {
       adminBranch = _realBranches.first.name;
     }
@@ -123,7 +128,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
         _branchOptions = branches.map((b) => b.name).toList();
         _branchNameToId = {for (var b in branches) b.name: b.id};
         _isInitialized = true;
-        
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _fetchStaffList();
         });
@@ -169,8 +174,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
         ),
         title: Text(
           isSuperAdmin
-              ? 'Quản lý Nhân sự Toàn Chuỗi'
-              : 'Quản lý Nhân sự Chi nhánh',
+              ? 'Quản lý nhân sự toàn chuỗi'
+              : 'Quản lý nhân sự chi nhánh',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -193,19 +198,19 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
             Expanded(
               child: branchesAsyncValue.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Lỗi tải chi nhánh: $err')),
+                error: (err, stack) =>
+                    Center(child: Text('Lỗi tải chi nhánh: $err')),
                 data: (_) {
                   if (filteredList.isEmpty) {
                     return _buildEmptyState();
                   }
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: filteredList.length,
                     itemBuilder: (context, index) {
                       final member = filteredList[index];
-                      return _buildStaffCard(
-                          member, isSuperAdmin, adminBranch);
+                      return _buildStaffCard(member, isSuperAdmin, adminBranch);
                     },
                   );
                 },
@@ -221,7 +226,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add, size: 20),
         label: Text(
-          isBrandOwner ? 'Bổ nhiệm Quản lý/Nhân viên' : 'Thêm Nhân viên mới',
+          isBrandOwner ? 'Bổ nhiệm quản lý/nhân viên' : 'Thêm nhân viên mới',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -282,8 +287,6 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
       ),
     );
   }
-
-
 
   // ─── SuperAdmin Lọc Branch Tabs UI ─────────────────────────────────────────
   Widget _buildBranchTabs() {
@@ -348,18 +351,18 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
       case 'Admin':
         badgeBgColor = const Color(0xFFFFECEB);
         badgeTextColor = Colors.red.shade900;
-        displayRole = 'Chủ thương hiệu (Admin)';
+        displayRole = 'Chủ thương hiệu';
         break;
       case 'Manager':
         badgeBgColor = const Color(0xFFFFF2E6);
         badgeTextColor = Colors.orange.shade900;
-        displayRole = 'Quản lý chi nhánh (Manager)';
+        displayRole = 'Quản lý chi nhánh';
         break;
       case 'Staff':
       default:
         badgeBgColor = const Color(0xFFEAF8EB);
         badgeTextColor = Colors.green.shade900;
-        displayRole = 'Nhân viên phục vụ (Staff)';
+        displayRole = 'Nhân viên phục vụ';
     }
 
     final initials =
@@ -569,7 +572,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
               onPressed: () async {
                 final navigator = Navigator.of(ctx);
                 try {
-                  final bId = _branchNameToId[member.branchName] ?? ref.read(staffManagementProvider.notifier).activeBranchId;
+                  final bId = _branchNameToId[member.branchName] ??
+                      ref.read(staffManagementProvider.notifier).activeBranchId;
                   if (bId != null) {
                     await ref
                         .read(staffManagementProvider.notifier)
@@ -585,7 +589,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
                   navigator.pop();
                   TopNotification.show(
                     context,
-                    message: 'Lỗi khi vô hiệu hóa: ${e.toString().replaceAll('Exception: ', '')}',
+                    message:
+                        'Lỗi khi vô hiệu hóa: ${e.toString().replaceAll('Exception: ', '')}',
                     isError: true,
                   );
                 }
@@ -665,10 +670,12 @@ class _StaffEditorSheetContent extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_StaffEditorSheetContent> createState() => _StaffEditorSheetContentState();
+  ConsumerState<_StaffEditorSheetContent> createState() =>
+      _StaffEditorSheetContentState();
 }
 
-class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetContent> {
+class _StaffEditorSheetContentState
+    extends ConsumerState<_StaffEditorSheetContent> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
@@ -678,9 +685,11 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.existing?.fullName ?? '');
-    _phoneController = TextEditingController(text: widget.existing?.phone ?? '');
-    
+    _nameController =
+        TextEditingController(text: widget.existing?.fullName ?? '');
+    _phoneController =
+        TextEditingController(text: widget.existing?.phone ?? '');
+
     _selectedRole = widget.existing?.role ?? 'Manager';
     if (_selectedRole == 'Admin') {
       _selectedRole = 'Manager';
@@ -728,7 +737,9 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                 Text(
                   isEdit
                       ? 'Chỉnh sửa thông tin'
-                      : (widget.isSuperAdmin ? 'Bổ nhiệm Nhân sự mới' : 'Thêm Nhân viên mới'),
+                      : (widget.isSuperAdmin
+                          ? 'Bổ nhiệm nhân sự mới'
+                          : 'Thêm nhân viên mới'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -736,7 +747,8 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textSecondary),
                   onPressed: () => Navigator.pop(context),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -768,29 +780,37 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                     controller: _nameController,
                     autofocus: true,
                     keyboardType: TextInputType.name,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
                       hintText: 'Nhập họ và tên...',
-                      hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
-                      prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 20),
+                      hintStyle: const TextStyle(
+                          color: AppColors.textPlaceholder, fontSize: 13),
+                      prefixIcon: const Icon(Icons.person_outline_rounded,
+                          color: AppColors.primary, size: 20),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 16),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                        borderSide:
+                            const BorderSide(color: AppColors.outlineVariant),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
                       ),
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.error, width: 1.0),
+                        borderSide: const BorderSide(
+                            color: AppColors.error, width: 1.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.error, width: 1.5),
                       ),
                     ),
                     validator: (val) {
@@ -815,29 +835,37 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
                       hintText: 'Nhập số điện thoại...',
-                      hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
-                      prefixIcon: const Icon(Icons.phone_iphone_rounded, color: AppColors.primary, size: 20),
+                      hintStyle: const TextStyle(
+                          color: AppColors.textPlaceholder, fontSize: 13),
+                      prefixIcon: const Icon(Icons.phone_iphone_rounded,
+                          color: AppColors.primary, size: 20),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 16),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                        borderSide:
+                            const BorderSide(color: AppColors.outlineVariant),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
                       ),
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.error, width: 1.0),
+                        borderSide: const BorderSide(
+                            color: AppColors.error, width: 1.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.error, width: 1.5),
                       ),
                     ),
                     validator: (val) {
@@ -866,19 +894,26 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                     DropdownButtonFormField<String>(
                       value: _selectedBranch,
                       dropdownColor: Colors.white,
-                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500),
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.storefront_outlined, color: AppColors.primary, size: 20),
+                        prefixIcon: const Icon(Icons.storefront_outlined,
+                            color: AppColors.primary, size: 20),
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 14, horizontal: 16),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.outlineVariant),
+                          borderSide:
+                              const BorderSide(color: AppColors.outlineVariant),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                          borderSide: const BorderSide(
+                              color: AppColors.primary, width: 1.5),
                         ),
                       ),
                       items: widget.branchOptions.map((branch) {
@@ -911,31 +946,50 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                   Row(
                     children: [
                       ChoiceChip(
-                        label: const Text('Quản lý chi nhánh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        label: const Text('Quản lý chi nhánh',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.bold)),
                         selected: _selectedRole == 'Manager',
                         onSelected: (selected) {
-                          if (selected) setState(() => _selectedRole = 'Manager');
+                          if (selected)
+                            setState(() => _selectedRole = 'Manager');
                         },
                         selectedColor: Colors.orange.shade100,
                         backgroundColor: AppColors.bgSoft,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Manager' ? Colors.orange.shade400 : AppColors.outlineVariant)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                                color: _selectedRole == 'Manager'
+                                    ? Colors.orange.shade400
+                                    : AppColors.outlineVariant)),
                         labelStyle: TextStyle(
-                          color: _selectedRole == 'Manager' ? Colors.orange.shade900 : AppColors.textSecondary,
+                          color: _selectedRole == 'Manager'
+                              ? Colors.orange.shade900
+                              : AppColors.textSecondary,
                         ),
                         showCheckmark: false,
                       ),
                       const SizedBox(width: 12),
                       ChoiceChip(
-                        label: const Text('Nhân viên phục vụ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        label: const Text('Nhân viên phục vụ',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.bold)),
                         selected: _selectedRole == 'Staff',
                         onSelected: (selected) {
                           if (selected) setState(() => _selectedRole = 'Staff');
                         },
                         selectedColor: Colors.green.shade100,
                         backgroundColor: AppColors.bgSoft,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _selectedRole == 'Staff' ? Colors.green.shade400 : AppColors.outlineVariant)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                                color: _selectedRole == 'Staff'
+                                    ? Colors.green.shade400
+                                    : AppColors.outlineVariant)),
                         labelStyle: TextStyle(
-                          color: _selectedRole == 'Staff' ? Colors.green.shade900 : AppColors.textSecondary,
+                          color: _selectedRole == 'Staff'
+                              ? Colors.green.shade900
+                              : AppColors.textSecondary,
                         ),
                         showCheckmark: false,
                       ),
@@ -954,7 +1008,8 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: const BorderSide(color: AppColors.outlineVariant),
+                            side: const BorderSide(
+                                color: AppColors.outlineVariant),
                           ),
                           child: const Text(
                             'Hủy bỏ',
@@ -970,13 +1025,16 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                         child: ElevatedButton(
                           onPressed: () async {
                             if (_formKey.currentState!.validate()) {
-                              final notifier = ref.read(staffManagementProvider.notifier);
+                              final notifier =
+                                  ref.read(staffManagementProvider.notifier);
                               final navigator = Navigator.of(context);
-                              
+
                               try {
                                 if (widget.existing == null) {
-                                  final targetBranchId = widget.branchNameToId[_selectedBranch] ?? notifier.activeBranchId;
-                                  
+                                  final targetBranchId =
+                                      widget.branchNameToId[_selectedBranch] ??
+                                          notifier.activeBranchId;
+
                                   final newMember = StaffMemberModel(
                                     id: '',
                                     fullName: _nameController.text.trim(),
@@ -985,22 +1043,26 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                                     branchName: _selectedBranch,
                                     createdAt: DateTime.now().toIso8601String(),
                                   );
-                                  await notifier.addStaffMember(newMember, targetBranchId: targetBranchId);
+                                  await notifier.addStaffMember(newMember,
+                                      targetBranchId: targetBranchId);
                                 } else {
-                                  final targetBranchId = widget.branchNameToId[_selectedBranch] ?? notifier.activeBranchId;
-                                  
+                                  final targetBranchId =
+                                      widget.branchNameToId[_selectedBranch] ??
+                                          notifier.activeBranchId;
+
                                   final updated = widget.existing!.copyWith(
                                     fullName: _nameController.text.trim(),
                                     phone: _phoneController.text.trim(),
                                     role: _selectedRole,
                                     branchName: _selectedBranch,
                                   );
-                                  await notifier.updateStaffMember(updated, targetBranchId: targetBranchId);
+                                  await notifier.updateStaffMember(updated,
+                                      targetBranchId: targetBranchId);
                                 }
-                                
+
                                 widget.onSaveSuccess();
                                 navigator.pop();
-                                
+
                                 TopNotification.show(
                                   context,
                                   message: widget.existing == null
@@ -1010,7 +1072,8 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                               } catch (e) {
                                 TopNotification.show(
                                   context,
-                                  message: 'Lỗi: ${e.toString().replaceAll('Exception: ', '')}',
+                                  message:
+                                      'Lỗi: ${e.toString().replaceAll('Exception: ', '')}',
                                   isError: true,
                                 );
                               }
@@ -1026,7 +1089,7 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                             elevation: 0,
                           ),
                           child: Text(
-                            isEdit ? 'Lưu Thay Đổi' : 'Thêm Nhân Sự',
+                            isEdit ? 'Lưu thay đổi' : 'Thêm nhân sự',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -1050,7 +1113,8 @@ class _KeyboardAvoidPadding extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: child,
     );
   }

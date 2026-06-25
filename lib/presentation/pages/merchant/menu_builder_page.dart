@@ -12,7 +12,8 @@ class MenuBuilderPage extends ConsumerStatefulWidget {
   ConsumerState<MenuBuilderPage> createState() => _MenuBuilderPageState();
 }
 
-class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTickerProviderStateMixin {
+class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -66,13 +67,15 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
       appBar: AppBar(
         title: const Text(
           'Quản lý thực đơn & Topping',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+          style: TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
         ),
         centerTitle: true,
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.white, size: 20),
           onPressed: () => context.pop(),
         ),
         bottom: TabBar(
@@ -81,7 +84,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
           indicatorWeight: 3.5,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           tabs: const [
             Tab(
               icon: Icon(Icons.restaurant_menu_rounded, size: 20),
@@ -89,7 +93,7 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             ),
             Tab(
               icon: Icon(Icons.folder_open_rounded, size: 20),
-              text: 'Quản lý Danh mục',
+              text: 'Quản lý danh mục',
             ),
           ],
         ),
@@ -103,7 +107,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                   SizedBox(height: 16),
                   Text(
                     'Đang tải thực đơn...',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 14),
                   ),
                 ],
               ),
@@ -115,22 +120,27 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 64),
+                        const Icon(Icons.error_outline_rounded,
+                            color: AppColors.error, size: 64),
                         const SizedBox(height: 16),
                         Text(
                           menuState.errorMessage!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
-                          onPressed: () => ref.read(merchantMenuProvider.notifier).initializeMenu(),
+                          onPressed: () => ref
+                              .read(merchantMenuProvider.notifier)
+                              .initializeMenu(),
                           icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Thử lại'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ],
@@ -154,12 +164,14 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
       // Floating Action Button only shown on Tab 1
       floatingActionButton: _tabController.index == 0 && currentCategory != null
           ? FloatingActionButton.extended(
-              onPressed: () => _showDishEditorSheet(context, currentCategory.id, null),
+              onPressed: () =>
+                  _showDishEditorSheet(context, currentCategory.id, null),
               backgroundColor: AppColors.primary,
               icon: const Icon(Icons.add_rounded, color: Colors.white),
               label: const Text(
-                'Thêm Món Mới',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                'Thêm món mới',
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
               ),
             )
           : null,
@@ -167,7 +179,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
   }
 
   // ================= TAB 1: DISHES LIST VIEW =================
-  Widget _buildDishesTab(MerchantCategory? activeCategory, List<MerchantDish> dishes, List<MerchantCategory> categories) {
+  Widget _buildDishesTab(MerchantCategory? activeCategory,
+      List<MerchantDish> dishes, List<MerchantCategory> categories) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -184,17 +197,24 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             itemBuilder: (context, index) {
               final cat = categories[index];
               final isSelected = cat.id == activeCategory?.id;
-              
+
               // Count number of dishes in this category
-              final count = ref.watch(merchantMenuProvider).categoryDishes[cat.id]?.length ?? 0;
+              final count = ref
+                      .watch(merchantMenuProvider)
+                      .categoryDishes[cat.id]
+                      ?.length ??
+                  0;
 
               return GestureDetector(
                 onTap: () {
-                  ref.read(merchantMenuProvider.notifier).selectCategory(cat.id);
+                  ref
+                      .read(merchantMenuProvider.notifier)
+                      .selectCategory(cat.id);
                 },
                 child: Container(
                   margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                   decoration: BoxDecoration(
                     gradient: isSelected
                         ? const LinearGradient(
@@ -206,7 +226,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                     color: isSelected ? null : AppColors.bgSoft,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected ? Colors.transparent : AppColors.outlineVariant,
+                      color: isSelected
+                          ? Colors.transparent
+                          : AppColors.outlineVariant,
                       width: 1,
                     ),
                     boxShadow: isSelected
@@ -225,15 +247,20 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                         cat.name,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w600,
+                          color:
+                              isSelected ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isSelected ? Colors.white.withValues(alpha: 0.25) : AppColors.surfaceContainerHigh,
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.25)
+                              : AppColors.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -241,7 +268,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -274,13 +303,16 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
           child: dishes.isEmpty
               ? _buildEmptyDishesState()
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 80), // bottom padding for floating button
+                  padding: const EdgeInsets.fromLTRB(
+                      16, 12, 16, 80), // bottom padding for floating button
                   physics: const BouncingScrollPhysics(),
                   itemCount: dishes.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final dish = dishes[index];
-                    return _buildSpaciousDishCard(context, activeCategory!.id, dish);
+                    return _buildSpaciousDishCard(
+                        context, activeCategory!.id, dish);
                   },
                 ),
         ),
@@ -289,7 +321,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
   }
 
   // Spacious, full-screen-width beautiful dish card for mobile view
-  Widget _buildSpaciousDishCard(BuildContext context, String catId, MerchantDish dish) {
+  Widget _buildSpaciousDishCard(
+      BuildContext context, String catId, MerchantDish dish) {
     // Availability tags format
     String availabilityText = 'Còn món';
     Color availabilityColor = AppColors.success;
@@ -350,9 +383,11 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                                 dish.imageUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.restaurant_menu_rounded, color: AppColors.primary, size: 32),
+                                    const Icon(Icons.restaurant_menu_rounded,
+                                        color: AppColors.primary, size: 32),
                               )
-                            : const Icon(Icons.restaurant_menu_rounded, color: AppColors.primary, size: 32),
+                            : const Icon(Icons.restaurant_menu_rounded,
+                                color: AppColors.primary, size: 32),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -421,7 +456,7 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                 ),
               ),
             ),
-            
+
             const Divider(height: 1, color: AppColors.divider),
 
             // Bottom Actions: option group indicator + availability toggle
@@ -433,18 +468,23 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                 children: [
                   // Option groups summary pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.bgWarm.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.tune_rounded, color: AppColors.textSecondary, size: 12),
+                        const Icon(Icons.tune_rounded,
+                            color: AppColors.textSecondary, size: 12),
                         const SizedBox(width: 4),
                         Text(
                           '${dish.optionGroups.length} nhóm tùy chọn',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -453,11 +493,13 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                   // Rapid availability dropdown popup
                   PopupMenuButton<String>(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: availabilityBgColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: availabilityColor.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color: availabilityColor.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -480,13 +522,16 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.keyboard_arrow_down_rounded, color: availabilityColor, size: 14),
+                          Icon(Icons.keyboard_arrow_down_rounded,
+                              color: availabilityColor, size: 14),
                         ],
                       ),
                     ),
                     onSelected: (String statusVal) async {
                       try {
-                        await ref.read(merchantMenuProvider.notifier).toggleDishAvailability(catId, dish.id, statusVal);
+                        await ref
+                            .read(merchantMenuProvider.notifier)
+                            .toggleDishAvailability(catId, dish.id, statusVal);
                         TopNotification.show(
                           context,
                           message: 'Đã cập nhật trạng thái hoạt động món ăn.',
@@ -494,7 +539,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                       } catch (e) {
                         TopNotification.show(
                           context,
-                          message: 'Lỗi khi cập nhật trạng thái: ${e.toString().replaceAll('Exception: ', '')}',
+                          message:
+                              'Lỗi khi cập nhật trạng thái: ${e.toString().replaceAll('Exception: ', '')}',
                           isError: true,
                         );
                       }
@@ -502,15 +548,18 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                     itemBuilder: (context) => [
                       const PopupMenuItem(
                         value: 'available',
-                        child: Text('Còn món (Khả dụng)', style: TextStyle(fontSize: 13)),
+                        child: Text('Còn món (Khả dụng)',
+                            style: TextStyle(fontSize: 13)),
                       ),
                       const PopupMenuItem(
                         value: 'sold_out_today',
-                        child: Text('Hết hôm nay', style: TextStyle(fontSize: 13)),
+                        child:
+                            Text('Hết hôm nay', style: TextStyle(fontSize: 13)),
                       ),
                       const PopupMenuItem(
                         value: 'disabled',
-                        child: Text('Tạm dừng bán', style: TextStyle(fontSize: 13)),
+                        child: Text('Tạm dừng bán',
+                            style: TextStyle(fontSize: 13)),
                       ),
                     ],
                   ),
@@ -533,7 +582,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
           color: AppColors.bgSoft,
           child: Row(
             children: const [
-              Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 16),
+              Icon(Icons.info_outline_rounded,
+                  color: AppColors.primary, size: 16),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -556,7 +606,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
             itemCount: categories.length,
             onReorder: (oldIndex, newIndex) {
-              ref.read(merchantMenuProvider.notifier).reorderCategories(oldIndex, newIndex);
+              ref
+                  .read(merchantMenuProvider.notifier)
+                  .reorderCategories(oldIndex, newIndex);
             },
             itemBuilder: (context, index) {
               final cat = categories[index];
@@ -573,10 +625,12 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                       offset: const Offset(0, 2),
                     ),
                   ],
-                  border: Border.all(color: AppColors.outlineVariant, width: 0.8),
+                  border:
+                      Border.all(color: AppColors.outlineVariant, width: 0.8),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   leading: const Icon(
                     Icons.drag_indicator_rounded,
                     color: AppColors.textSecondary,
@@ -594,11 +648,13 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 20),
+                        icon: const Icon(Icons.edit_outlined,
+                            color: AppColors.textSecondary, size: 20),
                         onPressed: () => _showCategoryDialog(context, cat),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            color: AppColors.error, size: 20),
                         onPressed: () => _confirmDeleteCategory(context, cat),
                       ),
                     ],
@@ -631,7 +687,7 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                 onPressed: () => _showCategoryDialog(context, null),
                 icon: const Icon(Icons.add_rounded, color: Colors.white),
                 label: const Text(
-                  'Thêm Danh Mục Mới',
+                  'Thêm danh mục mới',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -657,11 +713,15 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.restaurant_menu_rounded, size: 80, color: AppColors.primaryContainer),
+            const Icon(Icons.restaurant_menu_rounded,
+                size: 80, color: AppColors.primaryContainer),
             const SizedBox(height: 16),
             const Text(
               'Thực đơn chưa có danh mục',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -673,12 +733,14 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             ElevatedButton.icon(
               onPressed: () => _showCategoryDialog(context, null),
               icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: const Text('Thêm Danh Mục'),
+              label: const Text('Thêm danh mục'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -696,7 +758,10 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
           SizedBox(height: 12),
           Text(
             'Chưa có món ăn trong danh mục này',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -719,7 +784,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             category: category,
             onSave: (name) {
               if (category != null) {
-                ref.read(merchantMenuProvider.notifier).updateCategory(category.id, name);
+                ref
+                    .read(merchantMenuProvider.notifier)
+                    .updateCategory(category.id, name);
               } else {
                 ref.read(merchantMenuProvider.notifier).addCategory(name);
               }
@@ -737,22 +804,28 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Xác nhận xóa danh mục', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Xác nhận xóa danh mục',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           content: Text(
             'Hành động này sẽ xóa danh mục "${category.name}". Bạn chắc chắn muốn xóa?',
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            style:
+                const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+              child: const Text('Hủy',
+                  style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () async {
                 final navigator = Navigator.of(ctx);
                 try {
-                  await ref.read(merchantMenuProvider.notifier).deleteCategory(category.id);
+                  await ref
+                      .read(merchantMenuProvider.notifier)
+                      .deleteCategory(category.id);
                   navigator.pop();
                   TopNotification.show(
                     context,
@@ -761,8 +834,10 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                 } catch (e) {
                   navigator.pop();
                   String errorMsg = e.toString().replaceAll('Exception: ', '');
-                  if (errorMsg.contains('Category has menu items') || errorMsg.contains('400')) {
-                    errorMsg = 'Không thể xóa danh mục vì vẫn còn món ăn bên trong. Vui lòng xóa hết món ăn trước.';
+                  if (errorMsg.contains('Category has menu items') ||
+                      errorMsg.contains('400')) {
+                    errorMsg =
+                        'Không thể xóa danh mục vì vẫn còn món ăn bên trong. Vui lòng xóa hết món ăn trước.';
                   }
                   TopNotification.show(
                     context,
@@ -774,7 +849,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Xóa bỏ'),
             ),
@@ -785,7 +861,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
   }
 
   // Bottom Sheet: Add/Edit Dish (Using a self-contained stateful widget to prevent leaks)
-  void _showDishEditorSheet(BuildContext context, String catId, MerchantDish? dish) {
+  void _showDishEditorSheet(
+      BuildContext context, String catId, MerchantDish? dish) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -803,16 +880,21 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
               final navigator = Navigator.of(ctx);
               try {
                 if (dish == null) {
-                  await ref.read(merchantMenuProvider.notifier).addDish(catId, updatedDish);
+                  await ref
+                      .read(merchantMenuProvider.notifier)
+                      .addDish(catId, updatedDish);
                   TopNotification.show(
                     context,
                     message: 'Đã thêm món "${updatedDish.name}" thành công.',
                   );
                 } else {
-                  await ref.read(merchantMenuProvider.notifier).updateDish(catId, updatedDish);
+                  await ref
+                      .read(merchantMenuProvider.notifier)
+                      .updateDish(catId, updatedDish);
                   TopNotification.show(
                     context,
-                    message: 'Đã cập nhật món "${updatedDish.name}" thành công.',
+                    message:
+                        'Đã cập nhật món "${updatedDish.name}" thành công.',
                   );
                 }
                 navigator.pop();
@@ -820,7 +902,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                 navigator.pop();
                 TopNotification.show(
                   context,
-                  message: 'Lỗi khi lưu món ăn: ${e.toString().replaceAll('Exception: ', '')}',
+                  message:
+                      'Lỗi khi lưu món ăn: ${e.toString().replaceAll('Exception: ', '')}',
                   isError: true,
                 );
               }
@@ -829,7 +912,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                 ? () async {
                     final navigator = Navigator.of(ctx);
                     try {
-                      await ref.read(merchantMenuProvider.notifier).deleteDish(catId, dish.id);
+                      await ref
+                          .read(merchantMenuProvider.notifier)
+                          .deleteDish(catId, dish.id);
                       navigator.pop();
                       TopNotification.show(
                         context,
@@ -839,7 +924,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                       navigator.pop();
                       TopNotification.show(
                         context,
-                        message: 'Lỗi khi xóa món ăn: ${e.toString().replaceAll('Exception: ', '')}',
+                        message:
+                            'Lỗi khi xóa món ăn: ${e.toString().replaceAll('Exception: ', '')}',
                         isError: true,
                       );
                     }
@@ -919,7 +1005,8 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textSecondary),
                   onPressed: () => Navigator.pop(context),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -948,29 +1035,37 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                   TextFormField(
                     controller: _controller,
                     autofocus: true,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
                       hintText: 'Ví dụ: Đồ ăn vặt, Đồ uống, Tráng miệng...',
-                      hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
-                      prefixIcon: const Icon(Icons.category_outlined, color: AppColors.primary, size: 20),
+                      hintStyle: const TextStyle(
+                          color: AppColors.textPlaceholder, fontSize: 13),
+                      prefixIcon: const Icon(Icons.category_outlined,
+                          color: AppColors.primary, size: 20),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 16),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                        borderSide:
+                            const BorderSide(color: AppColors.outlineVariant),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
                       ),
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.error, width: 1.0),
+                        borderSide: const BorderSide(
+                            color: AppColors.error, width: 1.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.error, width: 1.5),
                       ),
                     ),
                     validator: (val) {
@@ -993,7 +1088,8 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: const BorderSide(color: AppColors.outlineVariant),
+                            side: const BorderSide(
+                                color: AppColors.outlineVariant),
                           ),
                           child: const Text(
                             'Hủy bỏ',
@@ -1022,7 +1118,7 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                             elevation: 0,
                           ),
                           child: Text(
-                            isEdit ? 'Lưu Thay Đổi' : 'Thêm Mới',
+                            isEdit ? 'Lưu thay đổi' : 'Thêm mới',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -1038,7 +1134,6 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
     );
   }
 }
-
 
 // ==========================================
 // Isolated Stateful Content for Dish Editor Bottom Sheet
@@ -1057,7 +1152,8 @@ class _DishEditorSheetContent extends StatefulWidget {
   });
 
   @override
-  State<_DishEditorSheetContent> createState() => _DishEditorSheetContentState();
+  State<_DishEditorSheetContent> createState() =>
+      _DishEditorSheetContentState();
 }
 
 class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
@@ -1095,9 +1191,12 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
     final d = widget.dish;
 
     _nameController = TextEditingController(text: d?.name ?? '');
-    _priceController = TextEditingController(text: d != null ? d.originalPrice.toInt().toString() : '');
+    _priceController = TextEditingController(
+        text: d != null ? d.originalPrice.toInt().toString() : '');
     _discountController = TextEditingController(
-        text: (d != null && d.discountPrice != null) ? d.discountPrice!.toInt().toString() : '');
+        text: (d != null && d.discountPrice != null)
+            ? d.discountPrice!.toInt().toString()
+            : '');
     _descController = TextEditingController(text: d?.description ?? '');
 
     _nameNode = FocusNode();
@@ -1138,7 +1237,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
           minSelect: 0,
           maxSelect: 1,
           items: const [
-            MerchantOptionItem(id: 'item-1', itemName: 'Lựa chọn 1', extraPrice: 0),
+            MerchantOptionItem(
+                id: 'item-1', itemName: 'Lựa chọn 1', extraPrice: 0),
           ],
         ),
       );
@@ -1186,7 +1286,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
       id: widget.dish?.id ?? 'dish-${DateTime.now().millisecondsSinceEpoch}',
       name: _nameController.text.trim(),
       originalPrice: originalPrice,
-      discountPrice: discountPrice != null && discountPrice > 0 ? discountPrice : null,
+      discountPrice:
+          discountPrice != null && discountPrice > 0 ? discountPrice : null,
       description: _descController.text.trim(),
       imageUrl: _selectedImageUrl,
       availability: _availability,
@@ -1204,268 +1305,303 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
       constraints: BoxConstraints(maxHeight: maxSheetHeight),
       child: _KeyboardAvoidPadding(
         child: Column(
-        children: [
-          // Drag handle indicator
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Container(
-              width: 40,
-              height: 4.5,
-              decoration: BoxDecoration(
-                color: AppColors.textTertiary.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10),
+          children: [
+            // Drag handle indicator
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Container(
+                width: 40,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-          ),
-          
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.dish == null ? 'Thêm món ăn mới' : 'Chỉnh sửa món ăn',
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                if (widget.onDelete != null)
-                  IconButton(
-                    icon: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
-                    onPressed: () {
-                      _showConfirmDeleteDish();
-                    },
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.dish == null
+                        ? 'Thêm món ăn mới'
+                        : 'Chỉnh sửa món ăn',
+                    style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary),
                   ),
-              ],
+                  if (widget.onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.delete_forever_rounded,
+                          color: AppColors.error),
+                      onPressed: () {
+                        _showConfirmDeleteDish();
+                      },
+                    ),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
+            const Divider(height: 1, color: AppColors.divider),
 
-          // Scrollable Editor Form
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              physics: const BouncingScrollPhysics(),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Dish Name
-                    _buildFieldLabel('Tên món ăn *'),
-                    TextFormField(
-                      controller: _nameController,
-                      focusNode: _nameNode,
-                      style: const TextStyle(fontSize: 14),
-                      validator: (value) => value == null || value.trim().isEmpty ? 'Nhập tên món ăn' : null,
-                      decoration: _buildInputDec('Nhập tên món ví dụ: Phở Nạm, Bánh Mì Trứng...'),
-                    ),
-                    const SizedBox(height: 14),
+            // Scrollable Editor Form
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                physics: const BouncingScrollPhysics(),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Dish Name
+                      _buildFieldLabel('Tên món ăn *'),
+                      TextFormField(
+                        controller: _nameController,
+                        focusNode: _nameNode,
+                        style: const TextStyle(fontSize: 14),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                                ? 'Nhập tên món ăn'
+                                : null,
+                        decoration: _buildInputDec(
+                            'Nhập tên món ví dụ: Phở nạm, Bánh mì trứng...'),
+                      ),
+                      const SizedBox(height: 14),
 
-                    // Price and Discount Price
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFieldLabel('Giá gốc (VNĐ) *'),
-                              TextFormField(
-                                controller: _priceController,
-                                focusNode: _priceNode,
-                                style: const TextStyle(fontSize: 14),
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) return 'Nhập giá bán';
-                                  if (double.tryParse(value) == null) return 'Không hợp lệ';
-                                  return null;
-                                },
-                                decoration: _buildInputDec('Ví dụ: 50000'),
-                              ),
-                            ],
+                      // Price and Discount Price
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildFieldLabel('Giá gốc (VNĐ) *'),
+                                TextFormField(
+                                  controller: _priceController,
+                                  focusNode: _priceNode,
+                                  style: const TextStyle(fontSize: 14),
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty)
+                                      return 'Nhập giá bán';
+                                    if (double.tryParse(value) == null)
+                                      return 'Không hợp lệ';
+                                    return null;
+                                  },
+                                  decoration: _buildInputDec('Ví dụ: 50000'),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFieldLabel('Giá khuyến mãi (đ)'),
-                              TextFormField(
-                                controller: _discountController,
-                                focusNode: _discountNode,
-                                style: const TextStyle(fontSize: 14),
-                                keyboardType: TextInputType.number,
-                                decoration: _buildInputDec('Bỏ trống nếu không giảm'),
-                              ),
-                            ],
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildFieldLabel('Giá khuyến mãi (đ)'),
+                                TextFormField(
+                                  controller: _discountController,
+                                  focusNode: _discountNode,
+                                  style: const TextStyle(fontSize: 14),
+                                  keyboardType: TextInputType.number,
+                                  decoration:
+                                      _buildInputDec('Bỏ trống nếu không giảm'),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
 
-                    // Description
-                    _buildFieldLabel('Mô tả chi tiết'),
-                    TextFormField(
-                      controller: _descController,
-                      focusNode: _descNode,
-                      style: const TextStyle(fontSize: 14),
-                      maxLines: 2,
-                      decoration: _buildInputDec('Hành trần, giá sống, nước dùng trong thơm lừng...'),
-                    ),
-                    const SizedBox(height: 14),
+                      // Description
+                      _buildFieldLabel('Mô tả chi tiết'),
+                      TextFormField(
+                        controller: _descController,
+                        focusNode: _descNode,
+                        style: const TextStyle(fontSize: 14),
+                        maxLines: 2,
+                        decoration: _buildInputDec(
+                            'Hành trần, giá sống, nước dùng trong thơm lừng...'),
+                      ),
+                      const SizedBox(height: 14),
 
-                    // Image picker prefilled slider
-                    _buildFieldLabel('Chọn hình ảnh món ăn'),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 70,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _mockFoodImages.length,
-                        itemBuilder: (context, idx) {
-                          final imgUrl = _mockFoodImages[idx];
-                          final isSelected = imgUrl == _selectedImageUrl;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedImageUrl = imgUrl),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 12),
-                              width: 70,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected ? AppColors.primary : AppColors.outlineVariant,
-                                  width: isSelected ? 3.0 : 1.0,
+                      // Image picker prefilled slider
+                      _buildFieldLabel('Chọn hình ảnh món ăn'),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 70,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _mockFoodImages.length,
+                          itemBuilder: (context, idx) {
+                            final imgUrl = _mockFoodImages[idx];
+                            final isSelected = imgUrl == _selectedImageUrl;
+                            return GestureDetector(
+                              onTap: () =>
+                                  setState(() => _selectedImageUrl = imgUrl),
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 12),
+                                width: 70,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.outlineVariant,
+                                    width: isSelected ? 3.0 : 1.0,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(7),
+                                  child:
+                                      Image.network(imgUrl, fit: BoxFit.cover),
                                 ),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(7),
-                                child: Image.network(imgUrl, fit: BoxFit.cover),
-                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Availability Status
+                      _buildFieldLabel('Trạng thái hoạt động'),
+                      Row(
+                        children: [
+                          _buildStatusChoice(
+                              'available', 'Khả dụng', AppColors.success),
+                          const SizedBox(width: 10),
+                          _buildStatusChoice('sold_out_today', 'Hết hôm nay',
+                              AppColors.accent),
+                          const SizedBox(width: 10),
+                          _buildStatusChoice(
+                              'disabled', 'Tạm ngưng', AppColors.textSecondary),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ==========================================
+                      // ⚙️ ADVANCED OPTION GROUPS (TOPPINGS) BUILDER
+                      // ==========================================
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildFieldLabel('Nhóm tùy chọn / Topping đi kèm'),
+                          GestureDetector(
+                            onTap: _addNewOptionGroup,
+                            child: Row(
+                              children: const [
+                                Icon(Icons.add_circle_outline_rounded,
+                                    size: 16, color: AppColors.primary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Thêm nhóm',
+                                  style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Availability Status
-                    _buildFieldLabel('Trạng thái hoạt động'),
-                    Row(
-                      children: [
-                        _buildStatusChoice('available', 'Khả dụng', AppColors.success),
-                        const SizedBox(width: 10),
-                        _buildStatusChoice('sold_out_today', 'Hết hôm nay', AppColors.accent),
-                        const SizedBox(width: 10),
-                        _buildStatusChoice('disabled', 'Tạm ngưng', AppColors.textSecondary),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ==========================================
-                    // ⚙️ ADVANCED OPTION GROUPS (TOPPINGS) BUILDER
-                    // ==========================================
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildFieldLabel('Nhóm tùy chọn / Topping đi kèm'),
-                        GestureDetector(
-                          onTap: _addNewOptionGroup,
-                          child: Row(
-                            children: const [
-                              Icon(Icons.add_circle_outline_rounded, size: 16, color: AppColors.primary),
-                              SizedBox(width: 4),
-                              Text(
-                                'Thêm nhóm',
-                                style: TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.bold),
-                              ),
-                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    if (_optionGroups.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.bgWarm.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.outlineVariant, style: BorderStyle.solid),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Chưa thiết lập topping. Bấm "Thêm nhóm" ở trên để tạo size hoặc topping đính kèm món ăn!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                          ),
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _optionGroups.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 14),
-                        itemBuilder: (context, grpIdx) {
-                          final grp = _optionGroups[grpIdx];
-                          return _buildOptionGroupEditorCard(grp, grpIdx);
-                        },
+                        ],
                       ),
-                    
-                    const SizedBox(height: 80),
-                  ],
+                      const SizedBox(height: 8),
+
+                      if (_optionGroups.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: AppColors.bgWarm.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: AppColors.outlineVariant,
+                                style: BorderStyle.solid),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Chưa thiết lập topping. Bấm "Thêm nhóm" ở trên để tạo size hoặc topping đính kèm món ăn!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: AppColors.textSecondary, fontSize: 11),
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _optionGroups.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 14),
+                          itemBuilder: (context, grpIdx) {
+                            final grp = _optionGroups[grpIdx];
+                            return _buildOptionGroupEditorCard(grp, grpIdx);
+                          },
+                        ),
+
+                      const SizedBox(height: 80),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Bottom Action Panel
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 5,
-                  offset: const Offset(0, -3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      side: const BorderSide(color: AppColors.outlineVariant),
-                    ),
-                    child: const Text('Hủy bỏ', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+            // Bottom Action Panel
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 5,
+                    offset: const Offset(0, -3),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        side: const BorderSide(color: AppColors.outlineVariant),
+                      ),
+                      child: const Text('Hủy bỏ',
+                          style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.bold)),
                     ),
-                    child: const Text('Lưu Thay Đổi', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Lưu thay đổi',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-     ),
     );
   }
 
@@ -1489,36 +1625,51 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                 Expanded(
                   child: TextFormField(
                     initialValue: grp.groupName,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary),
                     onChanged: (val) {
                       final currentGrp = _optionGroups[grpIdx];
-                      _optionGroups[grpIdx] = currentGrp.copyWith(groupName: val);
+                      _optionGroups[grpIdx] =
+                          currentGrp.copyWith(groupName: val);
                     },
                     decoration: InputDecoration(
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 12),
                       filled: true,
                       fillColor: Colors.white,
-                      labelText: 'Tên Nhóm Tùy Chọn',
-                      labelStyle: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                      floatingLabelStyle: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+                      labelText: 'Tên nhóm tùy chọn',
+                      labelStyle: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500),
+                      floatingLabelStyle: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                        borderSide:
+                            const BorderSide(color: AppColors.outlineVariant),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                        borderSide:
+                            const BorderSide(color: AppColors.outlineVariant),
                       ),
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_rounded, color: AppColors.error, size: 18),
+                  icon: const Icon(Icons.delete_rounded,
+                      color: AppColors.error, size: 18),
                   onPressed: () => _removeOptionGroup(grpIdx),
                 ),
               ],
@@ -1534,23 +1685,31 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                   onChanged: (val) {
                     setState(() {
                       final currentGrp = _optionGroups[grpIdx];
-                      _optionGroups[grpIdx] = currentGrp.copyWith(isRequired: val ?? false, minSelect: (val ?? false) ? 1 : 0);
+                      _optionGroups[grpIdx] = currentGrp.copyWith(
+                          isRequired: val ?? false,
+                          minSelect: (val ?? false) ? 1 : 0);
                     });
                   },
                 ),
-                const Text('Bắt buộc chọn (e.g. Size)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                const Text('Bắt buộc chọn (e.g. Size)',
+                    style:
+                        TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                const Text('Chọn tối đa:', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                const Text('Chọn tối đa:',
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary)),
                 const SizedBox(width: 4),
                 DropdownButton<int>(
                   value: grp.maxSelect,
                   elevation: 1,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textPrimary),
                   onChanged: (val) {
                     if (val != null) {
                       setState(() {
                         final currentGrp = _optionGroups[grpIdx];
-                        _optionGroups[grpIdx] = currentGrp.copyWith(maxSelect: val);
+                        _optionGroups[grpIdx] =
+                            currentGrp.copyWith(maxSelect: val);
                       });
                     }
                   },
@@ -1568,10 +1727,13 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
             // Option items list
             const Text(
               'Lựa chọn con (Topping):',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
-            
+
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1586,31 +1748,42 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                       flex: 3,
                       child: TextFormField(
                         initialValue: item.itemName,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary),
                         onChanged: (val) {
                           final currentGrp = _optionGroups[grpIdx];
-                          final newItems = List<MerchantOptionItem>.from(currentGrp.items);
-                          newItems[itemIdx] = newItems[itemIdx].copyWith(itemName: val);
-                          _optionGroups[grpIdx] = currentGrp.copyWith(items: newItems);
+                          final newItems =
+                              List<MerchantOptionItem>.from(currentGrp.items);
+                          newItems[itemIdx] =
+                              newItems[itemIdx].copyWith(itemName: val);
+                          _optionGroups[grpIdx] =
+                              currentGrp.copyWith(items: newItems);
                         },
                         decoration: InputDecoration(
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10, horizontal: 12),
                           filled: true,
                           fillColor: Colors.white,
                           hintText: 'Ví dụ: Trứng chần...',
-                          hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 12),
+                          hintStyle: const TextStyle(
+                              color: AppColors.textPlaceholder, fontSize: 12),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                            borderSide: const BorderSide(
+                                color: AppColors.primary, width: 1.5),
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant),
                           ),
                         ),
                       ),
@@ -1621,39 +1794,52 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                       flex: 2,
                       child: TextFormField(
                         initialValue: item.extraPrice.toInt().toString(),
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary),
                         keyboardType: TextInputType.number,
                         onChanged: (val) {
                           final currentGrp = _optionGroups[grpIdx];
-                          final newItems = List<MerchantOptionItem>.from(currentGrp.items);
-                          newItems[itemIdx] = newItems[itemIdx].copyWith(extraPrice: double.tryParse(val) ?? 0.0);
-                          _optionGroups[grpIdx] = currentGrp.copyWith(items: newItems);
+                          final newItems =
+                              List<MerchantOptionItem>.from(currentGrp.items);
+                          newItems[itemIdx] = newItems[itemIdx].copyWith(
+                              extraPrice: double.tryParse(val) ?? 0.0);
+                          _optionGroups[grpIdx] =
+                              currentGrp.copyWith(items: newItems);
                         },
                         decoration: InputDecoration(
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10, horizontal: 12),
                           filled: true,
                           fillColor: Colors.white,
                           hintText: '+Giá: 5000',
-                          hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 12),
+                          hintStyle: const TextStyle(
+                              color: AppColors.textPlaceholder, fontSize: 12),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                            borderSide: const BorderSide(
+                                color: AppColors.primary, width: 1.5),
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant),
                           ),
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.remove_circle_outline_rounded, color: AppColors.error, size: 18),
-                      onPressed: () => _removeOptionItemFromGroup(grpIdx, itemIdx),
+                      icon: const Icon(Icons.remove_circle_outline_rounded,
+                          color: AppColors.error, size: 18),
+                      onPressed: () =>
+                          _removeOptionItemFromGroup(grpIdx, itemIdx),
                       visualDensity: VisualDensity.compact,
                     ),
                   ],
@@ -1667,9 +1853,14 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
               child: TextButton.icon(
                 onPressed: () => _addOptionItemToGroup(grpIdx),
                 icon: const Icon(Icons.add, size: 14, color: AppColors.primary),
-                label: const Text('Thêm lựa chọn con', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                label: const Text('Thêm lựa chọn con',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold)),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -1729,7 +1920,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
   InputDecoration _buildInputDec(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
+      hintStyle:
+          const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
@@ -1749,19 +1941,24 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Xác nhận xóa món ăn', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          content: Text('Bạn chắc chắn muốn xóa món ăn "${_nameController.text}" khỏi thực đơn?'),
+          title: const Text('Xác nhận xóa món ăn',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Text(
+              'Bạn chắc chắn muốn xóa món ăn "${_nameController.text}" khỏi thực đơn?'),
           actions: [
             TextButton(
               onPressed: () => context.pop(),
-              child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+              child: const Text('Hủy',
+                  style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
                 context.pop(); // Close dialog
                 if (widget.onDelete != null) widget.onDelete!();
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white),
               child: const Text('Xóa bỏ'),
             ),
           ],
@@ -1778,7 +1975,8 @@ class _KeyboardAvoidPadding extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: child,
     );
   }

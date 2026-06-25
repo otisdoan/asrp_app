@@ -32,7 +32,7 @@ class AppConstants {
   // Branches
   static const List<String> branches = [
     'Chi nhánh Quận 1 · Tầng 1',
-    'Chi nhánh Quận 3 · Tầng Trệt',
+    'Chi nhánh Quận 3 · Tầng trệt',
     'Chi nhánh Phú Nhuận · Tầng 2',
   ];
 

@@ -29,7 +29,7 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
   late FocusNode _hotlineFocusNode;
 
   // Selected values
-  String _selectedCategory = 'Phở & Bún';
+  String _selectedCategory = 'Phở & bún';
   String _storeStatus = 'active'; // 'active' | 'busy' | 'closed'
   TimeOfDay _openingTime = const TimeOfDay(hour: 6, minute: 0);
   TimeOfDay _closingTime = const TimeOfDay(hour: 22, minute: 0);
@@ -140,7 +140,7 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
           _hotlineController.text = data['phone']?.toString() ?? '';
           
           final category = data['category']?.toString();
-          const categories = ['Phở & Bún', 'Cơm Việt Nam', 'Đồ Ăn Vặt', 'Đồ Uống', 'Bánh Mì'];
+          const categories = ['Phở & bún', 'Cơm Việt Nam', 'Đồ ăn vặt', 'Đồ uống', 'Bánh mì'];
           if (category != null && category.isNotEmpty) {
             if (categories.contains(category)) {
               _selectedCategory = category;

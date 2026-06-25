@@ -105,7 +105,7 @@ class DealsSection extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Quán Deal Hời, Giảm mạnh',
+                      'Quán deal hời, giảm mạnh',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -131,7 +131,7 @@ class DealsSection extends ConsumerWidget {
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => context.push(
-                    '/section-detail?type=deals&title=Quán Mới Lên Sàn, Giảm 50.000Đ'),
+                    '/section-detail?type=deals&title=Quán mới lên sàn, giảm 50.000đ'),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

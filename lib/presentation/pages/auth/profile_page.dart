@@ -7,6 +7,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../../../providers/branch_registration_provider.dart';
 import '../../../core/utils/top_notification.dart';
+import '../inventory/inventory_dashboard_page.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -252,6 +253,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             context.push(AppConstants.routeMenuBuilder);
                           },
                         ),
+                        _buildMenuItem(
+                          icon: Icons.inventory_2_outlined,
+                          title: 'Quản lý kho nguyên liệu',
+                          subtitle:
+                              'Xem tồn kho, lập phiếu nhập kho, kiểm kho & định lượng',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const InventoryDashboardPage(),
+                              ),
+                            );
+                          },
+                        ),
                       ],
                       const SizedBox(height: 20),
 
@@ -297,7 +312,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         _buildSectionHeader(
                           user.role.toLowerCase() == 'superadmin' ||
                                   user.role.toLowerCase() == 'admin'
-                              ? 'Chủ Thương Hiệu'
+                              ? 'Chủ thương hiệu'
                               : (user.role.toLowerCase() == 'manager'
                                   ? 'Quản lý chi nhánh'
                                   : 'Nhân viên'),

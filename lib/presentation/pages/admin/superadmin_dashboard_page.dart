@@ -193,7 +193,7 @@ class _SuperAdminDashboardPageState
                           color: AppColors.primary, size: 24),
                       SizedBox(width: 8),
                       Text(
-                        'Điều Phối Nguyên Liệu Chuỗi',
+                        'Điều phối nguyên liệu chuỗi',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -453,7 +453,7 @@ class _SuperAdminDashboardPageState
                         children: [
                           Icon(Icons.local_shipping_outlined, size: 18),
                           SizedBox(width: 8),
-                          Text('Xác Nhận Vận Chuyển',
+                          Text('Xác nhận vận chuyển',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
@@ -490,7 +490,7 @@ class _SuperAdminDashboardPageState
             ),
             const SizedBox(height: 16),
             const Text(
-              'Điều Phối Thành Công!',
+              'Điều phối thành công!',
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -791,7 +791,7 @@ class _SuperAdminDashboardPageState
                       color: AppColors.primary, size: 24),
                   SizedBox(width: 8),
                   Text(
-                    'Chọn Chi Nhánh Báo Cáo',
+                    'Chọn chi nhánh báo cáo',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,

@@ -13,7 +13,7 @@ class FavoriteShopsPage extends ConsumerWidget {
   static const List<Map<String, dynamic>> _allMockStores = [
     {
       'name': 'BMC Phở Express - Quận 1',
-      'category': 'Phở · Bún · Cơm',
+      'category': 'Phở · bún · cơm',
       'rating': 4.9,
       'reviews': 1240,
       'distance': '0.8 km',
@@ -23,7 +23,7 @@ class FavoriteShopsPage extends ConsumerWidget {
     },
     {
       'name': 'Cơm Tấm Bụi Sài Gòn',
-      'category': 'Cơm · Món Việt',
+      'category': 'Cơm · món Việt',
       'rating': 4.5,
       'reviews': 856,
       'distance': '0.3 km',
@@ -33,7 +33,7 @@ class FavoriteShopsPage extends ConsumerWidget {
     },
     {
       'name': 'Bún Đậu Mắm Tôm Hà Nội',
-      'category': 'Bún · Đồ ăn vặt',
+      'category': 'Bún · đồ ăn vặt',
       'rating': 4.3,
       'reviews': 432,
       'distance': '0.5 km',
@@ -43,7 +43,7 @@ class FavoriteShopsPage extends ConsumerWidget {
     },
     {
       'name': 'Trà Sữa ToCoToCo - Lê Văn Sỹ',
-      'category': 'Trà sữa · Đồ uống',
+      'category': 'Trà sữa · đồ uống',
       'rating': 4.6,
       'reviews': 2100,
       'distance': '0.7 km',
@@ -53,7 +53,7 @@ class FavoriteShopsPage extends ConsumerWidget {
     },
     {
       'name': 'Pizza Hut - Nguyễn Trãi',
-      'category': 'Pizza · Gà rán',
+      'category': 'Pizza · gà rán',
       'rating': 4.4,
       'reviews': 1580,
       'distance': '1.0 km',

@@ -8,13 +8,13 @@ class MockData {
   static const List<Map<String, String>> promoBanners = [
     {
       'tag': 'HOT HÔM NAY',
-      'title': 'Giảm 20% Phở Đặc Biệt',
+      'title': 'Giảm 20% phở đặc biệt',
       'desc': 'Áp dụng từ 11:00 – 14:00 hôm nay',
       'image': 'assets/images/pho.jpg',
     },
     {
       'tag': 'MÓN MỚI',
-      'title': 'Phở Bò Tái Nạm',
+      'title': 'Phở bò tái nạm',
       'desc': 'Nước dùng hầm 12 tiếng, thơm đậm vị',
       'image': 'assets/images/pho_bo.png',
     },
@@ -142,7 +142,7 @@ class MockData {
         'assets/images/tra_sua.jpg',
         'assets/images/com.webp'
       ],
-      'name': 'Combo Phở Đồng Quê',
+      'name': 'Combo phở đồng quê',
       'description': 'Phở bò + Nước mía + Bánh quẩy',
       'price': 115000,
       'originalPrice': 130000,
@@ -155,8 +155,8 @@ class MockData {
         'assets/images/tra_sua.jpg',
         'assets/images/com.webp'
       ],
-      'name': 'Combo Bún Huế Đặc Biệt',
-      'description': 'Bún bò Huế + Trà đá + Chè đậu',
+      'name': 'Combo bún Huế đặc biệt',
+      'description': 'Bún bò Huế + trà đá + chè đậu',
       'price': 105000,
       'originalPrice': 120000,
       'saving': 'Tiết kiệm 15k',
