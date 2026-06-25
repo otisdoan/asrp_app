@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../data/models/cart_item_model.dart';
@@ -8,8 +7,8 @@ import '../../../data/models/topping_selection_model.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../../providers/order_provider.dart';
 import 'add_to_cart_page.dart';
-import 'order_success_page.dart';
 import 'qr_payment_page.dart';
+import '../../../core/utils/top_notification.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
 /// Business: No delivery. Customer orders online, picks up at store.
@@ -143,8 +142,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _isLoading = false;
         _isFirstLoad = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể tính toán giá đơn hàng: $e')),
+      TopNotification.show(
+        context,
+        message: 'Không thể tính toán giá đơn hàng: $e',
+        isError: true,
       );
     }
   }
@@ -495,11 +496,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(cartProvider.notifier).removeItem(item.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Đã xóa "${item.name}" khỏi đơn hàng'),
-                  duration: const Duration(seconds: 1),
-                ),
+              TopNotification.show(
+                context,
+                message: 'Đã xóa "${item.name}" khỏi đơn hàng',
               );
             },
             style: ElevatedButton.styleFrom(

@@ -13,6 +13,7 @@ import '../../../data/models/topping_selection_model.dart';
 import 'food_detail_page.dart';
 import 'checkout_page.dart';
 import 'store_reviews_page.dart';
+import '../../../core/utils/top_notification.dart';
 
 /// Store Detail Page — shows store info, promos, popular items, and full menu.
 /// Follows RULE: UI-only, uses AppColors, responsive.
@@ -652,17 +653,11 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
               ),
               onPressed: () {
                 ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isFav
-                        ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
-                        : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
-                    ),
-                    duration: const Duration(seconds: 1),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
+                TopNotification.show(
+                  context,
+                  message: isFav
+                      ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
+                      : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
                 );
               },
             );

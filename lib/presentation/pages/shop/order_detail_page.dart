@@ -6,6 +6,7 @@ import '../../../providers/order_provider.dart';
 import '../../../data/repositories/order_repository.dart';
 import 'cancel_success_page.dart';
 import 'qr_payment_page.dart';
+import '../../../core/utils/top_notification.dart';
 
 /// OrderDetailPage — Displays detailed progress and order information for a single order.
 /// Follows self-pickup business model (No delivery, customer picks up at store, QR payment).
@@ -647,8 +648,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               TextButton(
                 onPressed: () {
                   ref.read(orderProvider.notifier).declineProposedTime(order.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đã từ chối đề xuất và hủy đơn hàng.')),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã từ chối đề xuất và hủy đơn hàng.',
+                    isError: true,
                   );
                 },
                 child: Text('Từ chối', style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.bold)),
@@ -657,8 +660,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               ElevatedButton(
                 onPressed: () {
                   ref.read(orderProvider.notifier).acceptProposedTime(order.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đã đồng ý thời gian nhận mới!')),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã đồng ý thời gian nhận mới!',
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -696,11 +700,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               GestureDetector(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: copyValue ?? value));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Đã sao chép mã đơn hàng vào bộ nhớ tạm!'),
-                      duration: Duration(seconds: 1),
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã sao chép mã đơn hàng vào bộ nhớ tạm!',
                   );
                 },
                 child: const Icon(Icons.copy_rounded, size: 14, color: AppColors.textTertiary),
@@ -891,7 +893,6 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               child: ElevatedButton(
                 onPressed: isUnpaidQr
                     ? () async {
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         try {
                           final paymentPayload = {
                             "method": 1, // QrBankTransfer (Enum PaymentMethod index 1)
@@ -923,11 +924,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                             throw Exception('Không nhận được liên kết thanh toán từ PayOS');
                           }
                         } catch (e) {
-                          scaffoldMessenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Lỗi khởi tạo thanh toán: ${e.toString().replaceAll('Exception: ', '')}'),
-                              backgroundColor: AppColors.error,
-                            ),
+                          TopNotification.show(
+                            context,
+                            message: 'Lỗi khởi tạo thanh toán: ${e.toString().replaceAll('Exception: ', '')}',
+                            isError: true,
                           );
                         }
                       }

@@ -7,6 +7,7 @@ import '../../../data/repositories/order_repository.dart';
 import 'payment_success_page.dart';
 import 'order_failure_page.dart';
 import 'cancel_success_page.dart';
+import '../../../core/utils/top_notification.dart';
 
 class QrPaymentPage extends StatefulWidget {
   final String orderId;
@@ -186,12 +187,10 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
 
       // Show error snackbar
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi hủy thanh toán: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        TopNotification.show(
+          context,
+          message: 'Lỗi hủy thanh toán: ${e.toString().replaceAll('Exception: ', '')}',
+          isError: true,
         );
       }
     }

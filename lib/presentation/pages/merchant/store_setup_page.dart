@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../data/repositories/merchant_repository.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/branch_registration_provider.dart';
+import '../../../core/utils/top_notification.dart';
 
 class StoreSetupPage extends ConsumerStatefulWidget {
   const StoreSetupPage({super.key});
@@ -302,11 +303,9 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tải ảnh lên thành công!'),
-            backgroundColor: AppColors.success,
-          ),
+        TopNotification.show(
+          context,
+          message: 'Tải ảnh lên thành công!',
         );
       }
     } catch (e) {
@@ -319,11 +318,10 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
       
       print('Error picking/uploading image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Không thể tải ảnh: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: AppColors.error,
-          ),
+        TopNotification.show(
+          context,
+          message: 'Không thể tải ảnh: ${e.toString().replaceAll('Exception: ', '')}',
+          isError: true,
         );
       }
     }
@@ -339,11 +337,10 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
   Future<void> _saveSettings() async {
     if (!_formKey.currentState!.validate()) return;
     if (_branchId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Không tìm thấy ID chi nhánh để cập nhật.'),
-          backgroundColor: AppColors.error,
-        ),
+      TopNotification.show(
+        context,
+        message: 'Không tìm thấy ID chi nhánh để cập nhật.',
+        isError: true,
       );
       return;
     }
@@ -373,22 +370,9 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
           _isSaving = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Lưu thiết lập cửa hàng thành công!',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
+        TopNotification.show(
+          context,
+          message: 'Lưu thiết lập cửa hàng thành công!',
         );
         context.pop();
       }
@@ -398,11 +382,10 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
         setState(() {
           _isSaving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lưu thất bại: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: AppColors.error,
-          ),
+        TopNotification.show(
+          context,
+          message: 'Lưu thất bại: ${e.toString().replaceAll('Exception: ', '')}',
+          isError: true,
         );
       }
     }

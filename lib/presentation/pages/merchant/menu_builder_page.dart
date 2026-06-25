@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/merchant_menu_provider.dart';
+import '../../../core/utils/top_notification.dart';
 
 class MenuBuilderPage extends ConsumerStatefulWidget {
   const MenuBuilderPage({super.key});
@@ -41,13 +42,22 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
     final categories = menuState.categories;
     final categoryDishes = menuState.categoryDishes;
 
-    final activeCategory = selectedCategoryId != null
-        ? categories.firstWhere((c) => c.id == selectedCategoryId,
-            orElse: () => categories.first)
-        : (categories.isNotEmpty ? categories.first : null);
+    MerchantCategory? activeCategory;
+    if (selectedCategoryId != null) {
+      final index = categories.indexWhere((c) => c.id == selectedCategoryId);
+      if (index >= 0) {
+        activeCategory = categories[index];
+      } else if (categories.isNotEmpty) {
+        activeCategory = categories.first;
+      }
+    } else if (categories.isNotEmpty) {
+      activeCategory = categories.first;
+    }
 
-    final dishes = activeCategory != null
-        ? (categoryDishes[activeCategory.id] ?? [])
+    final currentCategory = activeCategory;
+
+    final dishes = currentCategory != null
+        ? (categoryDishes[currentCategory.id] ?? [])
         : <MerchantDish>[];
 
     return Scaffold(
@@ -133,7 +143,7 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                     // TAB 1: Món ăn & Topping
                     categories.isEmpty
                         ? _buildEmptyState()
-                        : _buildDishesTab(activeCategory, dishes, categories),
+                        : _buildDishesTab(currentCategory, dishes, categories),
 
                     // TAB 2: Quản lý Danh mục
                     categories.isEmpty
@@ -142,9 +152,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                   ],
                 )),
       // Floating Action Button only shown on Tab 1
-      floatingActionButton: _tabController.index == 0 && activeCategory != null
+      floatingActionButton: _tabController.index == 0 && currentCategory != null
           ? FloatingActionButton.extended(
-              onPressed: () => _showDishEditorSheet(context, activeCategory.id, null),
+              onPressed: () => _showDishEditorSheet(context, currentCategory.id, null),
               backgroundColor: AppColors.primary,
               icon: const Icon(Icons.add_rounded, color: Colors.white),
               label: const Text(
@@ -475,25 +485,17 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                       ),
                     ),
                     onSelected: (String statusVal) async {
-                      final scaffoldMessenger = ScaffoldMessenger.of(context);
                       try {
                         await ref.read(merchantMenuProvider.notifier).toggleDishAvailability(catId, dish.id, statusVal);
-                        scaffoldMessenger.showSnackBar(
-                          SnackBar(
-                            content: const Text('Đã cập nhật trạng thái hoạt động món ăn.'),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
+                        TopNotification.show(
+                          context,
+                          message: 'Đã cập nhật trạng thái hoạt động món ăn.',
                         );
                       } catch (e) {
-                        scaffoldMessenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Lỗi khi cập nhật trạng thái: ${e.toString().replaceAll('Exception: ', '')}'),
-                            backgroundColor: AppColors.error,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
+                        TopNotification.show(
+                          context,
+                          message: 'Lỗi khi cập nhật trạng thái: ${e.toString().replaceAll('Exception: ', '')}',
+                          isError: true,
                         );
                       }
                     },
@@ -748,18 +750,13 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             ),
             ElevatedButton(
               onPressed: () async {
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(ctx);
                 try {
                   await ref.read(merchantMenuProvider.notifier).deleteCategory(category.id);
                   navigator.pop();
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Đã xóa danh mục "${category.name}" thành công.'),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã xóa danh mục "${category.name}" thành công.',
                   );
                 } catch (e) {
                   navigator.pop();
@@ -767,13 +764,10 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
                   if (errorMsg.contains('Category has menu items') || errorMsg.contains('400')) {
                     errorMsg = 'Không thể xóa danh mục vì vẫn còn món ăn bên trong. Vui lòng xóa hết món ăn trước.';
                   }
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Không thể xóa: $errorMsg'),
-                      backgroundColor: AppColors.error,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Không thể xóa: $errorMsg',
+                    isError: true,
                   );
                 }
               },
@@ -806,67 +800,47 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage> with SingleTi
             categoryId: catId,
             dish: dish,
             onSave: (updatedDish) async {
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
               final navigator = Navigator.of(ctx);
               try {
                 if (dish == null) {
                   await ref.read(merchantMenuProvider.notifier).addDish(catId, updatedDish);
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Đã thêm món "${updatedDish.name}" thành công.'),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã thêm món "${updatedDish.name}" thành công.',
                   );
                 } else {
                   await ref.read(merchantMenuProvider.notifier).updateDish(catId, updatedDish);
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Đã cập nhật món "${updatedDish.name}" thành công.'),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã cập nhật món "${updatedDish.name}" thành công.',
                   );
                 }
                 navigator.pop();
               } catch (e) {
                 navigator.pop();
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Lỗi khi lưu món ăn: ${e.toString().replaceAll('Exception: ', '')}'),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
+                TopNotification.show(
+                  context,
+                  message: 'Lỗi khi lưu món ăn: ${e.toString().replaceAll('Exception: ', '')}',
+                  isError: true,
                 );
               }
             },
             onDelete: dish != null
                 ? () async {
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(ctx);
                     try {
                       await ref.read(merchantMenuProvider.notifier).deleteDish(catId, dish.id);
                       navigator.pop();
-                      scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                          content: const Text('Đã xóa món ăn thành công.'),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
+                      TopNotification.show(
+                        context,
+                        message: 'Đã xóa món ăn thành công.',
                       );
                     } catch (e) {
                       navigator.pop();
-                      scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                          content: Text('Lỗi khi xóa món ăn: ${e.toString().replaceAll('Exception: ', '')}'),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
+                      TopNotification.show(
+                        context,
+                        message: 'Lỗi khi xóa món ăn: ${e.toString().replaceAll('Exception: ', '')}',
+                        isError: true,
                       );
                     }
                   }
@@ -980,7 +954,7 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                       hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
                       prefixIcon: const Icon(Icons.category_outlined, color: AppColors.primary, size: 20),
                       filled: true,
-                      fillColor: AppColors.bgSoft,
+                      fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1515,19 +1489,31 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                 Expanded(
                   child: TextFormField(
                     initialValue: grp.groupName,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                     onChanged: (val) {
                       final currentGrp = _optionGroups[grpIdx];
                       _optionGroups[grpIdx] = currentGrp.copyWith(groupName: val);
                     },
                     decoration: InputDecoration(
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                       filled: true,
                       fillColor: Colors.white,
                       labelText: 'Tên Nhóm Tùy Chọn',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      labelStyle: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                      floatingLabelStyle: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                      ),
                     ),
                   ),
                 ),
@@ -1600,7 +1586,7 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                       flex: 3,
                       child: TextFormField(
                         initialValue: item.itemName,
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                         onChanged: (val) {
                           final currentGrp = _optionGroups[grpIdx];
                           final newItems = List<MerchantOptionItem>.from(currentGrp.items);
@@ -1609,11 +1595,23 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                         },
                         decoration: InputDecoration(
                           isDense: true,
-                          contentPadding: const EdgeInsets.all(8),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                           filled: true,
                           fillColor: Colors.white,
-                          hintText: 'Tên topping: Trứng chần...',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          hintText: 'Ví dụ: Trứng chần...',
+                          hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 12),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                          ),
                         ),
                       ),
                     ),
@@ -1623,7 +1621,7 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                       flex: 2,
                       child: TextFormField(
                         initialValue: item.extraPrice.toInt().toString(),
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                         keyboardType: TextInputType.number,
                         onChanged: (val) {
                           final currentGrp = _optionGroups[grpIdx];
@@ -1633,17 +1631,30 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                         },
                         decoration: InputDecoration(
                           isDense: true,
-                          contentPadding: const EdgeInsets.all(8),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                           filled: true,
                           fillColor: Colors.white,
                           hintText: '+Giá: 5000',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 12),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppColors.outlineVariant),
+                          ),
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.remove_circle_outline_rounded, color: AppColors.error, size: 16),
+                      icon: const Icon(Icons.remove_circle_outline_rounded, color: AppColors.error, size: 18),
                       onPressed: () => _removeOptionItemFromGroup(grpIdx, itemIdx),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 );

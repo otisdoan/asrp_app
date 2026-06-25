@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/favorite_shops_provider.dart';
 import 'store_detail_page.dart';
+import '../../../core/utils/top_notification.dart';
 
 class FavoriteShopsPage extends ConsumerWidget {
   const FavoriteShopsPage({super.key});
@@ -422,13 +423,9 @@ class FavoriteShopsPage extends ConsumerWidget {
               constraints: const BoxConstraints(),
               onPressed: () {
                 ref.read(favoriteShopsProvider.notifier).toggleFavorite(name);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Đã xóa "$name" khỏi danh sách yêu thích'),
-                    duration: const Duration(seconds: 1),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
+                TopNotification.show(
+                  context,
+                  message: 'Đã xóa "$name" khỏi danh sách yêu thích',
                 );
               },
             ),

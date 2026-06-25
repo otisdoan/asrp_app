@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../../../providers/branch_registration_provider.dart';
+import '../../../core/utils/top_notification.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -27,7 +28,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     // Fetch branch registration status from server on page load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (ref.read(isAuthenticatedProvider)) {
-        ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus().catchError((err) {
+        ref
+            .read(branchRegistrationProvider.notifier)
+            .fetchApplicationStatus()
+            .catchError((err) {
           print('[ProfilePage] Error fetching branch application status: $err');
         });
       }
@@ -291,13 +295,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           user.role.toLowerCase() == 'manager' ||
                           user.role.toLowerCase() == 'staff') ...[
                         _buildSectionHeader(
-                          user.role.toLowerCase() == 'superadmin' || user.role.toLowerCase() == 'admin'
-                              ? 'Đặc quyền Admin (Chủ Thương Hiệu)'
+                          user.role.toLowerCase() == 'superadmin' ||
+                                  user.role.toLowerCase() == 'admin'
+                              ? 'Chủ Thương Hiệu'
                               : (user.role.toLowerCase() == 'manager'
-                                  ? 'Đặc quyền Quản lý chi nhánh'
-                                  : 'Đặc quyền Nhân viên'),
+                                  ? 'Quản lý chi nhánh'
+                                  : 'Nhân viên'),
                         ),
-                        if (user.role.toLowerCase() == 'superadmin' || user.role.toLowerCase() == 'admin') ...[
+                        if (user.role.toLowerCase() == 'superadmin' ||
+                            user.role.toLowerCase() == 'admin') ...[
                           _buildMenuItem(
                             icon: Icons.analytics_outlined,
                             title: registration.registeredBranches.length > 1
@@ -316,7 +322,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             icon: Icons.people_outline_rounded,
                             title: 'Quản lý nhân viên chi nhánh',
                             subtitle: 'Bổ nhiệm Quản lý chi nhánh & nhân viên',
-                            onTap: () => context.push(AppConstants.routeStaffManagement),
+                            onTap: () =>
+                                context.push(AppConstants.routeStaffManagement),
                           ),
                         ],
                         if (user.role.toLowerCase() == 'superadmin' ||
@@ -336,7 +343,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _buildMenuItem(
                             icon: Icons.account_balance_wallet_outlined,
                             title: 'Màn hình Cashier Thu ngân',
-                            subtitle: 'Duyệt đơn hàng và quản lý doanh thu chi nhánh',
+                            subtitle:
+                                'Duyệt đơn hàng và quản lý doanh thu chi nhánh',
                             onTap: () =>
                                 context.push(AppConstants.routeCashier),
                           ),
@@ -1000,15 +1008,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.textPrimary,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    TopNotification.show(context, message: message);
   }
 
   // ─── Feedback Dialog ─────────────────────────────────────────────────────

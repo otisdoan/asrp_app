@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/branch_registration_provider.dart';
 import '../../../providers/branch_provider.dart';
+import '../../../core/utils/top_notification.dart';
 import '../../../providers/staff_management_provider.dart';
 import '../../../data/models/staff_member_model.dart';
 import '../../../data/models/branch_model.dart';
@@ -566,7 +567,6 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
             ),
             ElevatedButton(
               onPressed: () async {
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(ctx);
                 try {
                   final bId = _branchNameToId[member.branchName] ?? ref.read(staffManagementProvider.notifier).activeBranchId;
@@ -577,21 +577,16 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> with 
                     await _fetchStaffList();
                   }
                   navigator.pop();
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Đã vô hiệu hóa nhân sự thành công.'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Đã vô hiệu hóa nhân sự thành công.',
                   );
                 } catch (e) {
                   navigator.pop();
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Lỗi khi vô hiệu hóa: ${e.toString().replaceAll('Exception: ', '')}'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  TopNotification.show(
+                    context,
+                    message: 'Lỗi khi vô hiệu hóa: ${e.toString().replaceAll('Exception: ', '')}',
+                    isError: true,
                   );
                 }
               },
@@ -976,7 +971,6 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                           onPressed: () async {
                             if (_formKey.currentState!.validate()) {
                               final notifier = ref.read(staffManagementProvider.notifier);
-                              final scaffoldMessenger = ScaffoldMessenger.of(context);
                               final navigator = Navigator.of(context);
                               
                               try {
@@ -1007,22 +1001,17 @@ class _StaffEditorSheetContentState extends ConsumerState<_StaffEditorSheetConte
                                 widget.onSaveSuccess();
                                 navigator.pop();
                                 
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(widget.existing == null
-                                        ? 'Đã thêm thành công nhân sự mới.'
-                                        : 'Đã cập nhật thông tin nhân viên.'),
-                                    backgroundColor: AppColors.success,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                TopNotification.show(
+                                  context,
+                                  message: widget.existing == null
+                                      ? 'Đã thêm thành công nhân sự mới.'
+                                      : 'Đã cập nhật thông tin nhân viên.',
                                 );
                               } catch (e) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}'),
-                                    backgroundColor: AppColors.error,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                TopNotification.show(
+                                  context,
+                                  message: 'Lỗi: ${e.toString().replaceAll('Exception: ', '')}',
+                                  isError: true,
                                 );
                               }
                             }

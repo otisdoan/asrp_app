@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../core/utils/top_notification.dart';
 
 /// Store Reviews Page showing ratings breakdown, AI review summary, and a list of all dish comments.
 /// Follows DineX Premium visual style and matches user's reference UI.
@@ -300,17 +301,11 @@ class _StoreReviewsPageState extends ConsumerState<StoreReviewsPage> {
                         GestureDetector(
                           onTap: () {
                             ref.read(favoriteShopsProvider.notifier).toggleFavorite(widget.storeName);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isFav
-                                    ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
-                                    : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
-                                ),
-                                duration: const Duration(seconds: 1),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
+                            TopNotification.show(
+                              context,
+                              message: isFav
+                                  ? 'Đã xóa "${widget.storeName}" khỏi cửa hàng yêu thích'
+                                  : 'Đã thêm "${widget.storeName}" vào cửa hàng yêu thích',
                             );
                           },
                           child: AnimatedContainer(
