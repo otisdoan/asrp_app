@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../../data/repositories/order_repository.dart';
 import 'payment_success_page.dart';
 import 'order_failure_page.dart';
+import 'cancel_success_page.dart';
 
 class QrPaymentPage extends StatefulWidget {
   final String orderId;
@@ -116,80 +116,84 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
     });
   }
 
-  Future<void> _checkStatusManual() async {
-    if (_isChecking) return;
-    setState(() {
-      _isChecking = true;
-    });
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+  void _showCancelConfirmation() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Xác nhận hủy thanh toán?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Bạn có chắc chắn muốn hủy thanh toán và hủy đơn hàng này không? Hành động này không thể hoàn tác.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Không', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx); // Close confirmation dialog
+              _cancelOrder(); // Trigger cancel API
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+            child: const Text('Hủy thanh toán'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cancelOrder() async {
+    // Show a loading indicator dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
 
     try {
-      final orderJson = await _orderRepository.getOrderById(widget.orderId);
-      final status = orderJson['orderStatus']?.toString();
-      final paymentStatus = orderJson['paymentStatus']?.toString();
-      bool isPaid = false;
+      await _orderRepository.cancelOrder(widget.orderId);
       
-      if (paymentStatus == 'Paid' || paymentStatus == '1') {
-        isPaid = true;
-      }
-      
-      final payments = orderJson['payments'] as List<dynamic>? ?? [];
-      if (payments.isNotEmpty) {
-        final firstPayment = payments.first;
-        final payStatus = firstPayment['status']?.toString();
-        if (payStatus == 'Paid' || payStatus == '36') {
-          isPaid = true;
-        }
-      }
-      
-      if (status == 'Preparing' || status == '2' || status == 'ReadyForPickup' || status == '3' || status == 'Completed' || status == '4') {
-        isPaid = true;
-      }
+      // Close the loading dialog
+      if (mounted) Navigator.pop(context);
 
-      if (isPaid) {
-        _pollingTimer?.cancel();
-        _countdownTimer?.cancel();
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PaymentSuccessPage(orderId: widget.orderId),
-            ),
-          );
-        }
-      } else {
-        scaffoldMessenger.showSnackBar(
+      _pollingTimer?.cancel();
+      _countdownTimer?.cancel();
+
+      // Navigate to CancelSuccessPage
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CancelSuccessPage(orderId: widget.orderId),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close the loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show error snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Hệ thống chưa ghi nhận thanh toán. Vui lòng thử lại sau khi chuyển khoản thành công.'),
+            content: Text('Lỗi hủy thanh toán: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Lỗi kiểm tra trạng thái: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isChecking = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _openPayOSBrowser() async {
-    final uri = Uri.parse(widget.checkoutUrl);
-    try {
-      await launchUrl(uri, mode: LaunchMode.platformDefault);
-    } catch (e) {
-      print('Cannot launch PayOS URL: $e');
     }
   }
 
@@ -391,32 +395,6 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isChecking
-                              ? 'Đang kiểm tra kết quả...'
-                              : 'Hệ thống đang tự động nhận diện thanh toán',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -452,37 +430,20 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
               ),
               const SizedBox(height: 24),
 
-              // ─── Buttons ───────────────────────────────────────────────────
-              ElevatedButton.icon(
-                onPressed: _openPayOSBrowser,
-                icon: const Icon(Icons.open_in_browser_rounded, color: Colors.white),
-                label: const Text(
-                  'Mở cổng thanh toán PayOS',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+              ElevatedButton(
+                onPressed: _showCancelConfirmation,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
                   elevation: 0,
                 ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _checkStatusManual,
-                icon: const Icon(Icons.sync_rounded, color: AppColors.primary),
-                label: const Text(
-                  'Kiểm tra lại trạng thái',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-                ),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
+                child: const Text(
+                  'Hủy thanh toán',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
               ),
             ],

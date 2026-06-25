@@ -65,25 +65,7 @@ class OrderFailurePage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (orderId.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSoft,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.outlineVariant),
-                  ),
-                  child: Text(
-                    'Mã đơn hàng: $orderId',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
+
               const Spacer(),
               // Action Buttons
               Row(

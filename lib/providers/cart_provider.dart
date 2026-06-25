@@ -145,7 +145,20 @@ class CartNotifier extends StateNotifier<CartState> {
       state = const CartState();
     }
 
-    final existingIndex = state.items.indexWhere((i) => i.id == item.id);
+    final existingIndex = state.items.indexWhere((i) {
+      if (i.menuItemId != item.menuItemId) return false;
+      if (i.sizeId != item.sizeId) return false;
+      if (i.selectedToppings.length != item.selectedToppings.length) return false;
+      
+      final iToppings = i.selectedToppings.map((t) => t.toppingId).toList()..sort();
+      final itemToppings = item.selectedToppings.map((t) => t.toppingId).toList()..sort();
+      for (int k = 0; k < iToppings.length; k++) {
+        if (iToppings[k] != itemToppings[k]) return false;
+      }
+      
+      if (i.note != item.note) return false;
+      return true;
+    });
     List<CartItemModel> updatedItems;
     if (existingIndex >= 0) {
       final updated = List<CartItemModel>.from(state.items);
