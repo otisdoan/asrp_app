@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/models/cart_item_model.dart';
 import '../data/models/topping_selection_model.dart';
 
-// ===== Cart State =====
-class CartState {
+// ===== Branch Cart State =====
+class BranchCart {
   final List<CartItemModel> items;
   final String? note;
   final String? storeName;
@@ -16,7 +16,7 @@ class CartState {
   final IconData? icon;
   final String? branchId;
 
-  const CartState({
+  const BranchCart({
     this.items = const [],
     this.note,
     this.storeName,
@@ -27,7 +27,7 @@ class CartState {
     this.branchId,
   });
 
-  CartState copyWith({
+  BranchCart copyWith({
     List<CartItemModel>? items,
     String? note,
     String? storeName,
@@ -37,7 +37,7 @@ class CartState {
     IconData? icon,
     String? branchId,
   }) {
-    return CartState(
+    return BranchCart(
       items: items ?? this.items,
       note: note ?? this.note,
       storeName: storeName ?? this.storeName,
@@ -50,15 +50,8 @@ class CartState {
   }
 
   int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
-
   int get subtotal => items.fold(0, (sum, item) => sum + item.lineTotal);
-
-  // Removed mock discount (set to 0)
-  int get discount => 0;
-
   int get total => subtotal;
-
-  bool get isEmpty => items.isEmpty;
 
   Map<String, dynamic> toJson() {
     return {
@@ -77,7 +70,7 @@ class CartState {
     };
   }
 
-  factory CartState.fromJson(Map<String, dynamic> json) {
+  factory BranchCart.fromJson(Map<String, dynamic> json) {
     IconData? parsedIcon;
     if (json['iconCodePoint'] != null) {
       parsedIcon = IconData(
@@ -86,7 +79,7 @@ class CartState {
         fontPackage: json['iconFontPackage'] as String?,
       );
     }
-    return CartState(
+    return BranchCart(
       items: (json['items'] as List<dynamic>?)
               ?.map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -102,12 +95,61 @@ class CartState {
   }
 }
 
+// ===== Global Cart State =====
+class CartState {
+  final Map<String, BranchCart> carts;
+
+  const CartState({this.carts = const {}});
+
+  int get totalItems => carts.values.fold(0, (sum, cart) => sum + cart.totalItems);
+  int get subtotal => carts.values.fold(0, (sum, cart) => sum + cart.subtotal);
+  int get total => carts.values.fold(0, (sum, cart) => sum + cart.total);
+  int get discount => 0;
+  bool get isEmpty => carts.isEmpty || carts.values.every((c) => c.items.isEmpty);
+
+  // Backward Compatibility Getters (returns first branch cart's info or fallback)
+  List<CartItemModel> get items => carts.values.isNotEmpty ? carts.values.first.items : const [];
+  String? get note => carts.values.isNotEmpty ? carts.values.first.note : null;
+  String? get storeName => carts.values.isNotEmpty ? carts.values.first.storeName : null;
+  String? get distance => carts.values.isNotEmpty ? carts.values.first.distance : null;
+  String? get deliveryTime => carts.values.isNotEmpty ? carts.values.first.deliveryTime : null;
+  String? get storeImageUrl => carts.values.isNotEmpty ? carts.values.first.storeImageUrl : null;
+  IconData? get icon => carts.values.isNotEmpty ? carts.values.first.icon : null;
+  String? get branchId => carts.values.isNotEmpty ? carts.values.first.branchId : null;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'carts': carts.map((key, value) => MapEntry(key, value.toJson())),
+    };
+  }
+
+  factory CartState.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('carts')) {
+      final cartsJson = json['carts'] as Map<String, dynamic>;
+      final parsedCarts = cartsJson.map(
+        (key, value) => MapEntry(
+          key,
+          BranchCart.fromJson(value as Map<String, dynamic>),
+        ),
+      );
+      return CartState(carts: parsedCarts);
+    }
+    // Backward compatibility for legacy single-cart JSON format
+    final oldCart = BranchCart.fromJson(json);
+    if (oldCart.items.isNotEmpty) {
+      final bid = oldCart.branchId ?? 'default_branch';
+      return CartState(carts: {bid: oldCart});
+    }
+    return const CartState();
+  }
+}
+
 // ===== Cart Notifier =====
 class CartNotifier extends StateNotifier<CartState> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const _storageKey = 'local_cart_state';
 
-  CartNotifier() : super(const CartState(items: [])) {
+  CartNotifier() : super(const CartState()) {
     _loadFromStorage();
   }
 
@@ -141,11 +183,18 @@ class CartNotifier extends StateNotifier<CartState> {
     IconData? icon,
     String? branchId,
   }) {
-    if (state.storeName != null && storeName != null && state.storeName != storeName && state.items.isNotEmpty) {
-      state = const CartState();
-    }
+    final bid = branchId ?? 'default_branch';
+    final existingCart = state.carts[bid] ?? BranchCart(
+      items: [],
+      branchId: bid,
+      storeName: storeName,
+      distance: distance,
+      deliveryTime: deliveryTime,
+      storeImageUrl: storeImageUrl,
+      icon: icon,
+    );
 
-    final existingIndex = state.items.indexWhere((i) {
+    final existingIndex = existingCart.items.indexWhere((i) {
       if (i.menuItemId != item.menuItemId) return false;
       if (i.sizeId != item.sizeId) return false;
       if (i.selectedToppings.length != item.selectedToppings.length) return false;
@@ -159,32 +208,53 @@ class CartNotifier extends StateNotifier<CartState> {
       if (i.note != item.note) return false;
       return true;
     });
+
     List<CartItemModel> updatedItems;
     if (existingIndex >= 0) {
-      final updated = List<CartItemModel>.from(state.items);
+      final updated = List<CartItemModel>.from(existingCart.items);
       updated[existingIndex] = updated[existingIndex]
           .copyWith(quantity: updated[existingIndex].quantity + item.quantity);
       updatedItems = updated;
     } else {
-      updatedItems = [...state.items, item];
+      updatedItems = [...existingCart.items, item];
     }
-    state = state.copyWith(
+
+    final newBranchCart = existingCart.copyWith(
       items: updatedItems,
-      storeName: storeName ?? state.storeName,
-      distance: distance ?? state.distance,
-      deliveryTime: deliveryTime ?? state.deliveryTime,
-      storeImageUrl: storeImageUrl ?? state.storeImageUrl,
-      icon: icon ?? state.icon,
-      branchId: branchId ?? state.branchId,
+      storeName: storeName ?? existingCart.storeName,
+      distance: distance ?? existingCart.distance,
+      deliveryTime: deliveryTime ?? existingCart.deliveryTime,
+      storeImageUrl: storeImageUrl ?? existingCart.storeImageUrl,
+      icon: icon ?? existingCart.icon,
     );
+
+    final newCarts = Map<String, BranchCart>.from(state.carts);
+    newCarts[bid] = newBranchCart;
+
+    state = CartState(carts: newCarts);
     _saveToStorage();
   }
 
   void removeItem(String id) {
-    state = state.copyWith(
-      items: state.items.where((i) => i.id != id).toList(),
-    );
-    _saveToStorage();
+    final newCarts = Map<String, BranchCart>.from(state.carts);
+    String? targetBranchId;
+    for (var entry in newCarts.entries) {
+      if (entry.value.items.any((i) => i.id == id)) {
+        targetBranchId = entry.key;
+        break;
+      }
+    }
+    if (targetBranchId != null) {
+      final currentBranchCart = newCarts[targetBranchId]!;
+      final updatedItems = currentBranchCart.items.where((i) => i.id != id).toList();
+      if (updatedItems.isEmpty) {
+        newCarts.remove(targetBranchId);
+      } else {
+        newCarts[targetBranchId] = currentBranchCart.copyWith(items: updatedItems);
+      }
+      state = CartState(carts: newCarts);
+      _saveToStorage();
+    }
   }
 
   void updateQuantity(String id, int quantity) {
@@ -192,17 +262,39 @@ class CartNotifier extends StateNotifier<CartState> {
       removeItem(id);
       return;
     }
-    final updated = state.items.map((item) {
-      if (item.id == id) return item.copyWith(quantity: quantity);
-      return item;
-    }).toList();
-    state = state.copyWith(items: updated);
-    _saveToStorage();
+    final newCarts = Map<String, BranchCart>.from(state.carts);
+    String? targetBranchId;
+    for (var entry in newCarts.entries) {
+      if (entry.value.items.any((i) => i.id == id)) {
+        targetBranchId = entry.key;
+        break;
+      }
+    }
+    if (targetBranchId != null) {
+      final currentBranchCart = newCarts[targetBranchId]!;
+      final updatedItems = currentBranchCart.items.map((item) {
+        if (item.id == id) return item.copyWith(quantity: quantity);
+        return item;
+      }).toList();
+      newCarts[targetBranchId] = currentBranchCart.copyWith(items: updatedItems);
+      state = CartState(carts: newCarts);
+      _saveToStorage();
+    }
+  }
+
+  void setNoteForBranch(String branchId, String note) {
+    final newCarts = Map<String, BranchCart>.from(state.carts);
+    if (newCarts.containsKey(branchId)) {
+      newCarts[branchId] = newCarts[branchId]!.copyWith(note: note);
+      state = CartState(carts: newCarts);
+      _saveToStorage();
+    }
   }
 
   void setNote(String note) {
-    state = state.copyWith(note: note);
-    _saveToStorage();
+    if (state.carts.isNotEmpty) {
+      setNoteForBranch(state.carts.keys.first, note);
+    }
   }
 
   void updateItem(
@@ -211,17 +303,36 @@ class CartNotifier extends StateNotifier<CartState> {
     String? note,
     required List<ToppingSelectionModel> selectedToppings,
   }) {
-    final updated = state.items.map((item) {
-      if (item.id == id) {
-        return item.copyWith(
-          quantity: quantity,
-          note: note,
-          selectedToppings: selectedToppings,
-        );
+    final newCarts = Map<String, BranchCart>.from(state.carts);
+    String? targetBranchId;
+    for (var entry in newCarts.entries) {
+      if (entry.value.items.any((i) => i.id == id)) {
+        targetBranchId = entry.key;
+        break;
       }
-      return item;
-    }).toList();
-    state = state.copyWith(items: updated);
+    }
+    if (targetBranchId != null) {
+      final currentBranchCart = newCarts[targetBranchId]!;
+      final updatedItems = currentBranchCart.items.map((item) {
+        if (item.id == id) {
+          return item.copyWith(
+            quantity: quantity,
+            note: note,
+            selectedToppings: selectedToppings,
+          );
+        }
+        return item;
+      }).toList();
+      newCarts[targetBranchId] = currentBranchCart.copyWith(items: updatedItems);
+      state = CartState(carts: newCarts);
+      _saveToStorage();
+    }
+  }
+
+  void clearBranchCart(String branchId) {
+    final newCarts = Map<String, BranchCart>.from(state.carts);
+    newCarts.remove(branchId);
+    state = CartState(carts: newCarts);
     _saveToStorage();
   }
 

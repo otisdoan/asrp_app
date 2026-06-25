@@ -64,6 +64,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
+  BranchCart _getBranchCart(CartState cart) {
+    final targetBranchId = widget.branchId ?? cart.branchId ?? 'default_branch';
+    return cart.carts[targetBranchId] ?? (cart.carts.isNotEmpty ? cart.carts.values.first : const BranchCart());
+  }
+
   Map<String, dynamic> _buildOrderPayload(CartState cart,
       {String? selectedTime}) {
     final uuidRegex = RegExp(
@@ -75,12 +80,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return uuidRegex.hasMatch(str);
     }
 
+    final branchCart = _getBranchCart(cart);
+
     return {
       "branchId": widget.branchId ??
-          cart.branchId ??
+          branchCart.branchId ??
           "2ea54df9-f2b0-42d2-ad20-bcb01f7e8b0e",
       "pickupTime": selectedTime,
-      "items": cart.items.map((item) {
+      "items": branchCart.items.map((item) {
         String? sizeId;
         if (item.sizeId != null && isUuid(item.sizeId)) {
           sizeId = item.sizeId;
@@ -113,7 +120,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         };
       }).toList(),
       "combos": [],
-      "note": cart.note,
+      "note": branchCart.note,
       "promotionId": null
     };
   }
@@ -174,15 +181,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
+    final branchCart = _getBranchCart(cart);
 
     // Listen to changes in the cart to fetch updated discount in the background
     ref.listen<CartState>(cartProvider, (previous, next) {
-      if (next.items.isNotEmpty) {
+      final nextBranchCart = _getBranchCart(next);
+      if (nextBranchCart.items.isNotEmpty) {
         _fetchOrderPreview(showLoader: false);
       }
     });
 
-    if (cart.items.isEmpty && !_isLoading) {
+    if (branchCart.items.isEmpty && !_isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
@@ -207,7 +216,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Always calculate subtotal and total based on local cart items first,
     // to maintain 100% visual consistency with the items list (as requested).
     // The backend preview's discount is subtracted if available.
-    final subtotal = cart.subtotal;
+    final subtotal = branchCart.subtotal;
     final total =
         (subtotal - _previewDiscount + _serviceFee).clamp(0, 99999999);
 
@@ -219,7 +228,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _buildAppBar(context),
 
           // ─── Order Summary ─────────────────────────────────────
-          SliverToBoxAdapter(child: _buildOrderSummary(cart.items)),
+          SliverToBoxAdapter(child: _buildOrderSummary(branchCart.items)),
 
           // ─── Pickup Time ───────────────────────────────────────
           SliverToBoxAdapter(child: _buildPickupTime()),
@@ -547,7 +556,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           icon: widget.icon,
           imageUrl: item.imageUrl,
           menuItemId: item.menuItemId,
-          branchId: widget.branchId ?? cart.branchId,
+          branchId: widget.branchId ?? _getBranchCart(cart).branchId,
           initialQuantity: item.quantity,
           initialSelectedToppings: item.selectedToppings,
           initialNote: item.note,
@@ -1148,7 +1157,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
 
       // 4. Clear cart after ordering successfully
-      ref.read(cartProvider.notifier).clearCart();
+      final targetBranchId = widget.branchId ?? _getBranchCart(cart).branchId ?? 'default_branch';
+      ref.read(cartProvider.notifier).clearBranchCart(targetBranchId);
 
       // Refresh orders list to include the newly placed order
       ref.read(orderProvider.notifier).fetchMyOrders();

@@ -17,22 +17,25 @@ class CartPage extends ConsumerStatefulWidget {
 
 class _CartPageState extends ConsumerState<CartPage> {
   bool _isManaging = false;
-  final Set<int> _selectedItems = {};
+  final Set<String> _selectedBranchIds = {};
 
-  /// Total entries = active cart (if non-empty)
+  /// Total entries = active branch carts count
   int _totalEntries(CartState cart) {
-    return cart.items.isNotEmpty ? 1 : 0;
+    return cart.carts.length;
   }
 
-  bool get _allSelected => _selectedItems.length == _totalEntries(ref.read(cartProvider));
+  bool get _allSelected {
+    final cart = ref.read(cartProvider);
+    return cart.carts.isNotEmpty && _selectedBranchIds.length == cart.carts.length;
+  }
 
   void _toggleSelectAll() {
-    final total = _totalEntries(ref.read(cartProvider));
+    final cart = ref.read(cartProvider);
     setState(() {
       if (_allSelected) {
-        _selectedItems.clear();
+        _selectedBranchIds.clear();
       } else {
-        _selectedItems.addAll(List.generate(total, (i) => i));
+        _selectedBranchIds.addAll(cart.carts.keys);
       }
     });
   }
@@ -98,7 +101,7 @@ class _CartPageState extends ConsumerState<CartPage> {
               onPressed: () {
                 setState(() {
                   _isManaging = !_isManaging;
-                  if (!_isManaging) _selectedItems.clear();
+                  if (!_isManaging) _selectedBranchIds.clear();
                 });
               },
               child: Text(
@@ -119,7 +122,9 @@ class _CartPageState extends ConsumerState<CartPage> {
               itemCount: totalCount,
               separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.outlineVariant),
               itemBuilder: (context, index) {
-                return _buildActiveCartItem(cart);
+                final branchCarts = cart.carts.values.toList();
+                final branchCart = branchCarts[index];
+                return _buildActiveCartItem(branchCart);
               },
             ),
       // Bottom bar in manage mode
@@ -128,19 +133,20 @@ class _CartPageState extends ConsumerState<CartPage> {
   }
 
   // ─── Active Cart Item (real data) ─────────────────────────────────────
-  Widget _buildActiveCartItem(CartState cart) {
-    final isSelected = _selectedItems.contains(0);
+  Widget _buildActiveCartItem(BranchCart branchCart) {
+    final bid = branchCart.branchId ?? 'default_branch';
+    final isSelected = _selectedBranchIds.contains(bid);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _isManaging ? null : () {
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => CheckoutPage(
-            storeName: cart.storeName ?? 'Cửa hàng',
-            itemCount: cart.totalItems,
-            distance: cart.distance ?? '0 km',
-            icon: cart.icon ?? Icons.restaurant,
-            branchId: cart.branchId,
+            storeName: branchCart.storeName ?? 'Cửa hàng',
+            itemCount: branchCart.totalItems,
+            distance: branchCart.distance ?? '0 km',
+            icon: branchCart.icon ?? Icons.restaurant,
+            branchId: branchCart.branchId,
           ),
         ));
       },
@@ -155,9 +161,9 @@ class _CartPageState extends ConsumerState<CartPage> {
                 onTap: () {
                   setState(() {
                     if (isSelected) {
-                      _selectedItems.remove(0);
+                      _selectedBranchIds.remove(bid);
                     } else {
-                      _selectedItems.add(0);
+                      _selectedBranchIds.add(bid);
                     }
                   });
                 },
@@ -185,7 +191,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    cart.storeName ?? 'Cửa hàng',
+                    branchCart.storeName ?? 'Cửa hàng',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -198,20 +204,20 @@ class _CartPageState extends ConsumerState<CartPage> {
                   Row(
                     children: [
                       Text(
-                        '${cart.totalItems} món',
+                        '${branchCart.totalItems} món',
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
-                      if (cart.deliveryTime != null && cart.deliveryTime!.isNotEmpty) ...[
+                      if (branchCart.deliveryTime != null && branchCart.deliveryTime!.isNotEmpty) ...[
                         const Text(' • ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                         Text(
-                          cart.deliveryTime!,
+                          branchCart.deliveryTime!,
                           style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                         ),
                       ],
-                      if (cart.distance != null && cart.distance!.isNotEmpty) ...[
+                      if (branchCart.distance != null && branchCart.distance!.isNotEmpty) ...[
                         const Text(' • ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                         Text(
-                          cart.distance!,
+                          branchCart.distance!,
                           style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                         ),
                       ],
@@ -231,32 +237,32 @@ class _CartPageState extends ConsumerState<CartPage> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: (cart.storeImageUrl != null && cart.storeImageUrl!.isNotEmpty)
-                    ? (cart.storeImageUrl!.startsWith('http')
+                child: (branchCart.storeImageUrl != null && branchCart.storeImageUrl!.isNotEmpty)
+                    ? (branchCart.storeImageUrl!.startsWith('http')
                         ? Image.network(
-                            cart.storeImageUrl!,
+                            branchCart.storeImageUrl!,
                             fit: BoxFit.cover,
                             width: 56,
                             height: 56,
                             errorBuilder: (_, __, ___) => Icon(
-                              cart.icon ?? Icons.restaurant,
+                              branchCart.icon ?? Icons.restaurant,
                               size: 24,
                               color: AppColors.textTertiary,
                             ),
                           )
                         : Image.asset(
-                            cart.storeImageUrl!,
+                            branchCart.storeImageUrl!,
                             fit: BoxFit.cover,
                             width: 56,
                             height: 56,
                             errorBuilder: (_, __, ___) => Icon(
-                              cart.icon ?? Icons.restaurant,
+                              branchCart.icon ?? Icons.restaurant,
                               size: 24,
                               color: AppColors.textTertiary,
                             ),
                           ))
                     : Icon(
-                        cart.icon ?? Icons.restaurant,
+                        branchCart.icon ?? Icons.restaurant,
                         size: 24,
                         color: AppColors.textTertiary,
                       ),
@@ -314,13 +320,13 @@ class _CartPageState extends ConsumerState<CartPage> {
             const Spacer(),
             // Delete button
             TextButton(
-              onPressed: _selectedItems.isNotEmpty ? () {
-                // If index 0 (active cart) is selected, clear the real cart
-                if (_selectedItems.contains(0) && ref.read(cartProvider).items.isNotEmpty) {
-                  ref.read(cartProvider.notifier).clearCart();
+              onPressed: _selectedBranchIds.isNotEmpty ? () {
+                final notifier = ref.read(cartProvider.notifier);
+                for (final branchId in _selectedBranchIds) {
+                  notifier.clearBranchCart(branchId);
                 }
                 setState(() {
-                  _selectedItems.clear();
+                  _selectedBranchIds.clear();
                   _isManaging = false;
                 });
               } : null,
@@ -329,7 +335,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(
-                    color: _selectedItems.isNotEmpty
+                    color: _selectedBranchIds.isNotEmpty
                         ? AppColors.textSecondary
                         : AppColors.outlineVariant,
                   ),
@@ -340,7 +346,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: _selectedItems.isNotEmpty
+                  color: _selectedBranchIds.isNotEmpty
                       ? AppColors.textPrimary
                       : AppColors.textTertiary,
                 ),

@@ -294,6 +294,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final categories = _currentCategories;
     final menuItems = _currentMenuItems;
     final cart = ref.watch(cartProvider);
+    final currentBranchId = detail?.id ?? widget.branchId ?? 'default_branch';
+    final branchCart = cart.carts[currentBranchId];
 
     // Check key initialization
     if (_sectionKeys.length != categories.length) {
@@ -350,8 +352,8 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
           ],
         ),
         // ─── Floating Cart Bar ─────────────────────────────────
-        bottomNavigationBar: (cart.totalItems > 0 && cart.storeName == (detail?.name ?? widget.storeName))
-            ? _buildCartBar(cart)
+        bottomNavigationBar: (branchCart != null && branchCart.items.isNotEmpty)
+            ? _buildCartBar(branchCart)
             : null,
       ),
     );
@@ -380,7 +382,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   }
 
   // ─── Cart Bar ──────────────────────────────────────────────────────────
-  Widget _buildCartBar(CartState cart) {
+  Widget _buildCartBar(BranchCart branchCart) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: const BoxDecoration(
@@ -395,10 +397,10 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
             Navigator.push(context, MaterialPageRoute(
               builder: (_) => CheckoutPage(
                 storeName: widget.storeName,
-                itemCount: cart.totalItems,
+                itemCount: branchCart.totalItems,
                 distance: widget.distance,
                 icon: widget.icon,
-                branchId: _lastResolvedDetail?.id ?? widget.branchId ?? cart.branchId,
+                branchId: _lastResolvedDetail?.id ?? widget.branchId ?? branchCart.branchId,
               ),
             ));
           },
@@ -413,7 +415,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                 const Icon(Icons.shopping_bag_outlined, color: AppColors.onPrimary, size: 22),
                 const SizedBox(width: 10),
                 Text(
-                  'Giỏ hàng - ${cart.totalItems} món',
+                  'Giỏ hàng - ${branchCart.totalItems} món',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -422,7 +424,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                 ),
                 const Spacer(),
                 Text(
-                  '${_formatCartPrice(cart.total)}đ',
+                  '${_formatCartPrice(branchCart.total)}đ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
