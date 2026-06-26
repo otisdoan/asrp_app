@@ -203,6 +203,12 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
             'Đã thêm ${branch['dishName']} của ${branch['storeName']} vào giỏ hàng!'),
         backgroundColor: AppColors.success,
         duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 72,
+          left: 16,
+          right: 16,
+        ),
       ),
     );
   }
@@ -565,9 +571,15 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                       padding: const EdgeInsets.all(8),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Tính năng ghi âm giọng nói đang phát triển.'),
-                            duration: Duration(seconds: 1),
+                          SnackBar(
+                            content: const Text('Tính năng ghi âm giọng nói đang phát triển.'),
+                            duration: const Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                            margin: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).padding.bottom + 72,
+                              left: 16,
+                              right: 16,
+                            ),
                           ),
                         );
                       },
