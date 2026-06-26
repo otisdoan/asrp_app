@@ -690,38 +690,32 @@ class _CashierPageState extends ConsumerState<CashierPage>
   Widget _buildCustomerPickupOrderCard(MockOrder order) {
     Color statusBgColor;
     Color statusTextColor;
-    Color leftBarColor;
     String statusText;
 
     switch (order.status) {
       case MockOrderStatus.pendingConfirm:
         statusBgColor = const Color(0xFFFEF3C7); // Amber-100
         statusTextColor = const Color(0xFFD97706); // Amber-600
-        leftBarColor = AppColors.primary; // Orange
         statusText = 'Chờ xác nhận';
         break;
       case MockOrderStatus.preparing:
         statusBgColor = const Color(0xFFDBEAFE); // Blue-100
         statusTextColor = const Color(0xFF2563EB); // Blue-600
-        leftBarColor = const Color(0xFF3B82F6); // Light Blue
         statusText = 'Đang chuẩn bị';
         break;
       case MockOrderStatus.ready:
         statusBgColor = const Color(0xFFD1FAE5); // Green-100
         statusTextColor = const Color(0xFF059669); // Green-600
-        leftBarColor = const Color(0xFF10B981); // Emerald
         statusText = 'Chờ nhận món';
         break;
       case MockOrderStatus.completed:
         statusBgColor = const Color(0xFFF3F4F6); // Gray-100
         statusTextColor = const Color(0xFF4B5563); // Gray-600
-        leftBarColor = const Color(0xFF9CA3AF); // Gray
         statusText = 'Đã lấy món';
         break;
       case MockOrderStatus.cancelled:
         statusBgColor = const Color(0xFFFEE2E2); // Red-100
         statusTextColor = const Color(0xFFDC2626); // Red-600
-        leftBarColor = const Color(0xFFEF4444); // Red
         statusText = 'Đã hủy đơn';
         break;
     }
@@ -759,11 +753,6 @@ class _CashierPageState extends ConsumerState<CashierPage>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left bar color indicator
-              Container(
-                width: 6,
-                color: leftBarColor,
-              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -1974,9 +1963,6 @@ class _CashierPageState extends ConsumerState<CashierPage>
     final total =
         order.items.fold(0, (sum, i) => sum + (i.menuItem.price * i.quantity));
     final itemCount = order.items.fold(0, (sum, i) => sum + i.quantity);
-    final leftBarColor = order.isNew
-        ? AppColors.primary
-        : AppColors.secondary; // Orange for active orders
 
     return IntrinsicHeight(
       child: Container(
@@ -2005,10 +1991,6 @@ class _CashierPageState extends ConsumerState<CashierPage>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 6,
-                color: leftBarColor,
-              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
