@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/merchant_menu_provider.dart';
 import '../../../core/utils/top_notification.dart';
+import '../../../data/repositories/merchant_repository.dart';
 
 class MenuBuilderPage extends ConsumerStatefulWidget {
   const MenuBuilderPage({super.key});
@@ -1138,7 +1141,7 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
 // ==========================================
 // Isolated Stateful Content for Dish Editor Bottom Sheet
 // ==========================================
-class _DishEditorSheetContent extends StatefulWidget {
+class _DishEditorSheetContent extends ConsumerStatefulWidget {
   final String categoryId;
   final MerchantDish? dish;
   final void Function(MerchantDish) onSave;
@@ -1152,11 +1155,11 @@ class _DishEditorSheetContent extends StatefulWidget {
   });
 
   @override
-  State<_DishEditorSheetContent> createState() =>
+  ConsumerState<_DishEditorSheetContent> createState() =>
       _DishEditorSheetContentState();
 }
 
-class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
+class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent> {
   final _formKey = GlobalKey<FormState>();
 
   // Form Controllers
@@ -1174,13 +1177,7 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
   // Selected availability and prefilled mock images
   String _availability = 'available';
   String _selectedImageUrl = '';
-
-  final List<String> _mockFoodImages = [
-    'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&q=80', // Pho
-    'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&q=80', // Soft drink
-    'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&q=80', // Crispy bread
-    'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&q=80', // Vietnamese Coffee
-  ];
+  late List<String> _mockFoodImages;
 
   // Option groups and toppings list state
   List<MerchantOptionGroup> _optionGroups = [];
@@ -1204,11 +1201,127 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
     _discountNode = FocusNode();
     _descNode = FocusNode();
 
+    _mockFoodImages = [
+      'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&q=80', // Pho
+      'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&q=80', // Soft drink
+      'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&q=80', // Crispy bread
+      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&q=80', // Vietnamese Coffee
+    ];
+
     _availability = d?.availability ?? 'available';
     _selectedImageUrl = d?.imageUrl ?? _mockFoodImages[0];
 
+    if (d != null && d.imageUrl.isNotEmpty && !_mockFoodImages.contains(d.imageUrl)) {
+      _mockFoodImages.insert(0, d.imageUrl);
+    }
+
     // Deep copy option groups
     _optionGroups = d != null ? List.from(d.optionGroups) : [];
+  }
+
+  Future<void> _pickAndUploadCustomImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80,
+      );
+
+      if (image == null) return;
+
+      final menuNotifier = ref.read(merchantMenuProvider.notifier);
+      final branchId = menuNotifier.branchId;
+      final isMockBranch = branchId == null || branchId.isEmpty || branchId.startsWith('mock_');
+      final isMockDish = widget.dish == null || widget.dish!.id.startsWith('mock_');
+
+      if (isMockBranch || isMockDish) {
+        // Mock flow: Add local path directly
+        setState(() {
+          if (!_mockFoodImages.contains(image.path)) {
+            _mockFoodImages.insert(0, image.path);
+          }
+          _selectedImageUrl = image.path;
+        });
+        if (mounted) {
+          TopNotification.show(
+            context,
+            message: 'Đã chọn ảnh món ăn!',
+          );
+        }
+        return;
+      }
+
+      // Show uploading dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.primary),
+                  SizedBox(height: 16),
+                  Text('Đang tải ảnh lên...', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final String folder;
+      if (widget.dish != null && widget.dish!.id.isNotEmpty) {
+        folder = 'menu-items/${widget.dish!.id}';
+      } else {
+        folder = 'branches/$branchId';
+      }
+
+      final merchantRepo = MerchantRepository();
+      final uploadedUrl = await merchantRepo.uploadImage(
+        image.path,
+        folder,
+      );
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      setState(() {
+        if (!_mockFoodImages.contains(uploadedUrl)) {
+          _mockFoodImages.insert(0, uploadedUrl);
+        }
+        _selectedImageUrl = uploadedUrl;
+      });
+
+      if (mounted) {
+        TopNotification.show(
+          context,
+          message: 'Tải ảnh món ăn lên thành công!',
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if open
+      if (mounted) {
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
+      }
+      debugPrint('Error picking/uploading image for dish: $e');
+      if (mounted) {
+        TopNotification.show(
+          context,
+          message: 'Lỗi tải ảnh: ${e.toString().replaceAll('Exception: ', '')}',
+          isError: true,
+        );
+      }
+    }
   }
 
   @override
@@ -1438,10 +1551,50 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                         height: 70,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _mockFoodImages.length,
+                          itemCount: _mockFoodImages.length + 1,
                           itemBuilder: (context, idx) {
-                            final imgUrl = _mockFoodImages[idx];
+                            if (idx == 0) {
+                              // Custom image upload card
+                              return GestureDetector(
+                                onTap: _pickAndUploadCustomImage,
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 12),
+                                  width: 70,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    color: const Color(0xFFF9FAFB),
+                                    border: Border.all(
+                                      color: const Color(0xFFD1D5DB),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_a_photo_outlined,
+                                        color: AppColors.textTertiary,
+                                        size: 20,
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Tải ảnh lên',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: AppColors.textTertiary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final imgUrl = _mockFoodImages[idx - 1];
                             final isSelected = imgUrl == _selectedImageUrl;
+                            final isNetworkImage = imgUrl.startsWith('http://') || imgUrl.startsWith('https://');
+
                             return GestureDetector(
                               onTap: () =>
                                   setState(() => _selectedImageUrl = imgUrl),
@@ -1459,8 +1612,9 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(7),
-                                  child:
-                                      Image.network(imgUrl, fit: BoxFit.cover),
+                                  child: isNetworkImage
+                                      ? Image.network(imgUrl, fit: BoxFit.cover)
+                                      : Image.file(File(imgUrl), fit: BoxFit.cover),
                                 ),
                               ),
                             );

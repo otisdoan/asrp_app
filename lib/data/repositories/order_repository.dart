@@ -353,4 +353,94 @@ class OrderRepository {
       rethrow;
     }
   }
+
+  /// Call GET /api/orders/{orderId}/reviewable-items (customer only)
+  Future<List<dynamic>> getReviewableItems(String orderId) async {
+    try {
+      final response = await _dioClient.dio.get('/orders/$orderId/reviewable-items');
+      print('[OrderRepository] getReviewableItems status: ${response.statusCode}');
+      final responseData = response.data;
+      if (responseData is List) {
+        return responseData;
+      } else if (responseData is Map<String, dynamic>) {
+        if (responseData['data'] is List) {
+          return responseData['data'] as List;
+        } else if (responseData['items'] is List) {
+          return responseData['items'] as List;
+        }
+      }
+      return [];
+    } on DioException catch (e) {
+      print('[OrderRepository] getReviewableItems error: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
+  }
+
+  /// Call POST /api/order-items/{orderItemId}/review
+  Future<Map<String, dynamic>> createMenuItemReview(
+    String orderItemId, {
+    required int rating,
+    String? content,
+    List<String>? images,
+    List<String>? tags,
+  }) async {
+    try {
+      final response = await _dioClient.dio.post(
+        '/order-items/$orderItemId/review',
+        data: {
+          'rating': rating,
+          'content': content,
+          'images': images ?? [],
+          'tags': tags ?? [],
+        },
+      );
+      print('[OrderRepository] createMenuItemReview status: ${response.statusCode}');
+      final responseData = response.data;
+      if (responseData is Map<String, dynamic>) {
+        if (responseData['data'] is Map<String, dynamic>) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      }
+      throw Exception('Invalid response structure for menu item review');
+    } on DioException catch (e) {
+      print('[OrderRepository] createMenuItemReview error: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
+  }
+
+  /// Call POST /api/branches/{branchId}/reviews
+  Future<Map<String, dynamic>> createBranchReview(
+    String branchId, {
+    required int rating,
+    String? content,
+    List<String>? images,
+    List<String>? tags,
+    String? orderId,
+  }) async {
+    try {
+      final response = await _dioClient.dio.post(
+        '/branches/$branchId/reviews',
+        data: {
+          'rating': rating,
+          'content': content,
+          'images': images ?? [],
+          'tags': tags ?? [],
+          if (orderId != null) 'orderId': orderId,
+        },
+      );
+      print('[OrderRepository] createBranchReview status: ${response.statusCode}');
+      final responseData = response.data;
+      if (responseData is Map<String, dynamic>) {
+        if (responseData['data'] is Map<String, dynamic>) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      }
+      throw Exception('Invalid response structure for branch review');
+    } on DioException catch (e) {
+      print('[OrderRepository] createBranchReview error: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
+  }
 }

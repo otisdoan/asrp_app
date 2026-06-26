@@ -4,6 +4,8 @@ import '../data/repositories/branch_repository.dart';
 import '../core/network/dio_client.dart';
 
 class MockOrderItem {
+  final String? id; // Order Item ID
+  final String? menuItemId; // Menu Item ID
   final String name;
   final int price;
   final int quantity;
@@ -13,6 +15,8 @@ class MockOrderItem {
   final String? sizeLabel;
 
   const MockOrderItem({
+    this.id,
+    this.menuItemId,
     required this.name,
     required this.price,
     required this.quantity,
@@ -52,6 +56,8 @@ class MockOrderItem {
     }).where((name) => name.isNotEmpty).join('\n');
 
     return MockOrderItem(
+      id: json['id']?.toString() ?? json['orderItemId']?.toString(),
+      menuItemId: json['menuItemId']?.toString(),
       name: json['productName'] ?? json['name'] ?? '',
       price: (json['priceAtTime'] as num?)?.toInt() ?? (json['price'] as num?)?.toInt() ?? 0,
       quantity: json['quantity'] as int? ?? 1,
@@ -161,6 +167,7 @@ class MockOrder {
   final int discountPercentage;
   final String paymentStatus;
   final String orderType;
+  final String branchId;
 
   MockOrder({
     required this.id,
@@ -180,6 +187,7 @@ class MockOrder {
     this.discountPercentage = 0,
     this.paymentStatus = 'Pending',
     this.orderType = 'Online',
+    this.branchId = '',
   });
 
   bool get isPaid => paymentStatus == 'Paid' || paymentStatus == '1' || payments.any((p) => p.status == 'Đã thanh toán');
@@ -203,6 +211,7 @@ class MockOrder {
     int? discountPercentage,
     String? paymentStatus,
     String? orderType,
+    String? branchId,
   }) {
     return MockOrder(
       id: id ?? this.id,
@@ -222,6 +231,7 @@ class MockOrder {
       discountPercentage: discountPercentage ?? this.discountPercentage,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       orderType: orderType ?? this.orderType,
+      branchId: branchId ?? this.branchId,
     );
   }
 
@@ -334,11 +344,13 @@ class MockOrder {
       discountPercentage: discountPct,
       paymentStatus: json['paymentStatus']?.toString() ?? 'Pending',
       orderType: json['orderType']?.toString() ?? 'Online',
+      branchId: branchId,
     );
   }
 }
 
 class OrderListNotifier extends StateNotifier<List<MockOrder>> {
+  final Ref _ref;
   final OrderRepository _orderRepository = OrderRepository();
   final BranchRepository _branchRepository = BranchRepository();
   final Map<String, String> _branchNames = {};
@@ -346,7 +358,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
 
   bool get isLoading => _isLoading;
 
-  OrderListNotifier() : super([]) {
+  OrderListNotifier(this._ref) : super([]) {
     // Lazy loaded on demand to prevent unauthenticated API errors on startup
   }
 
@@ -388,11 +400,26 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
           .toList()
         ..sort((a, b) => b.orderTime.compareTo(a.orderTime));
       print('[OrderListNotifier] fetchMyOrders mapped orders count: ${state.length}');
+      _checkReviewedStatusForCompletedOrders();
     } catch (e, stack) {
       print('[OrderListNotifier] fetchMyOrders error: $e');
       print(stack);
     } finally {
       _isLoading = false;
+    }
+  }
+
+  void _checkReviewedStatusForCompletedOrders() async {
+    final completedOrders = state.where((o) => o.status == MockOrderStatus.completed && !o.id.startsWith('mock_')).toList();
+    for (var order in completedOrders) {
+      try {
+        final items = await _orderRepository.getReviewableItems(order.id);
+        if (items.isNotEmpty && items.every((x) => x['isReviewed'] == true)) {
+          _ref.read(reviewedOrdersProvider.notifier).markAsReviewed(order.id);
+        }
+      } catch (e) {
+        print('[OrderListNotifier] Error checking reviewed status for order ${order.id}: $e');
+      }
     }
   }
 
@@ -584,5 +611,21 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
 }
 
 final orderProvider = StateNotifierProvider<OrderListNotifier, List<MockOrder>>((ref) {
-  return OrderListNotifier();
+  return OrderListNotifier(ref);
+});
+
+class ReviewedOrdersNotifier extends StateNotifier<Set<String>> {
+  ReviewedOrdersNotifier() : super({});
+
+  void markAsReviewed(String orderId) {
+    state = {...state, orderId};
+  }
+
+  bool isReviewed(String orderId) {
+    return state.contains(orderId);
+  }
+}
+
+final reviewedOrdersProvider = StateNotifierProvider<ReviewedOrdersNotifier, Set<String>>((ref) {
+  return ReviewedOrdersNotifier();
 });

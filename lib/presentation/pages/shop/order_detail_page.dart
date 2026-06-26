@@ -6,6 +6,9 @@ import '../../../providers/order_provider.dart';
 import '../../../data/repositories/order_repository.dart';
 import 'cancel_success_page.dart';
 import 'qr_payment_page.dart';
+import 'order_review_page.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../data/models/cart_item_model.dart';
 import '../../../core/utils/top_notification.dart';
 
 /// OrderDetailPage — Displays detailed progress and order information for a single order.
@@ -910,11 +913,70 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   }
 
   Widget? _buildBottomActions(MockOrder order) {
-    if (order.status != MockOrderStatus.pendingConfirm) {
+    if (order.status != MockOrderStatus.pendingConfirm && order.status != MockOrderStatus.completed) {
       return null;
     }
 
     final bottomSafe = MediaQuery.of(context).padding.bottom;
+
+    if (order.status == MockOrderStatus.completed) {
+      final isReviewed = ref.watch(reviewedOrdersProvider).contains(order.id);
+      return Container(
+        padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottomSafe + 8),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: AppColors.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: () => _reorderOrder(order),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.outlineVariant),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                  ),
+                  child: const Text(
+                    'Mua lại',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: isReviewed ? null : () => _navigateToReviewPage(order),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isReviewed ? const Color(0xFFE5E7EB) : AppColors.primary,
+                    foregroundColor: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    isReviewed ? 'Đã đánh giá' : 'Đánh giá',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final isUnpaidQr = !order.isPaid && order.isQrPayment;
 
     return Container(
@@ -1180,6 +1242,46 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         );
       },
     );
+  }
+
+  void _navigateToReviewPage(MockOrder order) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderReviewPage(order: order),
+      ),
+    );
+    if (result == true) {
+      ref.read(orderProvider.notifier).fetchMyOrders();
+    }
+  }
+
+  void _reorderOrder(MockOrder order) {
+    try {
+      final cartNotifier = ref.read(cartProvider.notifier);
+      for (final item in order.items) {
+        final cartItem = CartItemModel(
+          id: '${DateTime.now().microsecondsSinceEpoch}_${item.name}',
+          menuItemId: item.menuItemId,
+          sizeId: null,
+          imageUrl: item.imageUrl ?? '',
+          name: item.name,
+          priceAmount: item.price,
+          priceDisplay: '${item.price}đ',
+          quantity: item.quantity,
+          note: item.note,
+          selectedToppings: [],
+        );
+        cartNotifier.addItem(
+          cartItem,
+          storeName: order.storeName,
+          branchId: order.branchId.isNotEmpty ? order.branchId : null,
+        );
+      }
+      TopNotification.show(context, message: 'Đã thêm toàn bộ món vào giỏ hàng!', isError: false);
+    } catch (e) {
+      TopNotification.show(context, message: 'Không thể mua lại: $e', isError: true);
+    }
   }
 
   String _formatPrice(int price) {

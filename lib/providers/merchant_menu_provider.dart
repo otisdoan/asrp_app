@@ -180,6 +180,8 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
   final DioClient _dioClient = DioClient();
   String? _branchId;
 
+  String? get branchId => _branchId;
+
   MerchantMenuNotifier(this._ref) : super(const MerchantMenuState());
 
   Future<void> initializeMenu() async {

@@ -4,6 +4,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
 import 'cancel_success_page.dart';
 import 'order_detail_page.dart';
+import 'order_review_page.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../data/models/cart_item_model.dart';
+import '../../../core/utils/top_notification.dart';
 
 /// Order Status Page — shows orders filtered by status.
 /// Navigated to when tapping a status category on the Orders page.
@@ -222,6 +226,7 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
 
   @override
   Widget build(BuildContext context) {
+    final reviewedOrderIds = ref.watch(reviewedOrdersProvider);
     final visibleOrders = widget.orders.take(_displayCount).toList();
     final hasMore = _displayCount < widget.orders.length;
 
@@ -235,7 +240,7 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
         child: Column(
           children: [
             if (visibleOrders.isNotEmpty) ...[
-              ...visibleOrders.map((o) => _buildOrderCard(o)),
+              ...visibleOrders.map((o) => _buildOrderCard(o, isReviewed: reviewedOrderIds.contains(o.id))),
               const SizedBox(height: 12),
             ] else ...[
               // Màn hình rỗng
@@ -333,7 +338,7 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
     );
   }
 
-  Widget _buildOrderCard(MockOrder order) {
+  Widget _buildOrderCard(MockOrder order, {required bool isReviewed}) {
     Color statusTextColor;
     String statusText;
 
@@ -711,7 +716,7 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                 ],
               ),
 
-              // 5. Action Buttons (Cancel Order)
+              // 5. Action Buttons (Cancel Order / Reorder / Review)
               if (order.status == MockOrderStatus.pendingConfirm) ...[
                 const SizedBox(height: 14),
                 Row(
@@ -731,6 +736,50 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                         'Hủy đơn hàng',
                         style:
                             TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else if (order.status == MockOrderStatus.completed) ...[
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => _reorderOrder(order),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.outlineVariant),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                      ),
+                      child: const Text(
+                        'Mua lại',
+                        style:
+                            TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: isReviewed ? null : () => _navigateToReviewPage(order),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isReviewed ? const Color(0xFFE5E7EB) : AppColors.primary,
+                        foregroundColor: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        isReviewed ? 'Đã đánh giá' : 'Đánh giá',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                        ),
                       ),
                     ),
                   ],
@@ -1035,6 +1084,46 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
         ),
       ),
     );
+  }
+
+  void _navigateToReviewPage(MockOrder order) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderReviewPage(order: order),
+      ),
+    );
+    if (result == true) {
+      ref.read(orderProvider.notifier).fetchMyOrders();
+    }
+  }
+
+  void _reorderOrder(MockOrder order) {
+    try {
+      final cartNotifier = ref.read(cartProvider.notifier);
+      for (final item in order.items) {
+        final cartItem = CartItemModel(
+          id: '${DateTime.now().microsecondsSinceEpoch}_${item.name}',
+          menuItemId: item.menuItemId,
+          sizeId: null,
+          imageUrl: item.imageUrl ?? '',
+          name: item.name,
+          priceAmount: item.price,
+          priceDisplay: '${item.price}đ',
+          quantity: item.quantity,
+          note: item.note,
+          selectedToppings: [],
+        );
+        cartNotifier.addItem(
+          cartItem,
+          storeName: order.storeName,
+          branchId: order.branchId.isNotEmpty ? order.branchId : null,
+        );
+      }
+      TopNotification.show(context, message: 'Đã thêm toàn bộ món vào giỏ hàng!', isError: false);
+    } catch (e) {
+      TopNotification.show(context, message: 'Không thể mua lại: $e', isError: true);
+    }
   }
 
   String _formatPrice(int price) {
