@@ -27,6 +27,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTyping = false;
+  OverlayEntry? _activeOverlayEntry;
 
   final List<Map<String, dynamic>> _bunBoRecommendations = [
     {
@@ -197,19 +198,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
           branchId: bid,
         );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Đã thêm ${branch['dishName']} của ${branch['storeName']} vào giỏ hàng!'),
-        backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom + 72,
-          left: 16,
-          right: 16,
-        ),
-      ),
+    _showTopNotification(
+      'Đã thêm ${branch['dishName']} của ${branch['storeName']} vào giỏ hàng!',
+      AppColors.success,
+      Icons.check_circle_outline,
     );
   }
 
@@ -230,6 +222,97 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         ),
       ),
     );
+  }
+
+  void _showTopNotification(String text, Color backgroundColor, IconData icon) {
+    if (_activeOverlayEntry != null) {
+      try {
+        _activeOverlayEntry!.remove();
+      } catch (_) {}
+      _activeOverlayEntry = null;
+    }
+
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+    
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 12,
+        left: 16,
+        right: 16,
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 300),
+          tween: Tween(begin: 0.0, end: 1.0),
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, -20 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    _activeOverlayEntry = overlayEntry;
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(milliseconds: 2300), () {
+      if (_activeOverlayEntry == overlayEntry) {
+        try {
+          overlayEntry.remove();
+        } catch (_) {}
+        _activeOverlayEntry = null;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    if (_activeOverlayEntry != null) {
+      try {
+        _activeOverlayEntry!.remove();
+      } catch (_) {}
+      _activeOverlayEntry = null;
+    }
+    super.dispose();
   }
 
   @override
@@ -570,17 +653,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                       constraints: const BoxConstraints(),
                       padding: const EdgeInsets.all(8),
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Tính năng ghi âm giọng nói đang phát triển.'),
-                            duration: const Duration(seconds: 1),
-                            behavior: SnackBarBehavior.floating,
-                            margin: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).padding.bottom + 72,
-                              left: 16,
-                              right: 16,
-                            ),
-                          ),
+                        _showTopNotification(
+                          'Tính năng ghi âm giọng nói đang phát triển.',
+                          AppColors.primary,
+                          Icons.info_outline,
                         );
                       },
                     ),
