@@ -41,9 +41,9 @@ class _CartBottomSheetState extends ConsumerState<CartBottomSheet> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Giỏ hàng của bạn', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              const Text('Bàn 05 · Chi nhánh Quận 1', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Giỏ hàng của bạn', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text('Bàn 05 · Chi nhánh Quận 1', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
             ]),
             const Spacer(),
             IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),

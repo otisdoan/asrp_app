@@ -329,8 +329,8 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 24),
             SizedBox(width: 8),
             Text('Chế độ Mô phỏng', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -670,9 +670,9 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
                   color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(Icons.star_rounded, color: AppColors.star, size: 14),
                     SizedBox(width: 4),
                     Text(

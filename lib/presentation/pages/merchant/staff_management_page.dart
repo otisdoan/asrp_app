@@ -618,7 +618,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
           Container(
             width: 72,
             height: 72,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.bgSoft,
               shape: BoxShape.circle,
             ),
@@ -892,7 +892,7 @@ class _StaffEditorSheetContentState
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _selectedBranch,
+                      initialValue: _selectedBranch,
                       dropdownColor: Colors.white,
                       style: const TextStyle(
                           fontSize: 14,
@@ -951,8 +951,9 @@ class _StaffEditorSheetContentState
                                 fontSize: 13, fontWeight: FontWeight.bold)),
                         selected: _selectedRole == 'Manager',
                         onSelected: (selected) {
-                          if (selected)
+                          if (selected) {
                             setState(() => _selectedRole = 'Manager');
+                          }
                         },
                         selectedColor: Colors.orange.shade100,
                         backgroundColor: AppColors.bgSoft,

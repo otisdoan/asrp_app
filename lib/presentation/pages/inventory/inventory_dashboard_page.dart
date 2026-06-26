@@ -65,9 +65,10 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
       final matchesSearch =
           ing.name.toLowerCase().contains(_searchQuery.toLowerCase());
       if (_statusFilter == 'Tất cả') return matchesSearch;
-      if (_statusFilter == 'Hết hàng')
+      if (_statusFilter == 'Hết hàng') {
         return matchesSearch &&
             (ing.status == 'Hết hàng' || ing.currentStock <= 0);
+      }
       if (_statusFilter == 'Cảnh báo/Kho thấp') {
         return matchesSearch &&
             (ing.status == 'Kho thấp' ||
@@ -294,14 +295,14 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
               // ===== INGREDIENT LIST =====
               Expanded(
                 child: filteredIngredients.isEmpty
-                    ? Center(
+                    ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.inventory_2_outlined,
                                 size: 48, color: AppColors.textPlaceholder),
-                            const SizedBox(height: 12),
-                            const Text(
+                            SizedBox(height: 12),
+                            Text(
                               'Không tìm thấy nguyên liệu phù hợp',
                               style: TextStyle(
                                   color: AppColors.textSecondary, fontSize: 14),
@@ -326,12 +327,12 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
               // ===== BOTTOM ACTION BUTTONS =====
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   border: Border(
                     top: BorderSide(color: AppColors.outlineVariant),
                   ),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
                       color: Color(0x08000000),
                       blurRadius: 8,
@@ -491,9 +492,9 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
 
   Widget _buildIngredientCard(InventoryIngredient ing) {
     IconData itemIcon = Icons.inventory_2;
-    if (ing.name.contains('Mì'))
+    if (ing.name.contains('Mì')) {
       itemIcon = Icons.restaurant;
-    else if (ing.name.contains('Thịt'))
+    } else if (ing.name.contains('Thịt'))
       itemIcon = Icons.kebab_dining;
     else if (ing.name.contains('Hành'))
       itemIcon = Icons.eco;

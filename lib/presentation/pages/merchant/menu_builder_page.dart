@@ -580,8 +580,8 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           color: AppColors.bgSoft,
-          child: Row(
-            children: const [
+          child: const Row(
+            children: [
               Icon(Icons.info_outline_rounded,
                   color: AppColors.primary, size: 16),
               SizedBox(width: 8),
@@ -750,10 +750,10 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
   }
 
   Widget _buildEmptyDishesState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.no_meals_rounded, size: 50, color: AppColors.textTertiary),
           SizedBox(height: 12),
           Text(
@@ -1385,10 +1385,12 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                                   style: const TextStyle(fontSize: 14),
                                   keyboardType: TextInputType.number,
                                   validator: (value) {
-                                    if (value == null || value.trim().isEmpty)
+                                    if (value == null || value.trim().isEmpty) {
                                       return 'Nhập giá bán';
-                                    if (double.tryParse(value) == null)
+                                    }
+                                    if (double.tryParse(value) == null) {
                                       return 'Không hợp lệ';
+                                    }
                                     return null;
                                   },
                                   decoration: _buildInputDec('Ví dụ: 50000'),
@@ -1492,8 +1494,8 @@ class _DishEditorSheetContentState extends State<_DishEditorSheetContent> {
                           _buildFieldLabel('Nhóm tùy chọn / Topping đi kèm'),
                           GestureDetector(
                             onTap: _addNewOptionGroup,
-                            child: Row(
-                              children: const [
+                            child: const Row(
+                              children: [
                                 Icon(Icons.add_circle_outline_rounded,
                                     size: 16, color: AppColors.primary),
                                 SizedBox(width: 4),

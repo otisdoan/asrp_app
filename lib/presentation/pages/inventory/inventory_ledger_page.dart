@@ -63,8 +63,9 @@ class _InventoryLedgerPageState extends ConsumerState<InventoryLedgerPage> {
                 final isSelected = type == _selectedType;
                 
                 String displayName = 'Tất cả';
-                if (type == 'Import') displayName = 'Nhập kho';
-                else if (type == 'Deduction') displayName = 'Bán hàng';
+                if (type == 'Import') {
+                  displayName = 'Nhập kho';
+                } else if (type == 'Deduction') displayName = 'Bán hàng';
                 else if (type == 'Adjustment') displayName = 'Kiểm kê';
 
                 return ChoiceChip(

@@ -402,7 +402,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 const SizedBox(height: 4),
                 Text(
                   subText,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                     height: 1.4,

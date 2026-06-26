@@ -53,8 +53,9 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
     final priceController = TextEditingController();
 
     // Default prices based on ingredient name
-    if (ing.name.contains('Mì')) priceController.text = '32.000';
-    else if (ing.name.contains('Bò')) priceController.text = '210.000';
+    if (ing.name.contains('Mì')) {
+      priceController.text = '32.000';
+    } else if (ing.name.contains('Bò')) priceController.text = '210.000';
     else if (ing.name.contains('Hành')) priceController.text = '18.000';
     else if (ing.name.contains('Gia')) priceController.text = '15.000';
     else if (ing.name.contains('Tôm')) priceController.text = '120.000';
@@ -328,14 +329,14 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
 
                   // ===== IMPORT ROW ITEMS =====
                   if (_importItems.isEmpty)
-                    Center(
+                    const Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(32.0),
+                        padding: EdgeInsets.all(32.0),
                         child: Column(
                           children: [
                             Icon(Icons.add_shopping_cart, size: 40, color: AppColors.textPlaceholder),
-                            const SizedBox(height: 12),
-                            const Text(
+                            SizedBox(height: 12),
+                            Text(
                               'Chưa có nguyên liệu nào được chọn\nBấm nút ở trên để thêm',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
@@ -363,12 +364,12 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
           // ===== TOTAL SUMMARY & CONFIRM BAR =====
           Container(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(
                 top: BorderSide(color: AppColors.outlineVariant),
               ),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
                   color: Color(0x08000000),
                   blurRadius: 8,
@@ -405,7 +406,7 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: AppColors.outlineVariant),
+                              side: const BorderSide(color: AppColors.outlineVariant),
                             ),
                             elevation: 0,
                           ),

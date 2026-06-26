@@ -21,8 +21,30 @@ class _SuperAdminDashboardPageState
   String _selectedBranchFilter =
       'Tất cả chi nhánh'; // 'Tất cả chi nhánh' | 'Quận 1' | 'Quận 3' | 'Phú Nhuận'
   String _selectedTimeFilter =
-      'Hôm nay'; // 'Hôm nay' | 'Tuần này' | 'Tháng này'
+      'Hôm nay'; // 'Hôm nay' | 'Tuần này' | 'Tháng này' | 'Tùy chọn'
+  DateTimeRange? _selectedDateRange;
   int _selectedChartBarIndex = 0; // Selected branch in comparison chart
+
+  int get _customRangeDays {
+    if (_selectedDateRange == null) return 7;
+    return _selectedDateRange!.duration.inDays + 1;
+  }
+
+  int _selectedTabIdx =
+      0; // 0: Tài chính chuỗi, 1: Kho chuỗi, 2: Vận hành chuỗi
+
+  // Dynamic Tab Title
+  String get _selectedTabTitle {
+    switch (_selectedTabIdx) {
+      case 1:
+        return 'Tồn kho toàn chuỗi';
+      case 2:
+        return 'Vận hành toàn chuỗi';
+      case 0:
+      default:
+        return 'Doanh thu toàn chuỗi';
+    }
+  }
 
   // Interactive Live Inventory Stock Levels (Reactive state)
   final Map<String, Map<String, double>> _inventory = {
@@ -56,6 +78,15 @@ class _SuperAdminDashboardPageState
 
   // Mock branch revenue datasets based on Time Filter
   Map<String, double> get _branchRevenues {
+    if (_selectedTimeFilter == 'Tùy chọn') {
+      final double factor = _customRangeDays.toDouble();
+      return {
+        'Quận 1': 42.5 * factor,
+        'Quận 3': 38.2 * factor,
+        'Phú Nhuận': 27.5 * factor,
+      };
+    }
+
     switch (_selectedTimeFilter) {
       case 'Tuần này':
         return {
@@ -92,6 +123,40 @@ class _SuperAdminDashboardPageState
 
   int get _activeBranchesCount => _branchRevenues.keys.length;
 
+  Future<void> _selectCustomDateRange() async {
+    final initialRange = _selectedDateRange ??
+        DateTimeRange(
+          start: DateTime.now().subtract(const Duration(days: 7)),
+          end: DateTime.now(),
+        );
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      initialDateRange: initialRange,
+      firstDate: DateTime(2025),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (pickedRange != null) {
+      setState(() {
+        _selectedDateRange = pickedRange;
+        _selectedTimeFilter = 'Tùy chọn';
+      });
+    }
+  }
+
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -100,8 +165,7 @@ class _SuperAdminDashboardPageState
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.swap_horiz_rounded,
-                color: AppColors.primary, size: 24),
+            Icon(Icons.swap_horiz_rounded, color: AppColors.primary, size: 24),
             SizedBox(width: 10),
             Text(
               'Về trang Khách hàng?',
@@ -176,293 +240,296 @@ class _SuperAdminDashboardPageState
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.divider,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Row(
+                      children: [
+                        Icon(Icons.swap_horizontal_circle_outlined,
+                            color: AppColors.primary, size: 24),
+                        SizedBox(width: 8),
+                        Text(
+                          'Điều phối nguyên liệu chuỗi',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Luân chuyển nguyên liệu từ chi nhánh dư thừa sang chi nhánh thiếu hụt',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 1. Choose Ingredient
+                    const Text('Chọn nguyên liệu',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.divider,
-                        borderRadius: BorderRadius.circular(2),
+                        color: AppColors.bgSoft,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedIngredient,
+                          isExpanded: true,
+                          icon: const Icon(Icons.arrow_drop_down,
+                              color: AppColors.primary),
+                          items: _inventory.keys.map((ing) {
+                            return DropdownMenuItem(
+                                value: ing, child: Text(ing));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedIngredient = val;
+                                // Auto adjust branches if overlapping
+                                if (sourceBranch == targetBranch) {
+                                  targetBranch = sourceBranch == 'Quận 3'
+                                      ? 'Quận 1'
+                                      : 'Quận 3';
+                                }
+                              });
+                            }
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Row(
-                    children: [
-                      Icon(Icons.swap_horizontal_circle_outlined,
-                          color: AppColors.primary, size: 24),
-                      SizedBox(width: 8),
-                      Text(
-                        'Điều phối nguyên liệu chuỗi',
+                    const SizedBox(height: 14),
+
+                    // 2. Source and Target branch selection in a Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Chi nhánh nguồn',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.bgSoft,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: sourceBranch,
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.arrow_drop_down,
+                                        color: AppColors.primary),
+                                    items: ['Quận 1', 'Quận 3', 'Phú Nhuận']
+                                        .map((br) {
+                                      return DropdownMenuItem(
+                                          value: br, child: Text(br));
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setModalState(() {
+                                          sourceBranch = val;
+                                          if (sourceBranch == targetBranch) {
+                                            targetBranch =
+                                                sourceBranch == 'Quận 3'
+                                                    ? 'Quận 1'
+                                                    : 'Quận 3';
+                                          }
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.arrow_forward,
+                            color: AppColors.textTertiary, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Chi nhánh đích',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.bgSoft,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: targetBranch,
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.arrow_drop_down,
+                                        color: AppColors.primary),
+                                    items: ['Quận 1', 'Quận 3', 'Phú Nhuận']
+                                        .map((br) {
+                                      return DropdownMenuItem(
+                                          value: br, child: Text(br));
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setModalState(() {
+                                          targetBranch = val;
+                                          if (sourceBranch == targetBranch) {
+                                            sourceBranch =
+                                                targetBranch == 'Quận 3'
+                                                    ? 'Quận 1'
+                                                    : 'Quận 3';
+                                          }
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Current Source inventory display
+                    Row(
+                      children: [
+                        const Icon(Icons.inventory_2_outlined,
+                            size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tồn kho nguồn tại $sourceBranch: ',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        Text(
+                          '${sourceStock.toStringAsFixed(1)} kg',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: sourceStock <=
+                                    _getSafeThreshold(selectedIngredient)
+                                ? AppColors.error
+                                : AppColors.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 3. Input quantity
+                    const Text('Số lượng điều phối (kg)',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                            fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: qtyController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(
+                          fontSize: 14,
                           color: AppColors.textPrimary,
-                        ),
+                          fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        hintText: 'Nhập số kg...',
+                        filled: true,
+                        fillColor: AppColors.bgSoft,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Luân chuyển nguyên liệu từ chi nhánh dư thừa sang chi nhánh thiếu hụt',
-                    style:
-                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // 1. Choose Ingredient
-                  const Text('Chọn nguyên liệu',
-                      style:
-                          TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSoft,
-                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedIngredient,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down,
-                            color: AppColors.primary),
-                        items: _inventory.keys.map((ing) {
-                          return DropdownMenuItem(value: ing, child: Text(ing));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setModalState(() {
-                              selectedIngredient = val;
-                              // Auto adjust branches if overlapping
-                              if (sourceBranch == targetBranch) {
-                                targetBranch = sourceBranch == 'Quận 3'
-                                    ? 'Quận 1'
-                                    : 'Quận 3';
-                              }
-                            });
+                    const SizedBox(height: 24),
+
+                    // Action Confirm Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final transferQty =
+                              double.tryParse(qtyController.text) ?? 0.0;
+                          if (transferQty <= 0.0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Vui lòng nhập số lượng hợp lệ lớn hơn 0.')),
+                            );
+                            return;
                           }
+                          if (transferQty > sourceStock) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Không đủ tồn kho nguồn để thực hiện! Tối đa: ${sourceStock.toStringAsFixed(1)}kg.')),
+                            );
+                            return;
+                          }
+
+                          // Execute reactive transfer in State
+                          setState(() {
+                            _inventory[selectedIngredient]![sourceBranch] =
+                                sourceStock - transferQty;
+                            final targetStock = _inventory[selectedIngredient]
+                                    ?[targetBranch] ??
+                                0.0;
+                            _inventory[selectedIngredient]![targetBranch] =
+                                targetStock + transferQty;
+                          });
+
+                          Navigator.pop(ctx);
+                          _showTransferSuccessDialog(selectedIngredient,
+                              sourceBranch, targetBranch, transferQty);
                         },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // 2. Source and Target branch selection in a Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Chi nhánh Nguồn',
+                            Icon(Icons.local_shipping_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Xác nhận vận chuyển',
                                 style: TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: AppColors.bgSoft,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: sourceBranch,
-                                  isExpanded: true,
-                                  icon: const Icon(Icons.arrow_drop_down,
-                                      color: AppColors.primary),
-                                  items: ['Quận 1', 'Quận 3', 'Phú Nhuận']
-                                      .map((br) {
-                                    return DropdownMenuItem(
-                                        value: br, child: Text(br));
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setModalState(() {
-                                        sourceBranch = val;
-                                        if (sourceBranch == targetBranch) {
-                                          targetBranch =
-                                              sourceBranch == 'Quận 3'
-                                                  ? 'Quận 1'
-                                                  : 'Quận 3';
-                                        }
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.arrow_forward,
-                          color: AppColors.textTertiary, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Chi nhánh Đích',
-                                style: TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: AppColors.bgSoft,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: targetBranch,
-                                  isExpanded: true,
-                                  icon: const Icon(Icons.arrow_drop_down,
-                                      color: AppColors.primary),
-                                  items: ['Quận 1', 'Quận 3', 'Phú Nhuận']
-                                      .map((br) {
-                                    return DropdownMenuItem(
-                                        value: br, child: Text(br));
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setModalState(() {
-                                        targetBranch = val;
-                                        if (sourceBranch == targetBranch) {
-                                          sourceBranch =
-                                              targetBranch == 'Quận 3'
-                                                  ? 'Quận 1'
-                                                  : 'Quận 3';
-                                        }
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Current Source inventory display
-                  Row(
-                    children: [
-                      const Icon(Icons.inventory_2_outlined,
-                          size: 14, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tồn kho nguồn tại $sourceBranch: ',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        '${sourceStock.toStringAsFixed(1)} kg',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: sourceStock <=
-                                  _getSafeThreshold(selectedIngredient)
-                              ? AppColors.error
-                              : AppColors.success,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // 3. Input quantity
-                  const Text('Số lượng điều phối (kg)',
-                      style:
-                          TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: qtyController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      hintText: 'Nhập số kg...',
-                      filled: true,
-                      fillColor: AppColors.bgSoft,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Action Confirm Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final transferQty =
-                            double.tryParse(qtyController.text) ?? 0.0;
-                        if (transferQty <= 0.0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Vui lòng nhập số lượng hợp lệ lớn hơn 0.')),
-                          );
-                          return;
-                        }
-                        if (transferQty > sourceStock) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'Không đủ tồn kho nguồn để thực hiện! Tối đa: ${sourceStock.toStringAsFixed(1)}kg.')),
-                          );
-                          return;
-                        }
-
-                        // Execute reactive transfer in State
-                        setState(() {
-                          _inventory[selectedIngredient]![sourceBranch] =
-                              sourceStock - transferQty;
-                          final targetStock = _inventory[selectedIngredient]
-                                  ?[targetBranch] ??
-                              0.0;
-                          _inventory[selectedIngredient]![targetBranch] =
-                              targetStock + transferQty;
-                        });
-
-                        Navigator.pop(ctx);
-                        _showTransferSuccessDialog(selectedIngredient,
-                            sourceBranch, targetBranch, transferQty);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.local_shipping_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text('Xác nhận vận chuyển',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-             ),
             );
           },
         );
@@ -528,59 +595,66 @@ class _SuperAdminDashboardPageState
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final displayName = user?.displayName ?? 'SuperAdmin';
+    final rawName = user?.displayName;
+    final displayName =
+        (rawName == null || rawName.trim().isEmpty) ? 'Tổng quản trị' : rawName;
     final initialChar = displayName.isNotEmpty
         ? displayName.substring(0, 1).toUpperCase()
         : 'S';
 
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              // 1. Gradient Header standard
-              _buildHeader(displayName, initialChar),
+        child: Column(
+          children: [
+            // 1. Sleek Gradient Header Section (Fixed at top)
+            _buildHeader(displayName, initialChar),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
+            // 2. Scrollable Body
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 3. Sliding Segmented Tab Selector (Primary navigation)
+                      _buildTabSelector(),
+                      const SizedBox(height: 16),
 
-                    // 2. Interactive Branch Selector at the top
-                    _buildBranchSelector(),
-                    const SizedBox(height: 16),
+                      // 4. Dynamic Title & Filter Chips
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _selectedTabTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _buildFilterRow(),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
 
-                    // 3. Time Filter pill row
-                    _buildTimeFilter(),
-
-                    // 4. Main core KPIs block
-                    _buildKPIsSection(),
-                    const SizedBox(height: 16),
-
-                    // 5. Comparative Branch Chart
-                    if (_selectedBranchFilter == 'Tất cả chi nhánh') ...[
-                      _buildBranchComparisonChart(),
+                      // 5. Dynamic Tab View contents
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildSelectedTabContent(),
+                      ),
                       const SizedBox(height: 16),
                     ],
-
-                    // 6. Ingredient Stock Alerts Grid
-                    _buildStockAlertsGrid(),
-                    const SizedBox(height: 16),
-
-                    // 7. Food popularity best/worst sellers
-                    _buildDishPopularitySection(),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -607,7 +681,7 @@ class _SuperAdminDashboardPageState
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: SafeArea(
         bottom: false,
         child: Row(
@@ -676,76 +750,6 @@ class _SuperAdminDashboardPageState
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Elegant Branch Selector UI ─────────────────────────────────────────
-  Widget _buildBranchSelector() {
-    return InkWell(
-      onTap: _showBranchSelectorSheet,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.storefront_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'CHI NHÁNH BÁO CÁO',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _selectedBranchFilter,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: AppColors.textSecondary,
-              size: 22,
             ),
           ],
         ),
@@ -877,94 +881,293 @@ class _SuperAdminDashboardPageState
     );
   }
 
-  // ─── Time Filter Segmented Pill Row ────────────────────────────────────
-  Widget _buildTimeFilter() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgSoft,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.all(4),
+  // ─── Unified Horizontal Filter Row ──────────────────────────────────────
+  Widget _buildFilterRow() {
+    final bool isCustom = _selectedTimeFilter == 'Tùy chọn';
+    final String customLabel = isCustom && _selectedDateRange != null
+        ? '${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month} - ${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}'
+        : 'Chọn ngày';
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
       child: Row(
-        children: ['Hôm nay', 'Tuần này', 'Tháng này'].map((filter) {
-          final isSelected = _selectedTimeFilter == filter;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedTimeFilter = filter),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    filter,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          isSelected ? FontWeight.w800 : FontWeight.w600,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
+        children: [
+          // Branch Selector ActionChip
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ActionChip(
+              avatar: const Icon(
+                Icons.storefront_rounded,
+                size: 14,
+                color: AppColors.primary,
+              ),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _selectedBranchFilter,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
                     ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+              onPressed: _showBranchSelectorSheet,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+              side: const BorderSide(color: AppColors.primary, width: 0.8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          // Time Filter Chips
+          ...['Hôm nay', 'Tuần này', 'Tháng này'].map((filter) {
+            final isSelected = _selectedTimeFilter == filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6.0),
+              child: ChoiceChip(
+                label: Text(
+                  filter,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                  ),
+                ),
+                selected: isSelected,
+                showCheckmark: false,
+                onSelected: (val) {
+                  if (val) {
+                    setState(() {
+                      _selectedTimeFilter = filter;
+                    });
+                  }
+                },
+                selectedColor: AppColors.primary,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                pressElevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: isSelected ? AppColors.primary : AppColors.divider,
+                    width: 0.8,
                   ),
                 ),
               ),
+            );
+          }),
+          Padding(
+            padding: const EdgeInsets.only(right: 6.0),
+            child: ChoiceChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    size: 11,
+                    color: isCustom ? Colors.white : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    customLabel.replaceAll(' ', '\u00A0'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isCustom ? FontWeight.bold : FontWeight.w600,
+                      color: isCustom ? Colors.white : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              selected: isCustom,
+              showCheckmark: false,
+              onSelected: (val) {
+                _selectCustomDateRange();
+              },
+              selectedColor: AppColors.primary,
+              backgroundColor: Colors.white,
+              elevation: 0,
+              pressElevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: isCustom ? AppColors.primary : AppColors.divider,
+                  width: 0.8,
+                ),
+              ),
             ),
-          );
-        }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Elegant Gradient Net Sales Card ───────────────────────────────────
+  Widget _buildNetSalesOverview() {
+    final revenueText =
+        '${(_currentFilteredRevenue * 1000000).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}đ';
+
+    final String growth = _selectedTimeFilter == 'Hôm nay'
+        ? '+18.5%'
+        : _selectedTimeFilter == 'Tuần này'
+            ? '+15.2%'
+            : _selectedTimeFilter == 'Tháng này'
+                ? '+19.8%'
+                : '+16.5%';
+
+    final String compareText = _selectedTimeFilter == 'Hôm nay'
+        ? 'So với cùng kỳ hôm qua (92.4M)'
+        : _selectedTimeFilter == 'Tuần này'
+            ? 'So với tuần trước (612.0M)'
+            : _selectedTimeFilter == 'Tháng này'
+                ? 'So với tháng trước (2.56B)'
+                : 'Dữ liệu tổng hợp theo khoảng ngày';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Tổng doanh thu chuỗi',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white70,
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.trending_up,
+                        color: Colors.white, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      growth,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            revenueText,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            compareText,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // ─── KPI Cards Section ─────────────────────────────────────────────────
   Widget _buildKPIsSection() {
-    final revenueText =
-        '${(_currentFilteredRevenue * 1000000).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}đ';
     final isAll = _selectedBranchFilter == 'Tất cả chi nhánh';
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.5,
+    int ordersCount = isAll ? 1542 : 524;
+    if (_selectedTimeFilter == 'Hôm nay') {
+      ordersCount = isAll ? 180 : 60;
+    } else if (_selectedTimeFilter == 'Tuần này') {
+      ordersCount = isAll ? 1200 : 400;
+    } else if (_selectedTimeFilter == 'Tùy chọn') {
+      final factor = _customRangeDays;
+      ordersCount = ((isAll ? 180 : 60) * factor).round();
+    }
+
+    final formattedOrders = ordersCount.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
+
+    return Column(
       children: [
-        _buildKPICard(
-          title: 'Tổng doanh thu chuỗi',
-          value: revenueText,
-          icon: Icons.monetization_on_rounded,
-          iconBg: AppColors.badgeBestBg,
-          iconColor: AppColors.badgeBestText,
-          growth: '+18.5%',
-        ),
-        _buildKPICard(
+        _buildKPITile(
           title: 'Chi nhánh hoạt động',
           value: '$_activeBranchesCount / $_activeBranchesCount tốt',
           icon: Icons.store_rounded,
           iconBg: AppColors.successContainer,
           iconColor: AppColors.success,
         ),
-        _buildKPICard(
+        const SizedBox(height: 10),
+        _buildKPITile(
+          title: 'Lợi nhuận gộp ước tính',
+          value:
+              '${((_currentFilteredRevenue * 0.65) * 1000000).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}đ',
+          icon: Icons.trending_up_rounded,
+          iconBg: AppColors.badgeBestBg,
+          iconColor: AppColors.badgeBestText,
+          badgeText: '65%',
+        ),
+        const SizedBox(height: 10),
+        _buildKPITile(
           title: 'Đơn hàng thành công',
-          value: isAll ? '1,542 đơn' : '524 đơn',
+          value: '$formattedOrders đơn',
           icon: Icons.shopping_bag_rounded,
           iconBg: AppColors.badgeNewBg,
           iconColor: AppColors.badgeNewText,
-          growth: '+12.4%',
+          growth: _selectedTimeFilter == 'Hôm nay' ? '+12.4%' : null,
         ),
-        _buildKPICard(
+        const SizedBox(height: 10),
+        _buildKPITile(
           title: 'Giá trị trung bình bill',
           value: '142,500đ',
           icon: Icons.receipt_long_rounded,
@@ -975,84 +1178,99 @@ class _SuperAdminDashboardPageState
     );
   }
 
-  Widget _buildKPICard({
+  Widget _buildKPITile({
     required String title,
     required String value,
     required IconData icon,
     required Color iconBg,
     required Color iconColor,
     String? growth,
+    String? badgeText,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 16),
-              ),
-              if (growth != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.successContainer,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    growth,
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.success,
-                    ),
-                  ),
-                ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconBg,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 10,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11,
                     color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary),
-              ),
-            ],
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
+          if (growth != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.successContainer,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Text(
+                growth,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.success,
+                ),
+              ),
+            ),
+          if (badgeText != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Text(
+                badgeText,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: iconColor,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1085,7 +1303,7 @@ class _SuperAdminDashboardPageState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Doanh thu so sánh Chi nhánh',
+                'Doanh thu so sánh chi nhánh',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -1195,7 +1413,7 @@ class _SuperAdminDashboardPageState
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Chi nhánh ${list[_selectedChartBarIndex].key} dẫn đầu doanh thu với ${list[_selectedChartBarIndex].value.toStringAsFixed(1)} Triệu VNĐ.',
+                  'Chi nhánh ${list[_selectedChartBarIndex].key} dẫn đầu doanh thu với ${list[_selectedChartBarIndex].value.toStringAsFixed(1)} triệu VNĐ.',
                   style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -1232,7 +1450,7 @@ class _SuperAdminDashboardPageState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tồn kho & Điều phối Cốt lõi',
+                'Tồn kho & Điều phối cốt lõi',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -1404,7 +1622,7 @@ class _SuperAdminDashboardPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Phân tích Phổ biến Món ăn chuỗi',
+            'Phân tích phổ biến món ăn chuỗi',
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -1503,6 +1721,467 @@ class _SuperAdminDashboardPageState
           ),
         ],
       ),
+    );
+  }
+
+  // ─── SuperAdmin Dashboard Sub-Tabs ──────────────────────────────────────
+
+  Widget _buildTabSelector() {
+    final List<String> tabs = [
+      'Tài chính chuỗi',
+      'Kho chuỗi',
+      'Vận hành chuỗi'
+    ];
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: AppColors.bgSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: List.generate(tabs.length, (idx) {
+          final isSelected = _selectedTabIdx == idx;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() {
+                _selectedTabIdx = idx;
+              }),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    tabs[idx],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildSelectedTabContent() {
+    switch (_selectedTabIdx) {
+      case 1:
+        return _buildInventoryTab();
+      case 2:
+        return _buildOperationsTab();
+      case 0:
+      default:
+        return _buildFinancialTab();
+    }
+  }
+
+  Widget _buildFinancialTab() {
+    final isAll = _selectedBranchFilter == 'Tất cả chi nhánh';
+
+    return Column(
+      key: const ValueKey('financial_tab'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildNetSalesOverview(),
+        const SizedBox(height: 18),
+        _buildKPIsSection(),
+        const SizedBox(height: 16),
+        if (isAll) ...[
+          _buildBranchComparisonChart(),
+          const SizedBox(height: 16),
+        ],
+        _buildConsolidatedPayments(),
+        const SizedBox(height: 16),
+        _buildConsolidatedOrderSources(),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildConsolidatedPayments() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cơ cấu thanh toán toàn chuỗi',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildPaymentRow(
+              'Chuyển khoản (QR)', 0.52, AppColors.secondary, '52%'),
+          const SizedBox(height: 8),
+          _buildPaymentRow('Tiền mặt', 0.28, AppColors.primary, '28%'),
+          const SizedBox(height: 8),
+          _buildPaymentRow(
+              'Ví điện tử (Momo/ZaloPay)', 0.20, AppColors.accent, '20%'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentRow(
+      String label, double pct, Color color, String pctText) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600)),
+            Text(pctText,
+                style: TextStyle(
+                    fontSize: 11, color: color, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: pct,
+            minHeight: 5,
+            backgroundColor: AppColors.divider.withValues(alpha: 0.5),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsolidatedOrderSources() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cơ cấu nguồn đơn hàng toàn chuỗi',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildPaymentRow(
+              'Ăn tại chỗ (Dine-in)', 0.64, AppColors.primary, '64%'),
+          const SizedBox(height: 8),
+          _buildPaymentRow(
+              'Đặt trực tuyến / Mang đi', 0.36, AppColors.tertiary, '36%'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInventoryTab() {
+    return Column(
+      key: const ValueKey('inventory_tab'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStockAlertsGrid(),
+        const SizedBox(height: 16),
+        _buildSupplyChainTracker(),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildSupplyChainTracker() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Logistics & Bếp trung tâm',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(Icons.local_shipping,
+                      color: AppColors.primary, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    '3 phiếu đang chạy',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildLogisticsItem(
+            code: 'CK-8942',
+            route: 'Bếp trung tâm ➔ Chi nhánh Quận 1',
+            status: 'Đang vận chuyển',
+            statusColor: AppColors.primary,
+            time: 'Dự kiến đến lúc 18:30',
+            itemCount: '150kg bánh phở, 30kg bò',
+          ),
+          const Divider(color: AppColors.divider, height: 16),
+          _buildLogisticsItem(
+            code: 'CK-8941',
+            route: 'Chi nhánh Quận 3 ➔ Chi nhánh Quận 1',
+            status: 'Hoàn thành',
+            statusColor: AppColors.success,
+            time: 'Đã nhận lúc 15:40 (Đủ lượng)',
+            itemCount: '5kg thịt bò tái (Điều phối cứu trợ)',
+          ),
+          const Divider(color: AppColors.divider, height: 16),
+          _buildLogisticsItem(
+            code: 'CK-8940',
+            route: 'Bếp trung tâm ➔ Chi nhánh Phú Nhuận',
+            status: 'Chờ xuất kho',
+            statusColor: AppColors.accent,
+            time: 'Dự kiến xuất lúc 19:00',
+            itemCount: '80kg bánh phở, 20kg sườn',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogisticsItem({
+    required String code,
+    required String route,
+    required String status,
+    required Color statusColor,
+    required String time,
+    required String itemCount,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              code,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                status,
+                style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          route,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              itemCount,
+              style:
+                  const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            ),
+            Text(
+              time,
+              style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textTertiary,
+                  fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOperationsTab() {
+    return Column(
+      key: const ValueKey('operations_tab'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDishPopularitySection(),
+        const SizedBox(height: 16),
+        _buildBranchSpeedComparison(),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildBranchSpeedComparison() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'So sánh hiệu suất vận hành chi nhánh',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSpeedRow('Chi nhánh Quận 1', '12,5 phút', 0.65,
+              AppColors.success, 'Tỷ lệ hủy: 1.5%'),
+          const SizedBox(height: 12),
+          _buildSpeedRow('Chi nhánh Quận 3', '11,8 phút', 0.58,
+              AppColors.primary, 'Tỷ lệ hủy: 1.8%'),
+          const SizedBox(height: 12),
+          _buildSpeedRow('Chi nhánh Phú Nhuận', '13,2 phút', 0.72,
+              AppColors.accent, 'Tỷ lệ hủy: 2.1%'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpeedRow(String name, String timeText, double val, Color color,
+      String cancelText) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.timer_outlined,
+                    size: 12, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  timeText,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: val,
+            minHeight: 4,
+            backgroundColor: AppColors.divider.withValues(alpha: 0.5),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          cancelText,
+          style: const TextStyle(fontSize: 10, color: AppColors.textTertiary),
+        ),
+      ],
     );
   }
 }

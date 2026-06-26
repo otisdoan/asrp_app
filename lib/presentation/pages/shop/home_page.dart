@@ -18,6 +18,7 @@ import 'cart_page.dart';
 import 'payment_page.dart';
 import 'orders_page.dart';
 import 'store_detail_page.dart';
+import 'chat_assistant_page.dart';
 import '../../../core/services/location_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -233,7 +234,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildBottomNavigationBar() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
       ),
@@ -263,6 +264,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return InkWell(
       onTap: () {
+        if (index == 3) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChatAssistantPage()),
+          );
+          return;
+        }
         setState(() {
           _currentTabIndex = index;
         });
@@ -335,13 +343,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       case 2:
         return const OrdersPage();
       case 3:
-        // Placeholder for other tabs
-        return const Center(
-          child: Text(
-            'Đang phát triển...',
-            style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-          ),
-        );
+        return const ChatAssistantPage();
       default:
         return Column(children: [
           Expanded(
@@ -357,9 +359,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Promo Banner
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 14, 8, 0),
-                      child: const PromoBannerSection(),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(8, 14, 8, 0),
+                      child: PromoBannerSection(),
                     ),
                     const SizedBox(height: 12),
                     // Categories

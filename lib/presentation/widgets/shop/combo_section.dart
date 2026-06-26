@@ -18,7 +18,7 @@ class ComboSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final combos = MockData.combos;
+    const combos = MockData.combos;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const SectionHeader(icon: '🎁', title: 'Combo tiết kiệm', subtitle: 'Giảm giá sâu khi đặt theo combo'),
       ...combos.map((c) => _buildComboCard(context, c)),

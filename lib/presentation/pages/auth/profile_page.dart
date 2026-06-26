@@ -334,6 +334,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ),
                           ),
                           _buildMenuItem(
+                            icon: Icons.dashboard_customize_outlined,
+                            title: 'Báo cáo chuỗi',
+                            subtitle:
+                                'Xem giao diện báo cáo thương hiệu nhiều chi nhánh',
+                            onTap: () => context
+                                .push(AppConstants.routeSuperAdminDashboard),
+                          ),
+                          _buildMenuItem(
                             icon: Icons.people_outline_rounded,
                             title: 'Quản lý nhân viên chi nhánh',
                             subtitle: 'Bổ nhiệm Quản lý chi nhánh & nhân viên',

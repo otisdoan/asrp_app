@@ -163,12 +163,12 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
           // ===== CONFIRM BAR =====
           Container(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(
                 top: BorderSide(color: AppColors.outlineVariant),
               ),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
                   color: Color(0x08000000),
                   blurRadius: 8,

@@ -1,7 +1,6 @@
 import '../../core/network/dio_client.dart';
 import '../../core/constants/api_constants.dart';
 import '../models/auth_response_model.dart';
-import '../models/user_model.dart';
 
 class AuthRepository {
   final DioClient _dioClient = DioClient();

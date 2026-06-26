@@ -20,9 +20,7 @@ import '../presentation/pages/shop/favorite_shops_page.dart';
 import '../presentation/pages/merchant/store_setup_page.dart';
 import '../presentation/pages/merchant/menu_builder_page.dart';
 import '../presentation/pages/merchant/staff_management_page.dart';
-import '../providers/branch_registration_provider.dart';
 import '../presentation/pages/shop/section_detail_page.dart';
-import '../presentation/pages/shop/order_success_page.dart';
 import '../presentation/pages/shop/order_failure_page.dart';
 import '../presentation/pages/shop/payment_success_page.dart';
 import '../core/constants/app_constants.dart';
@@ -77,7 +75,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             return AppConstants.routeHome;
           }
         } else if (role == 'admin') {
-          // If admin has only 1 branch, redirect them from multi-branch SuperAdmin dashboard to single branch dashboard
+          // Temporarily disable redirect to allow testing SuperAdmin dashboard UI
+          /*
           final registration = ref.read(branchRegistrationProvider);
           final hasMultipleBranches =
               registration.registeredBranches.length > 1;
@@ -88,6 +87,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (path == '/admin/dashboard' && hasMultipleBranches) {
             return AppConstants.routeSuperAdminDashboard;
           }
+          */
         }
         // Admin (Chủ thương hiệu) and SuperAdmin are allowed to access all routes.
       }

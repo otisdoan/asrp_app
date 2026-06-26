@@ -198,7 +198,8 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
   // ─── Header ────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     final user = ref.watch(currentUserProvider);
-    final displayName = user?.displayName ?? 'Quản lý';
+    final rawName = user?.displayName;
+    final displayName = (rawName == null || rawName.trim().isEmpty) ? 'Quản lý' : rawName;
     final initialChar = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'M';
     final newPendingCount = _pendingOrders.where((o) => o.isNew).length;
 
@@ -221,7 +222,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -349,7 +350,7 @@ class _CashierPageState extends ConsumerState<CashierPage> with SingleTickerProv
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             // TabBar section
             Container(
               decoration: BoxDecoration(

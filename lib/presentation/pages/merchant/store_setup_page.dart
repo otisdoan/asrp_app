@@ -750,8 +750,8 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
                   color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
-                  children: const [
+                child: const Row(
+                  children: [
                     Icon(Icons.star_rounded, color: AppColors.star, size: 14),
                     SizedBox(width: 4),
                     Text(
@@ -885,7 +885,7 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
 
   // Beautiful interactive Live Preview Button
   Widget _buildLivePreviewButton() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: 48,
       child: OutlinedButton.icon(
@@ -1308,18 +1308,18 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
   // Dropdown for categories
   Widget _buildCategoryDropdown() {
     final List<String> categories = [
-      'Phở & Bún',
+      'Phở & bún',
       'Cơm Việt Nam',
-      'Đồ Ăn Vặt',
-      'Đồ Uống',
-      'Bánh Mì'
+      'Đồ ăn vặt',
+      'Đồ uống',
+      'Bánh mì'
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Lĩnh vực kinh doanh / Cuisine',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
             color: AppColors.textSecondary,

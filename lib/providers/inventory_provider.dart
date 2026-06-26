@@ -167,8 +167,9 @@ class InventoryState {
     double val = 0;
     for (var ing in ingredients) {
       double price = 0;
-      if (ing.name.contains('Mì')) price = 32000;
-      else if (ing.name.contains('Bò')) price = 21000;
+      if (ing.name.contains('Mì')) {
+        price = 32000;
+      } else if (ing.name.contains('Bò')) price = 21000;
       else if (ing.name.contains('Hành')) price = 18000;
       else if (ing.name.contains('Gia')) price = 15000;
       else if (ing.name.contains('Tôm')) price = 12000;

@@ -18,7 +18,7 @@ class BestSellerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = MockData.bestSellers;
+    const items = MockData.bestSellers;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const SectionHeader(icon: '🏆', title: 'Bán chạy nhất', subtitle: 'Được gọi nhiều nhất tuần này'),
       ...items.map((item) => _buildItem(item)),

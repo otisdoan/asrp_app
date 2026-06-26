@@ -46,8 +46,9 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
 
     // Mock unit cost calculation
     int baseCost = 0;
-    if (ing.name.contains('Mì')) baseCost = 32; // 32k/kg = 32đ/gram
-    else if (ing.name.contains('Bò')) baseCost = 210; // 210k/kg = 210đ/gram
+    if (ing.name.contains('Mì')) {
+      baseCost = 32; // 32k/kg = 32đ/gram
+    } else if (ing.name.contains('Bò')) baseCost = 210; // 210k/kg = 210đ/gram
     else if (ing.name.contains('Hành')) baseCost = 18; // 18k/kg = 18đ/gram
     else if (ing.name.contains('Gia')) baseCost = 15; // 15k/kg = 15đ/gram
     else if (ing.name.contains('Tôm')) baseCost = 3000; // 3000đ/con
@@ -72,8 +73,9 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
     
     // Get ingredient unit cost
     int baseCost = 0;
-    if (item['ingredientName'].contains('Mì')) baseCost = 32;
-    else if (item['ingredientName'].contains('Bò')) baseCost = 210;
+    if (item['ingredientName'].contains('Mì')) {
+      baseCost = 32;
+    } else if (item['ingredientName'].contains('Bò')) baseCost = 210;
     else if (item['ingredientName'].contains('Hành')) baseCost = 18;
     else if (item['ingredientName'].contains('Gia')) baseCost = 15;
     else if (item['ingredientName'].contains('Tôm')) baseCost = 3000;
@@ -291,12 +293,12 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
           // ===== PRICE BREAKDOWN & SAVE BAR =====
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(
                 top: BorderSide(color: AppColors.outlineVariant),
               ),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
                   color: Color(0x08000000),
                   blurRadius: 8,

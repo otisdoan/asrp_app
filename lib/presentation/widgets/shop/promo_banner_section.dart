@@ -15,7 +15,7 @@ class _PromoBannerSectionState extends State<PromoBannerSection> {
 
   @override
   Widget build(BuildContext context) {
-    final banners = MockData.promoBanners;
+    const banners = MockData.promoBanners;
     return Column(children: [
       CarouselSlider(
         options: CarouselOptions(

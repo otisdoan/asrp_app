@@ -329,7 +329,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
   // ─── Header ────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     final user = ref.watch(currentUserProvider);
-    final displayName = user?.displayName ?? 'Nhân viên';
+    final rawName = user?.displayName;
+    final displayName = (rawName == null || rawName.trim().isEmpty) ? 'Nhân viên' : rawName;
     final initialChar = displayName.isNotEmpty
         ? displayName.substring(0, 1).toUpperCase()
         : 'S';
@@ -353,7 +354,7 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: SafeArea(
         bottom: false,
         child: Row(
@@ -897,12 +898,12 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    const Row(
                       children: [
-                        const Icon(Icons.receipt_long,
+                        Icon(Icons.receipt_long,
                             size: 14, color: AppColors.primary),
-                        const SizedBox(width: 4),
-                        const Text(
+                        SizedBox(width: 4),
+                        Text(
                           'Xem chi tiết đơn',
                           style: TextStyle(
                             fontSize: 13,
@@ -912,8 +913,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
                             decorationColor: AppColors.primary,
                           ),
                         ),
-                        const SizedBox(width: 2),
-                        const Icon(Icons.chevron_right,
+                        SizedBox(width: 2),
+                        Icon(Icons.chevron_right,
                             size: 16, color: AppColors.primary),
                       ],
                     ),

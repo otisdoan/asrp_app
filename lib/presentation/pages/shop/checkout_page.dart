@@ -600,12 +600,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     if (_availablePickupTimes.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(12, 20, 12, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Thời gian nhận hàng',
               style: TextStyle(
                 fontSize: 17,
@@ -613,13 +613,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 12),
-            const Text(
+            SizedBox(height: 12),
+            Text(
               'Không có khung giờ nhận hàng khả dụng.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 20),
-            const Divider(height: 1, color: AppColors.outlineVariant),
+            SizedBox(height: 20),
+            Divider(height: 1, color: AppColors.outlineVariant),
           ],
         ),
       );
@@ -890,13 +890,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
                 const SizedBox(height: 16),
                 const Divider(height: 1, color: AppColors.outlineVariant),
-                Padding(
-                  padding: const EdgeInsets.all(16),
+                const Padding(
+                  padding: EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline_rounded,
+                      Icon(Icons.info_outline_rounded,
                           size: 14, color: AppColors.textTertiary),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Quán sẽ căn chỉnh chuẩn bị để món ăn luôn nóng hổi và sẵn sàng khi bạn tới nhận.',
@@ -986,7 +986,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 Container(
                   width: 20,
                   height: 20,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),

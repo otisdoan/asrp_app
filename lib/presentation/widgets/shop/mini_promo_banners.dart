@@ -6,7 +6,7 @@ class MiniPromoBanners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final promos = MockData.miniPromos;
+    const promos = MockData.miniPromos;
     return Row(children: promos.asMap().entries.map((e) {
       final idx = e.key;
       final p = e.value;
