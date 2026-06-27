@@ -6,8 +6,10 @@ import 'mock_store_detail_page.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/repositories/merchant_repository.dart';
+import '../../../data/models/branch_model.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/branch_registration_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../core/utils/top_notification.dart';
 
 class StoreSetupPage extends ConsumerStatefulWidget {
@@ -57,6 +59,7 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
   bool _isLoadingData = true;
   String? _errorMessage;
   String? _branchId;
+  List<BranchListItemModel> _branches = [];
 
   @override
   void initState() {
@@ -100,34 +103,28 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
     });
 
     try {
-      // 1. Get branch ID. We try to read approvedFirstBranchId from the registration state first.
-      var registrationData = ref.read(branchRegistrationProvider);
-      if (registrationData.approvedFirstBranchId == null || registrationData.approvedFirstBranchId!.isEmpty) {
-        try {
-          await ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus();
-          registrationData = ref.read(branchRegistrationProvider);
-        } catch (e) {
-          print('[StoreSetupPage] Error fetching application status for branch ID: $e');
+      // 1. Fetch available branches for current merchant's brand
+      final branchRepo = ref.read(branchRepositoryProvider);
+      final currentUser = ref.read(currentUserProvider);
+      final branches = await branchRepo.getBranches(brandId: currentUser?.brandId);
+      _branches = branches;
+
+      if (branches.isEmpty) {
+        throw Exception('Không tìm thấy chi nhánh nào để thiết lập. Vui lòng đăng ký chi nhánh trước.');
+      }
+
+      // 2. Determine selected branch ID
+      if (_branchId == null || _branchId!.isEmpty || !branches.any((b) => b.id == _branchId)) {
+        final registrationData = ref.read(branchRegistrationProvider);
+        final firstApprovedId = registrationData.approvedFirstBranchId;
+        if (firstApprovedId != null && firstApprovedId.isNotEmpty && branches.any((b) => b.id == firstApprovedId)) {
+          _branchId = firstApprovedId;
+        } else {
+          _branchId = branches.first.id;
         }
       }
 
-      _branchId = registrationData.approvedFirstBranchId;
-
-      if (_branchId == null || _branchId!.isEmpty) {
-        // Fallback: Fetch the list of branches from BranchRepository
-        final branchRepo = ref.read(branchRepositoryProvider);
-        final branches = await branchRepo.getBranches();
-        
-        if (branches.isEmpty) {
-          throw Exception('Không tìm thấy chi nhánh nào để thiết lập. Vui lòng đăng ký chi nhánh trước.');
-        }
-
-        // Use the first branch
-        final firstBranch = branches.first;
-        _branchId = firstBranch.id;
-      }
-
-      // 2. Fetch settings for this branch
+      // 3. Fetch settings for this branch
       final merchantRepo = MerchantRepository();
       final settings = await merchantRepo.getBranchSettings(_branchId!);
 
@@ -435,6 +432,10 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ===== 1. Branch Selector =====
+                    _buildBranchSelector(),
+                    const SizedBox(height: 16),
+
                     // ===== 2. 🔥 LIVE MOCKUP CARD =====
                     _buildLiveMockupCard(),
                     const SizedBox(height: 12),
@@ -1526,6 +1527,224 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBranchSelector() {
+    if (_branches.isEmpty) return const SizedBox.shrink();
+
+    final currentBranch = _branches.firstWhere(
+      (b) => b.id == _branchId,
+      orElse: () => _branches.first,
+    );
+
+    return InkWell(
+      onTap: _branches.length > 1
+          ? () => _showBranchPicker(
+                context,
+                _branches,
+                _branchId!,
+                (newId) {
+                  setState(() {
+                    _branchId = newId;
+                  });
+                  _loadBranchAndSettings();
+                },
+              )
+          : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.outlineVariant, width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.store_rounded, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Đang cấu hình: ',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Expanded(
+              child: Text(
+                currentBranch.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            if (_branches.length > 1) ...[
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_branches.length} chi nhánh',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBranchPicker(BuildContext context, List<BranchListItemModel> branches, String currentBranchId, ValueChanged<String> onSelected) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Pull bar indicator
+              Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 16),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Chọn chi nhánh quản lý',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppColors.outlineVariant),
+              
+              // Branches List
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: branches.length,
+                  itemBuilder: (context, index) {
+                    final branch = branches[index];
+                    final isSelected = branch.id == currentBranchId;
+                    
+                    return InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelected(branch.id);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            // Branch Avatar
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.bgSoft,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: branch.imageUrl.isNotEmpty
+                                    ? Image.network(
+                                        branch.imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(
+                                          Icons.store_rounded,
+                                          color: AppColors.primary,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.store_rounded,
+                                        color: AppColors.primary,
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Branch Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    branch.name,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    branch.category ?? 'Chi nhánh hệ thống',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Checkmark Icon
+                            if (isSelected)
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }

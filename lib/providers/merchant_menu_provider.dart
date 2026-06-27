@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/dio_client.dart';
 import '../data/repositories/branch_repository.dart';
+import '../data/models/branch_model.dart';
 import 'branch_registration_provider.dart';
+import 'auth_provider.dart';
 
 // ===== Models =====
 
@@ -147,6 +149,8 @@ class MerchantMenuState {
   final String? selectedCategoryId;
   final bool isLoading;
   final String? errorMessage;
+  final List<BranchListItemModel> branches;
+  final String? selectedBranchId;
 
   const MerchantMenuState({
     this.categories = const [],
@@ -154,6 +158,8 @@ class MerchantMenuState {
     this.selectedCategoryId,
     this.isLoading = false,
     this.errorMessage,
+    this.branches = const [],
+    this.selectedBranchId,
   });
 
   MerchantMenuState copyWith({
@@ -162,6 +168,8 @@ class MerchantMenuState {
     String? selectedCategoryId,
     bool? isLoading,
     String? errorMessage,
+    List<BranchListItemModel>? branches,
+    String? selectedBranchId,
   }) {
     return MerchantMenuState(
       categories: categories ?? this.categories,
@@ -169,6 +177,8 @@ class MerchantMenuState {
       selectedCategoryId: selectedCategoryId ?? this.selectedCategoryId,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
+      branches: branches ?? this.branches,
+      selectedBranchId: selectedBranchId ?? this.selectedBranchId,
     );
   }
 }
@@ -178,43 +188,62 @@ class MerchantMenuState {
 class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
   final Ref _ref;
   final DioClient _dioClient = DioClient();
-  String? _branchId;
 
-  String? get branchId => _branchId;
+  String? get _branchId => state.selectedBranchId;
+  String? get branchId => state.selectedBranchId;
 
   MerchantMenuNotifier(this._ref) : super(const MerchantMenuState());
 
   Future<void> initializeMenu() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      // 1. Get branch ID. We try to read approvedFirstBranchId from the registration state first.
-      var registrationData = _ref.read(branchRegistrationProvider);
-      if (registrationData.approvedFirstBranchId == null || registrationData.approvedFirstBranchId!.isEmpty) {
-        try {
-          await _ref.read(branchRegistrationProvider.notifier).fetchApplicationStatus();
-          registrationData = _ref.read(branchRegistrationProvider);
-        } catch (e) {
-          print('[MerchantMenuNotifier] Error fetching application status for branch ID: $e');
+      // 1. Fetch available branches for current merchant's brand
+      final branchRepo = BranchRepository();
+      final currentUser = _ref.read(currentUserProvider);
+      final branches = await branchRepo.getBranches(brandId: currentUser?.brandId);
+
+      if (branches.isEmpty) {
+        throw Exception('Không tìm thấy chi nhánh nào. Vui lòng đăng ký chi nhánh trước.');
+      }
+
+      // 2. Select initial branch ID
+      String? branchId = state.selectedBranchId;
+      if (branchId == null || branchId.isEmpty || !branches.any((b) => b.id == branchId)) {
+        final registrationData = _ref.read(branchRegistrationProvider);
+        final firstApprovedId = registrationData.approvedFirstBranchId;
+        if (firstApprovedId != null && firstApprovedId.isNotEmpty && branches.any((b) => b.id == firstApprovedId)) {
+          branchId = firstApprovedId;
+        } else {
+          branchId = branches.first.id;
         }
       }
 
-      String? branchId = registrationData.approvedFirstBranchId;
+      state = state.copyWith(
+        branches: branches,
+        selectedBranchId: branchId,
+      );
 
-      if (branchId == null || branchId.isEmpty) {
-        final branchRepo = BranchRepository();
-        final branches = await branchRepo.getBranches();
-        
-        if (branches.isEmpty) {
-          throw Exception('Không tìm thấy chi nhánh nào. Vui lòng đăng ký chi nhánh trước.');
-        }
-        
-        branchId = branches.first.id;
-      }
-      
-      _branchId = branchId;
       await fetchMenuBuilderDetails();
     } catch (e) {
       print('[MerchantMenuNotifier] Error initializing menu: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
+  Future<void> switchBranch(String newBranchId) async {
+    if (state.selectedBranchId == newBranchId) return;
+    state = state.copyWith(
+      selectedBranchId: newBranchId,
+      isLoading: true,
+      errorMessage: null,
+    );
+    try {
+      await fetchMenuBuilderDetails();
+    } catch (e) {
+      print('[MerchantMenuNotifier] Error switching branch: $e');
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString().replaceAll('Exception: ', ''),

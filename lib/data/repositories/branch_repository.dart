@@ -6,12 +6,20 @@ class BranchRepository {
   final DioClient _dioClient = DioClient();
 
   /// Lấy danh sách chi nhánh từ Backend (GET /api/branches).
-  Future<List<BranchListItemModel>> getBranches() async {
+  Future<List<BranchListItemModel>> getBranches({String? brandId}) async {
     final token = _dioClient.accessToken;
     print('[BranchRepository] --- START GET BRANCHES ---');
     print('[BranchRepository] Access Token: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
     
-    final response = await _dioClient.dio.get(ApiConstants.branches);
+    final Map<String, dynamic> queryParams = {};
+    if (brandId != null && brandId.isNotEmpty) {
+      queryParams['brandId'] = brandId;
+    }
+
+    final response = await _dioClient.dio.get(
+      ApiConstants.branches,
+      queryParameters: queryParams,
+    );
     print('[BranchRepository] Response status code: ${response.statusCode}');
     print('[BranchRepository] Response data: ${response.data}');
     print('[BranchRepository] --- END GET BRANCHES ---');
