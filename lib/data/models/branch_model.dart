@@ -17,6 +17,9 @@ class BranchListItemModel {
   final int? displayOrder;
   final double? latitude;
   final double? longitude;
+  final String? address;
+  final String? phone;
+  final bool? isActive;
 
   const BranchListItemModel({
     required this.id,
@@ -35,6 +38,9 @@ class BranchListItemModel {
     this.displayOrder,
     this.latitude,
     this.longitude,
+    this.address,
+    this.phone,
+    this.isActive,
   });
 
   factory BranchListItemModel.fromJson(Map<String, dynamic> json) {
@@ -87,6 +93,9 @@ class BranchListItemModel {
       displayOrder: json['displayOrder'] as int?,
       latitude: (json['latitude'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble(),
+      address: json['address'] as String?,
+      phone: json['phone'] as String?,
+      isActive: json['isActive'] is bool ? json['isActive'] as bool? : (json['isActive'] == null || json['isActive']?.toString() == 'true'),
     );
   }
 
@@ -108,6 +117,9 @@ class BranchListItemModel {
       if (displayOrder != null) 'displayOrder': displayOrder,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+      if (address != null) 'address': address,
+      if (phone != null) 'phone': phone,
+      if (isActive != null) 'isActive': isActive,
     };
   }
 }

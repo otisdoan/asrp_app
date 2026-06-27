@@ -151,25 +151,18 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
                     ),
                   ),
                 )
-              : Column(
+              : TabBarView(
+                  controller: _tabController,
                   children: [
-                    _buildBranchSelector(menuState),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          // TAB 1: Món ăn & Topping
-                          categories.isEmpty
-                              ? _buildEmptyState()
-                              : _buildDishesTab(currentCategory, dishes, categories),
+                    // TAB 1: Món ăn & Topping
+                    categories.isEmpty
+                        ? _buildEmptyState()
+                        : _buildDishesTab(currentCategory, dishes, categories),
 
-                          // TAB 2: Quản lý Danh mục
-                          categories.isEmpty
-                              ? _buildEmptyState()
-                              : _buildCategoriesTab(categories),
-                        ],
-                      ),
-                    ),
+                    // TAB 2: Quản lý Danh mục
+                    categories.isEmpty
+                        ? _buildEmptyState()
+                        : _buildCategoriesTab(categories),
                   ],
                 )),
       // Floating Action Button only shown on Tab 1
@@ -948,211 +941,6 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
     );
   }
 
-  Widget _buildBranchSelector(MerchantMenuState menuState) {
-    if (menuState.branches.isEmpty) return const SizedBox.shrink();
-    
-    final currentBranch = menuState.branches.firstWhere(
-      (b) => b.id == menuState.selectedBranchId,
-      orElse: () => menuState.branches.first,
-    );
-
-    return InkWell(
-      onTap: menuState.branches.length > 1
-          ? () => _showBranchPicker(
-                context,
-                menuState.branches,
-                menuState.selectedBranchId!,
-                (newId) {
-                  ref.read(merchantMenuProvider.notifier).switchBranch(newId);
-                },
-              )
-          : null,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            const Icon(Icons.store_rounded, color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            const Text(
-              'Chi nhánh: ',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            Expanded(
-              child: Text(
-                currentBranch.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            if (menuState.branches.length > 1) ...[
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${menuState.branches.length} chi nhánh',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showBranchPicker(BuildContext context, List<BranchListItemModel> branches, String currentBranchId, ValueChanged<String> onSelected) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Pull bar indicator
-              Container(
-                margin: const EdgeInsets.only(top: 8, bottom: 16),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Chọn chi nhánh quản lý',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Divider(height: 1, color: AppColors.outlineVariant),
-              
-              // Branches List
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: branches.length,
-                  itemBuilder: (context, index) {
-                    final branch = branches[index];
-                    final isSelected = branch.id == currentBranchId;
-                    
-                    return InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelected(branch.id);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            // Branch Avatar
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: AppColors.bgSoft,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: branch.imageUrl.isNotEmpty
-                                    ? Image.network(
-                                        branch.imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => const Icon(
-                                          Icons.store_rounded,
-                                          color: AppColors.primary,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.store_rounded,
-                                        color: AppColors.primary,
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Branch Details
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    branch.name,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    branch.category ?? 'Chi nhánh hệ thống',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textTertiary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Checkmark Icon
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: AppColors.primary,
-                                size: 22,
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
 // ==========================================

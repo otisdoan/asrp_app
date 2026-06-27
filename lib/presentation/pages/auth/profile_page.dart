@@ -8,6 +8,8 @@ import '../../../data/models/user_model.dart';
 import '../../../providers/branch_registration_provider.dart';
 import '../../../core/utils/top_notification.dart';
 import '../inventory/inventory_dashboard_page.dart';
+import '../../../data/repositories/branch_repository.dart';
+import '../../../data/models/branch_model.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -235,6 +237,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           user.role.toLowerCase() == 'manager') ...[
                         const SizedBox(height: 20),
                         _buildSectionHeader('Quản lý cửa hàng'),
+                        _buildMenuItem(
+                          icon: Icons.storefront_rounded,
+                          title: 'Chi nhánh của tôi',
+                          subtitle:
+                              'Xem danh sách các chi nhánh đã đăng ký thành công & đang hoạt động',
+                          onTap: () {
+                            _showMyBranchesBottomSheet(context, user);
+                          },
+                        ),
                         _buildMenuItem(
                           icon: Icons.store_mall_directory_outlined,
                           title: 'Thiết lập cửa hàng',
@@ -1230,6 +1241,266 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showMyBranchesBottomSheet(BuildContext context, UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Pull Indicator
+                Container(
+                  margin: const EdgeInsets.only(top: 8, bottom: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Header title
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Chi nhánh của tôi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded, color: AppColors.textTertiary),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.outlineVariant),
+                const SizedBox(height: 8),
+                
+                // FutureBuilder Content
+                Flexible(
+                  child: FutureBuilder<List<BranchListItemModel>>(
+                    future: BranchRepository().getBranches(brandId: user.brandId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          ),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Lỗi tải chi nhánh: ${snapshot.error}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.storefront_rounded, color: AppColors.textTertiary, size: 64),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Chưa có chi nhánh nào hoạt động',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      final branches = snapshot.data!;
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: branches.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final branch = branches[index];
+                          
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.outlineVariant, width: 0.8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 1. Image
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    width: 70,
+                                    height: 70,
+                                    color: AppColors.bgSoft,
+                                    child: branch.imageUrl.isNotEmpty
+                                        ? Image.network(
+                                            branch.imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const Icon(
+                                              Icons.store_rounded,
+                                              color: AppColors.primary,
+                                              size: 28,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.store_rounded,
+                                            color: AppColors.primary,
+                                            size: 28,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // 2. Info details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        branch.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.star_rounded, color: Colors.orange, size: 14),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            branch.rating.toStringAsFixed(1),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.bgSoft,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              branch.category ?? 'Món Việt',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textTertiary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: branch.isActive == true 
+                                                  ? Colors.green.shade50 
+                                                  : Colors.grey.shade100,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              branch.isActive == true ? 'Đang hoạt động' : 'Tạm đóng',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: branch.isActive == true 
+                                                    ? Colors.green.shade700 
+                                                    : Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        branch.address ?? 'Quy Nhơn, Bình Định',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.access_time_rounded, color: AppColors.textTertiary, size: 12),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Giờ hoạt động: ${branch.deliveryTime.isNotEmpty ? branch.deliveryTime : "06:00 - 22:30"}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.textTertiary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
