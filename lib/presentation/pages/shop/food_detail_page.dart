@@ -111,7 +111,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       }
     }
 
-    final imageCount = (review['imageCount'] ?? review['ImageCount'] ?? 0) as int;
+    final rawImages = review['images'] ?? review['Images'];
+    final List<String> images = rawImages != null ? List<String>.from(rawImages as List) : [];
+    final imageCount = images.isNotEmpty ? images.length : ((review['imageCount'] ?? review['ImageCount'] ?? 0) as int);
     final tags = List<String>.from(review['tags'] ?? review['Tags'] ?? []);
 
     String replyContent = '';
@@ -131,6 +133,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'rating': rating,
       'date': dateStr,
       'content': content,
+      'images': images,
       'imageCount': imageCount,
       'tags': tags,
       'reply': replyContent,
@@ -534,6 +537,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     final hasReply = (review['reply'] as String).isNotEmpty;
     final tags = List<String>.from(review['tags'] as List);
     final imageCount = review['imageCount'] as int;
+    final images = List<String>.from(review['images'] ?? []);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -602,23 +606,48 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             imageCount > 3 ? 3 : imageCount,
                             (i) {
                               final isLast = i == 2 && imageCount > 3;
+                              final imageUrl = i < images.length ? images[i] : '';
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: Stack(
                                   children: [
-                                    Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.bgWarm,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.image_outlined,
-                                        size: 28,
-                                        color: AppColors.textTertiary
-                                            .withValues(alpha: 0.6),
-                                      ),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: imageUrl.isNotEmpty
+                                          ? Image.network(
+                                              imageUrl,
+                                              width: 80,
+                                              height: 80,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                width: 80,
+                                                height: 80,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.bgWarm,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  Icons.broken_image_outlined,
+                                                  size: 28,
+                                                  color: AppColors.textTertiary
+                                                      .withValues(alpha: 0.6),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              width: 80,
+                                              height: 80,
+                                              decoration: BoxDecoration(
+                                                color: AppColors.bgWarm,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                Icons.image_outlined,
+                                                size: 28,
+                                                color: AppColors.textTertiary
+                                                    .withValues(alpha: 0.6),
+                                              ),
+                                            ),
                                     ),
                                     if (isLast)
                                       Container(
