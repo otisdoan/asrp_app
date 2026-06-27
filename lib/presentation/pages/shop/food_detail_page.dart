@@ -532,6 +532,109 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     );
   }
 
+  void _showFullScreenImages(BuildContext context, List<String> imageUrls, int initialIndex) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.95),
+      builder: (context) {
+        int currentIndex = initialIndex;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final PageController pageController = PageController(initialPage: initialIndex);
+            return Stack(
+              children: [
+                // PageView with InteractiveViewer for each image
+                PageView.builder(
+                  controller: pageController,
+                  itemCount: imageUrls.length,
+                  onPageChanged: (index) {
+                    setStateDialog(() {
+                      currentIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return Center(
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: Image.network(
+                          imageUrls[index],
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.broken_image, size: 64, color: Colors.white60),
+                              SizedBox(height: 12),
+                              Text(
+                                'Không thể tải ảnh này',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Indicator of current page (e.g., "1 / 3")
+                if (imageUrls.length > 1)
+                  Positioned(
+                    bottom: MediaQuery.of(context).padding.bottom + 24,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          '${currentIndex + 1} / ${imageUrls.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Close button at top right
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  right: 16,
+                  child: Material(
+                    color: Colors.black38,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   // ─── Review Card ───────────────────────────────────────────────────────
   Widget _buildReviewCard(Map<String, dynamic> review) {
     final hasReply = (review['reply'] as String).isNotEmpty;
@@ -609,17 +712,36 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                               final imageUrl = i < images.length ? images[i] : '';
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
-                                child: Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: imageUrl.isNotEmpty
-                                          ? Image.network(
-                                              imageUrl,
-                                              width: 80,
-                                              height: 80,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => Container(
+                                child: GestureDetector(
+                                  onTap: imageUrl.isNotEmpty
+                                      ? () => _showFullScreenImages(context, images, i)
+                                      : null,
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: imageUrl.isNotEmpty
+                                            ? Image.network(
+                                                imageUrl,
+                                                width: 80,
+                                                height: 80,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => Container(
+                                                  width: 80,
+                                                  height: 80,
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.bgWarm,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.broken_image_outlined,
+                                                    size: 28,
+                                                    color: AppColors.textTertiary
+                                                        .withValues(alpha: 0.6),
+                                                  ),
+                                                ),
+                                              )
+                                            : Container(
                                                 width: 80,
                                                 height: 80,
                                                 decoration: BoxDecoration(
@@ -627,58 +749,44 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: Icon(
-                                                  Icons.broken_image_outlined,
+                                                  Icons.image_outlined,
                                                   size: 28,
                                                   color: AppColors.textTertiary
                                                       .withValues(alpha: 0.6),
                                                 ),
                                               ),
-                                            )
-                                          : Container(
-                                              width: 80,
-                                              height: 80,
-                                              decoration: BoxDecoration(
-                                                color: AppColors.bgWarm,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Icon(
-                                                Icons.image_outlined,
-                                                size: 28,
-                                                color: AppColors.textTertiary
-                                                    .withValues(alpha: 0.6),
-                                              ),
-                                            ),
-                                    ),
-                                    if (isLast)
-                                      Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black45,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Center(
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.photo_library,
-                                                  size: 14,
-                                                  color: Colors.white),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '+${imageCount - 2}',
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Colors.white,
+                                      ),
+                                      if (isLast)
+                                        Container(
+                                          width: 80,
+                                          height: 80,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black45,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Center(
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.photo_library,
+                                                    size: 14,
+                                                    color: Colors.white),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  '+${imageCount - 2}',
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               );
                             },
