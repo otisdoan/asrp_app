@@ -1,7 +1,14 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'https://api.asrp.io.vn/api'; // Change for production
+  // Local development (iOS Simulator / Web / Host)
+  static const String baseUrl = 'http://localhost:5100/api';
+  
+  // Local development (Android Emulator)
+  // static const String baseUrl = 'http://10.0.2.2:5100/api';
+  
+  // Production URL
+  // static const String baseUrl = 'https://api.asrp.io.vn/api';
 
   // Auth
   static const String login = '/auth/app/login';

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter/foundation.dart';
+
 final connectivityProvider = StateNotifierProvider<ConnectivityNotifier, bool>((ref) {
   return ConnectivityNotifier();
 });
@@ -43,6 +45,10 @@ class ConnectivityNotifier extends StateNotifier<bool> {
           .timeout(const Duration(seconds: 3));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } catch (_) {
+      // Fallback in debug mode to not block local development/emulators
+      if (kDebugMode) {
+        return true;
+      }
       return false;
     }
   }

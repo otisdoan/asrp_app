@@ -207,4 +207,29 @@ class MerchantRepository {
       rethrow;
     }
   }
+
+  /// Đăng ký thêm chi nhánh mới cho thương hiệu hiện tại (POST /api/brands/me/branches)
+  Future<void> createAdditionalBranch({
+    required String name,
+    required String phone,
+    required String address,
+  }) async {
+    final payload = {
+      "name": name,
+      "phone": phone,
+      "address": address,
+    };
+    try {
+      await _dioClient.dio.post(
+        '/brands/me/branches',
+        data: payload,
+      );
+    } on DioException catch (e) {
+      final serverDetail = e.response?.data?['detail'] ?? e.response?.data?['message'];
+      if (serverDetail != null) {
+        throw Exception('Lỗi tạo chi nhánh: $serverDetail');
+      }
+      rethrow;
+    }
+  }
 }

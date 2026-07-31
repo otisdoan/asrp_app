@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../data/repositories/order_repository.dart';
 import '../data/repositories/branch_repository.dart';
 import '../core/network/dio_client.dart';
@@ -47,20 +48,70 @@ class MockOrderItem {
   }
 
   factory MockOrderItem.fromJson(Map<String, dynamic> json) {
-    final toppings = json['toppings'] as List<dynamic>? ?? [];
-    final toppingNames = toppings.map((t) {
-      if (t is! Map) return '';
-      final label = t['toppingLabel'] ?? t['name'] ?? '';
-      final qty = t['quantity'] ?? 1;
-      return qty > 1 ? '$label (x$qty)' : label;
+    final toppings = json['toppings'] as List<dynamic>? ?? 
+                     json['selectedToppings'] as List<dynamic>? ?? 
+                     json['options'] as List<dynamic>? ?? [];
+
+    final basePrice = (json['priceAtTime'] as num?)?.toInt() ?? 
+                      (json['price'] as num?)?.toInt() ?? 
+                      (json['unitPrice'] as num?)?.toInt() ?? 0;
+
+    final qty = (json['quantity'] as num?)?.toInt() ?? 1;
+
+    final subTotal = (json['subTotal'] as num?)?.toInt() ?? 
+                     (json['totalPrice'] as num?)?.toInt() ?? 
+                     (json['total'] as num?)?.toInt() ?? 0;
+
+    // Calculate total topping difference if available
+    int inferredToppingTotal = 0;
+    if (subTotal > 0 && basePrice > 0 && subTotal > (basePrice * qty)) {
+      inferredToppingTotal = (subTotal - (basePrice * qty)) ~/ qty;
+    }
+
+    int toppingTotalPrice = 0;
+    final List<Map<String, dynamic>> parsedToppings = [];
+
+    for (var t in toppings) {
+      if (t is! Map) continue;
+      final label = t['toppingLabel'] ?? t['name'] ?? t['toppingName'] ?? t['label'] ?? '';
+      int price = (t['priceAtTime'] as num?)?.toInt() ?? 
+                  (t['price'] as num?)?.toInt() ?? 
+                  (t['toppingPrice'] as num?)?.toInt() ?? 
+                  (t['priceAdjustment'] as num?)?.toInt() ?? 
+                  (t['extraPrice'] as num?)?.toInt() ?? 
+                  (t['additionalPrice'] as num?)?.toInt() ?? 
+                  (t['unitPrice'] as num?)?.toInt() ?? 0;
+      final tQty = (t['quantity'] as num?)?.toInt() ?? 1;
+      parsedToppings.add({'label': label, 'price': price, 'qty': tQty});
+      toppingTotalPrice += (price * tQty);
+    }
+
+    // Fallback: If explicit topping prices were 0 but inferredToppingTotal > 0
+    if (toppingTotalPrice == 0 && inferredToppingTotal > 0 && parsedToppings.isNotEmpty) {
+      final perToppingPrice = inferredToppingTotal ~/ parsedToppings.length;
+      for (var p in parsedToppings) {
+        p['price'] = perToppingPrice;
+      }
+      toppingTotalPrice = inferredToppingTotal;
+    }
+
+    final toppingNames = parsedToppings.map((p) {
+      final label = p['label'] as String;
+      final price = p['price'] as int;
+      final tQty = p['qty'] as int;
+      if (label.isEmpty) return '';
+      final priceStr = price > 0 ? ' (+${NumberFormat('#,###', 'vi_VN').format(price)}đ)' : '';
+      return tQty > 1 ? '$label (x$tQty)$priceStr' : '$label$priceStr';
     }).where((name) => name.isNotEmpty).join('\n');
+
+    int finalPrice = basePrice;
 
     return MockOrderItem(
       id: json['id']?.toString() ?? json['orderItemId']?.toString(),
       menuItemId: json['menuItemId']?.toString(),
       name: json['productName'] ?? json['name'] ?? '',
-      price: (json['priceAtTime'] as num?)?.toInt() ?? (json['price'] as num?)?.toInt() ?? 0,
-      quantity: json['quantity'] as int? ?? 1,
+      price: finalPrice,
+      quantity: qty,
       extras: toppingNames.isNotEmpty ? toppingNames : null,
       imageUrl: json['productImageUrl'] as String? ?? json['imageUrl'] as String? ?? json['product']?['imageUrl'] as String?,
       note: json['note'] as String? ?? json['productNote'] as String? ?? json['itemNote'] as String?,
@@ -168,6 +219,7 @@ class MockOrder {
   final String paymentStatus;
   final String orderType;
   final String branchId;
+  final String? pagerNumber;
 
   MockOrder({
     required this.id,
@@ -188,6 +240,7 @@ class MockOrder {
     this.paymentStatus = 'Pending',
     this.orderType = 'Online',
     this.branchId = '',
+    this.pagerNumber,
   });
 
   bool get isPaid => paymentStatus == 'Paid' || paymentStatus == '1' || payments.any((p) => p.status == 'Đã thanh toán');
@@ -212,6 +265,7 @@ class MockOrder {
     String? paymentStatus,
     String? orderType,
     String? branchId,
+    String? pagerNumber,
   }) {
     return MockOrder(
       id: id ?? this.id,
@@ -232,6 +286,7 @@ class MockOrder {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       orderType: orderType ?? this.orderType,
       branchId: branchId ?? this.branchId,
+      pagerNumber: pagerNumber ?? this.pagerNumber,
     );
   }
 
@@ -345,6 +400,7 @@ class MockOrder {
       paymentStatus: json['paymentStatus']?.toString() ?? 'Pending',
       orderType: json['orderType']?.toString() ?? 'Online',
       branchId: branchId,
+      pagerNumber: json['pagerNumber']?.toString(),
     );
   }
 }
@@ -471,6 +527,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     required String branchId,
     required List<Map<String, dynamic>> items,
     String? note,
+    String? pagerNumber,
   }) async {
     try {
       final payload = {
@@ -480,8 +537,11 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
           'menuItemId': i['menuItemId'],
           'quantity': i['quantity'],
           'note': i['note'],
+          'toppings': i['toppings'],
+          'sizeId': i['sizeId'],
         }).toList(),
         'note': note,
+        'pagerNumber': pagerNumber,
       };
       
       final orderJson = await _orderRepository.placeKioskOrder(payload);
@@ -628,4 +688,33 @@ class ReviewedOrdersNotifier extends StateNotifier<Set<String>> {
 
 final reviewedOrdersProvider = StateNotifierProvider<ReviewedOrdersNotifier, Set<String>>((ref) {
   return ReviewedOrdersNotifier();
+});
+
+final branchOrdersProvider = FutureProvider.family<List<MockOrder>, String>((ref, branchId) async {
+  if (branchId.isEmpty) return [];
+  final orderRepository = OrderRepository();
+  final branchRepository = BranchRepository();
+  final Map<String, String> branchNames = {};
+  
+  try {
+    final branches = await branchRepository.getBranches();
+    for (var b in branches) {
+      branchNames[b.id] = b.name;
+    }
+  } catch (e) {
+    print('[branchOrdersProvider] Error loading branch names: $e');
+  }
+
+  final rawOrders = await orderRepository.getManagementOrders(branchId: branchId);
+  return rawOrders
+      .map((item) {
+        try {
+          return MockOrder.fromJson(item as Map<String, dynamic>, branchNames);
+        } catch (e) {
+          return null;
+        }
+      })
+      .whereType<MockOrder>()
+      .toList()
+    ..sort((a, b) => b.orderTime.compareTo(a.orderTime));
 });

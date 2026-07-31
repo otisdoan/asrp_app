@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/inventory_provider.dart';
@@ -14,6 +15,7 @@ class StockImportPage extends ConsumerStatefulWidget {
 class _StockImportPageState extends ConsumerState<StockImportPage> {
   String _selectedSupplier = 'Đầu mối Loan';
   final TextEditingController _invoiceController = TextEditingController();
+  bool _isLoading = false;
 
   final List<Map<String, dynamic>> _importItems = [];
 
@@ -79,54 +81,236 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
     });
   }
 
+  Future<void> _fetchAndShowIngredientSelector() async {
+    try {
+      final List<InventoryIngredient> branchIngredients = ref.read(inventoryProvider).ingredients;
+
+      if (mounted) {
+        _showIngredientSelector(branchIngredients);
+      }
+    } catch (e) {
+      if (mounted) {
+        TopNotification.show(context, message: 'Không thể tải danh sách nguyên liệu', isError: true);
+      }
+    }
+  }
+
   void _showIngredientSelector(List<InventoryIngredient> ingredients) {
+    final searchController = TextEditingController();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Chọn nguyên liệu nhập',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final query = searchController.text.toLowerCase();
+            final filtered = query.isEmpty
+                ? ingredients
+                : ingredients.where((e) => e.name.toLowerCase().contains(query)).toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.4,
-                ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: ingredients.length,
-                  itemBuilder: (context, index) {
-                    final ing = ingredients[index];
-                    return ListTile(
-                      title: Text(ing.name, style: const TextStyle(color: AppColors.textPrimary)),
-                      subtitle: Text('Đơn vị: ${ing.unit}', style: const TextStyle(color: AppColors.textSecondary)),
-                      trailing: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _addImportRow(ing);
-                      },
-                    );
-                  },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Chọn nguyên liệu nhập',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.add, size: 18, color: AppColors.primary),
+                          label: const Text('Tạo mới', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _showCreateIngredientDialog();
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Tìm nguyên liệu...',
+                        hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.35,
+                      ),
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.search_off, size: 40, color: AppColors.textSecondary),
+                                    const SizedBox(height: 8),
+                                    const Text('Không tìm thấy nguyên liệu', style: TextStyle(color: AppColors.textSecondary)),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: const Text('Tạo nguyên liệu mới'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        _showCreateIngredientDialog(initialName: searchController.text);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final ing = filtered[index];
+                                return ListTile(
+                                  title: Text(ing.name, style: const TextStyle(color: AppColors.textPrimary)),
+                                  subtitle: Text('Đơn vị: ${ing.unit}', style: const TextStyle(color: AppColors.textSecondary)),
+                                  trailing: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    _addImportRow(ing);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  void _submitImport() {
+  void _showCreateIngredientDialog({String? initialName}) {
+    final nameController = TextEditingController(text: initialName ?? '');
+    String selectedUnit = 'kg';
+    final units = ['kg', 'g', 'litre', 'ml', 'cái', 'gói', 'hộp', 'chai', 'lon', 'bó', 'quả'];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Tạo nguyên liệu mới', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Tên nguyên liệu',
+                      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    value: selectedUnit,
+                    decoration: InputDecoration(
+                      labelText: 'Đơn vị',
+                      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                    items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => selectedUnit = v);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) {
+                      TopNotification.show(context, message: 'Vui lòng nhập tên nguyên liệu', isError: true);
+                      return;
+                    }
+                    try {
+                      final newIng = await ref.read(inventoryProvider.notifier).createIngredient(
+                        name: name,
+                        unit: selectedUnit,
+                      );
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        TopNotification.show(context, message: 'Đã tạo nguyên liệu "$name" thành công');
+                        _addImportRow(newIng);
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        TopNotification.show(context, message: 'Lỗi tạo nguyên liệu: $e', isError: true);
+                      }
+                    }
+                  },
+                  child: const Text('Tạo'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _submitImport() async {
     if (_importItems.isEmpty) {
       TopNotification.show(context, message: 'Vui lòng chọn ít nhất một nguyên liệu', isError: true);
       return;
@@ -145,13 +329,30 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
       });
     }
 
-    ref.read(inventoryProvider.notifier).importStock(
-      supplier: _selectedSupplier,
-      items: itemsPayload,
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
-    TopNotification.show(context, message: 'Đã hoàn tất nhập kho và cập nhật số lượng tồn');
-    Navigator.pop(context);
+    try {
+      await ref.read(inventoryProvider.notifier).importStock(
+        supplier: _selectedSupplier,
+        items: itemsPayload,
+      );
+      if (mounted) {
+        TopNotification.show(context, message: 'Đã hoàn tất nhập kho và cập nhật số lượng tồn');
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        TopNotification.show(context, message: 'Nhập kho thất bại: $e', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -166,13 +367,13 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(inventoryProvider);
-
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
@@ -242,14 +443,31 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
                                     dropdownColor: Colors.white,
                                     isExpanded: true,
                                     style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                                    items: _suppliers.map((sup) {
-                                      return DropdownMenuItem<String>(
-                                        value: sup,
-                                        child: Text(sup),
-                                      );
-                                    }).toList(),
+                                    items: [
+                                      ..._suppliers.map((sup) {
+                                        return DropdownMenuItem<String>(
+                                          value: sup,
+                                          child: Text(sup),
+                                        );
+                                      }).toList(),
+                                      const DropdownMenuItem<String>(
+                                        value: '__ADD_NEW__',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.add_circle_outline, color: AppColors.primary, size: 18),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Thêm đầu mối mới...',
+                                              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     onChanged: (val) {
-                                      if (val != null) {
+                                      if (val == '__ADD_NEW__') {
+                                        _showAddSupplierDialog();
+                                      } else if (val != null) {
                                         setState(() {
                                           _selectedSupplier = val;
                                         });
@@ -320,7 +538,7 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
                           'Thêm nguyên liệu',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
                         ),
-                        onPressed: () => _showIngredientSelector(state.ingredients),
+                        onPressed: () => _fetchAndShowIngredientSelector(),
                       ),
                     ],
                   ),
@@ -436,7 +654,18 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
         ],
       ),
     ),
-  );
+    if (_isLoading)
+      Positioned.fill(
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.3),
+          child: const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+      ),
+  ],
+),
+);
 }
 
   Widget _buildImportItemRow(Map<String, dynamic> item, int index) {
@@ -542,6 +771,10 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
                       child: TextField(
                         controller: item['priceController'],
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          ThousandsSeparatorInputFormatter(),
+                        ],
                         style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
                         onChanged: (val) {
                           setState(() {});
@@ -566,4 +799,109 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
       ),
     );
   }
+
+  void _showAddSupplierDialog() {
+    final TextEditingController controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Thêm đầu mối mới',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        ),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Nhập tên nhà cung cấp / đầu mối...',
+            hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+          ),
+          autofocus: true,
+          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                setState(() {
+                  if (!_suppliers.contains(name)) {
+                    _suppliers.add(name);
+                  }
+                  _selectedSupplier = name;
+                });
+              }
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Thêm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    final int selectionOffset = newValue.selection.end;
+    int digitsBeforeCursor = 0;
+    for (int i = 0; i < selectionOffset && i < newValue.text.length; i++) {
+      if (RegExp(r'\d').hasMatch(newValue.text[i])) {
+        digitsBeforeCursor++;
+      }
+    }
+
+    final String cleanText = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (cleanText.isEmpty) {
+      return newValue.copyWith(text: '', selection: const TextSelection.collapsed(offset: 0));
+    }
+
+    final buffer = StringBuffer();
+    int newSelectionOffset = 0;
+    int digitCount = 0;
+
+    for (int i = 0; i < cleanText.length; i++) {
+      if (i > 0 && (cleanText.length - i) % 3 == 0) {
+        buffer.write('.');
+        if (digitCount == digitsBeforeCursor) {
+          newSelectionOffset++;
+        }
+      }
+      buffer.write(cleanText[i]);
+      digitCount++;
+      if (digitCount == digitsBeforeCursor) {
+        newSelectionOffset = buffer.length;
+      }
+    }
+
+    final formatted = buffer.toString();
+    if (digitsBeforeCursor == 0) {
+      newSelectionOffset = 0;
+    } else if (digitsBeforeCursor == cleanText.length) {
+      newSelectionOffset = formatted.length;
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: newSelectionOffset),
+    );
+  }
+}
+

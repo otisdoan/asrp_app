@@ -58,6 +58,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           accessToken: token,
           isAuthenticated: true,
         );
+
+        // Tải thông tin mới nhất từ Server (bao gồm Xu DX và Cấp Hạng)
+        refreshProfile();
       }
     } catch (_) {
       logout();
@@ -94,6 +97,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
       value: jsonEncode(user.toJson()),
     );
     state = state.copyWith(user: user);
+  }
+
+  /// Tải lại hồ sơ mới nhất từ backend API và cập nhật state
+  Future<void> refreshProfile() async {
+    try {
+      final repo = AuthRepository();
+      final freshUser = await repo.fetchProfile();
+      if (freshUser != null) {
+        final current = state.user;
+        final mergedUser = UserModel(
+          id: freshUser.id.isNotEmpty ? freshUser.id : (current?.id ?? ''),
+          username: freshUser.username.isNotEmpty ? freshUser.username : (current?.username ?? ''),
+          email: freshUser.email ?? current?.email,
+          phone: freshUser.phone ?? current?.phone,
+          fullName: freshUser.fullName ?? current?.fullName,
+          avatar: freshUser.avatar ?? current?.avatar,
+          gender: freshUser.gender ?? current?.gender,
+          birthday: freshUser.birthday ?? current?.birthday,
+          brandId: freshUser.brandId ?? current?.brandId,
+          branchId: freshUser.branchId ?? current?.branchId,
+          role: (current?.role != null && current!.role.isNotEmpty) ? current.role : freshUser.role,
+          isActive: freshUser.isActive,
+          points: freshUser.points,
+          tier: freshUser.tier,
+          address: freshUser.address ?? current?.address,
+          createdAt: freshUser.createdAt.isNotEmpty ? freshUser.createdAt : (current?.createdAt ?? ''),
+          updatedAt: freshUser.updatedAt.isNotEmpty ? freshUser.updatedAt : (current?.updatedAt ?? ''),
+        );
+        await setUser(mergedUser);
+      }
+    } catch (e) {
+      print('[AuthNotifier] refreshProfile error: $e');
+    }
   }
 
   /// Cập nhật Access Token mới (ví dụ khi được Refresh thành công)

@@ -36,6 +36,7 @@ class MenuItemModel {
   final double? rating;
   final int? soldCount;
   final int? likesCount;
+  final bool isSoldOut;
 
   const MenuItemModel({
     this.id,
@@ -49,15 +50,16 @@ class MenuItemModel {
     this.rating,
     this.soldCount,
     this.likesCount,
+    this.isSoldOut = false,
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
     BadgeModel? parsedBadge;
-    if (json['badge'] != null) {
-      parsedBadge = BadgeModel.fromJson(json['badge'] as Map<String, dynamic>);
+    if (json['badge'] != null && json['badge'] is Map) {
+      parsedBadge = BadgeModel.fromJson(Map<String, dynamic>.from(json['badge'] as Map));
     } else if (json['badgeLabel'] != null && json['badgeLabel'].toString().isNotEmpty) {
       parsedBadge = BadgeModel(
-        label: json['badgeLabel'] as String,
+        label: json['badgeLabel'].toString(),
         type: BadgeType.values.firstWhere(
           (e) => e.name == json['badgeType'] || e.toString().split('.').last == json['badgeType'],
           orElse: () => BadgeType.hot,
@@ -77,6 +79,7 @@ class MenuItemModel {
       rating: (json['rating'] as num?)?.toDouble(),
       soldCount: json['soldCount'] as int? ?? json['sold'] as int?,
       likesCount: json['likesCount'] as int? ?? json['likes'] as int?,
+      isSoldOut: json['isSoldOut'] as bool? ?? false,
     );
   }
 
@@ -93,6 +96,7 @@ class MenuItemModel {
       if (rating != null) 'rating': rating,
       if (soldCount != null) 'soldCount': soldCount,
       if (likesCount != null) 'likesCount': likesCount,
+      'isSoldOut': isSoldOut,
     };
   }
 }

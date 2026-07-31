@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/branch_provider.dart';
 import '../presentation/pages/auth/login_page.dart';
 import '../presentation/pages/auth/register_page.dart';
 import '../presentation/pages/auth/forgot_password_page.dart';
@@ -68,26 +69,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             return AppConstants.routeHome;
           }
         } else if (role == 'manager') {
-          // Managers not allowed in Admin/SuperAdmin dashboards or Staff Management
-          if (path == '/admin/dashboard' ||
-              path == AppConstants.routeSuperAdminDashboard ||
-              path == AppConstants.routeStaffManagement) {
-            return AppConstants.routeHome;
-          }
-        } else if (role == 'admin') {
-          // Temporarily disable redirect to allow testing SuperAdmin dashboard UI
-          /*
-          final registration = ref.read(branchRegistrationProvider);
-          final hasMultipleBranches =
-              registration.registeredBranches.length > 1;
-          if (path == AppConstants.routeSuperAdminDashboard &&
-              !hasMultipleBranches) {
+          // Managers are single-branch scoped, redirect from SuperAdminDashboard to single-branch dashboard
+          if (path == AppConstants.routeSuperAdminDashboard) {
             return '/admin/dashboard';
           }
+        } else if (role == 'admin') {
+          final user = ref.read(currentUserProvider);
+          final isBrandOwner = user?.branchId == null;
+          final myBranches = ref.read(myBrandBranchesFutureProvider).value;
+          final hasMultipleBranches = isBrandOwner || (myBranches != null && myBranches.length > 1);
           if (path == '/admin/dashboard' && hasMultipleBranches) {
             return AppConstants.routeSuperAdminDashboard;
           }
-          */
+          if (path == AppConstants.routeSuperAdminDashboard && !hasMultipleBranches) {
+            return '/admin/dashboard';
+          }
         }
         // Admin (Chủ thương hiệu) and SuperAdmin are allowed to access all routes.
       }

@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../data/models/branch_model.dart';
 import '../../../data/repositories/order_repository.dart';
+import 'store_detail_page.dart';
 import 'cancel_success_page.dart';
 import 'qr_payment_page.dart';
 import 'order_review_page.dart';
@@ -23,41 +26,6 @@ class OrderDetailPage extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
-  static const _suggestedStores = [
-    {
-      'name': 'Hiên Coffee',
-      'rating': 4.7,
-      'distance': '0.3km',
-      'time': '15 phút',
-      'badge': 'Giảm 11%',
-      'icon': Icons.coffee
-    },
-    {
-      'name': 'Trạm Cà Phê',
-      'rating': 5.0,
-      'distance': '0.3km',
-      'time': '22 phút',
-      'badge': 'Giảm 11%',
-      'icon': Icons.local_cafe
-    },
-    {
-      'name': 'Cơm Tấm A Vũ',
-      'rating': 4.8,
-      'distance': '1.2km',
-      'time': '30 phút',
-      'badge': 'Giảm 15%',
-      'icon': Icons.rice_bowl
-    },
-    {
-      'name': 'Phở Hà Nội',
-      'rating': 4.6,
-      'distance': '0.8km',
-      'time': '20 phút',
-      'badge': 'Giảm 10%',
-      'icon': Icons.ramen_dining
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -121,7 +89,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
@@ -135,7 +104,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(orderProvider.notifier).fetchOrderDetail(widget.orderId),
+        onRefresh: () =>
+            ref.read(orderProvider.notifier).fetchOrderDetail(widget.orderId),
         color: AppColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -147,30 +117,30 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               _buildProgressStepper(order.status),
               const SizedBox(height: 12),
 
-            // ─── Status Informative Banner ───────────────────────────────────
-            _buildStatusBanner(order, pickupTimeStr),
-            const SizedBox(height: 12),
-
-            if (order.hasNotification) ...[
-              _buildProposedTimeBanner(order),
+              // ─── Status Informative Banner ───────────────────────────────────
+              _buildStatusBanner(order, pickupTimeStr),
               const SizedBox(height: 12),
+
+              if (order.hasNotification) ...[
+                _buildProposedTimeBanner(order),
+                const SizedBox(height: 12),
+              ],
+
+              // ─── Shop & Items Details Card ───────────────────────────────────
+              _buildShopItemsCard(order),
+              const SizedBox(height: 12),
+
+              // ─── Order Summary & Metadata Card ────────────────────────────────
+              _buildOrderMetadataCard(order, pickupTimeStr),
+              const SizedBox(height: 24),
+
+              // ─── Suggested Stores ("Có thể bạn cũng thích") ───────────────────
+              _buildSuggestedStores(),
+              const SizedBox(height: 24),
             ],
-
-            // ─── Shop & Items Details Card ───────────────────────────────────
-            _buildShopItemsCard(order),
-            const SizedBox(height: 12),
-
-            // ─── Order Summary & Metadata Card ────────────────────────────────
-            _buildOrderMetadataCard(order, pickupTimeStr),
-            const SizedBox(height: 24),
-
-            // ─── Suggested Stores ("Có thể bạn cũng thích") ───────────────────
-            _buildSuggestedStores(),
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
-    ),
       bottomNavigationBar: _buildBottomActions(order),
     );
   }
@@ -274,7 +244,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                         height: 2.5,
                         color: index == 0
                             ? Colors.transparent
-                            : (index <= currentStep ? AppColors.primary : AppColors.outlineVariant),
+                            : (index <= currentStep
+                                ? AppColors.primary
+                                : AppColors.outlineVariant),
                       ),
                     ),
                     // Circle indicator icon
@@ -283,17 +255,29 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                       height: 32,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isActive ? AppColors.primary : (isCompleted ? AppColors.primaryContainer : Colors.white),
+                        color: isActive
+                            ? AppColors.primary
+                            : (isCompleted
+                                ? AppColors.primaryContainer
+                                : Colors.white),
                         border: Border.all(
-                          color: isCompleted || isActive ? AppColors.primary : AppColors.outlineVariant,
+                          color: isCompleted || isActive
+                              ? AppColors.primary
+                              : AppColors.outlineVariant,
                           width: 2,
                         ),
                       ),
                       child: Center(
                         child: Icon(
-                          isCompleted ? Icons.check : (step['icon'] as IconData),
+                          isCompleted
+                              ? Icons.check
+                              : (step['icon'] as IconData),
                           size: 15,
-                          color: isActive ? Colors.white : (isCompleted ? AppColors.primary : AppColors.textTertiary),
+                          color: isActive
+                              ? Colors.white
+                              : (isCompleted
+                                  ? AppColors.primary
+                                  : AppColors.textTertiary),
                         ),
                       ),
                     ),
@@ -303,7 +287,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                         height: 2.5,
                         color: index == steps.length - 1
                             ? Colors.transparent
-                            : (index < currentStep ? AppColors.primary : AppColors.outlineVariant),
+                            : (index < currentStep
+                                ? AppColors.primary
+                                : AppColors.outlineVariant),
                       ),
                     ),
                   ],
@@ -314,8 +300,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: isActive || isCompleted ? FontWeight.bold : FontWeight.normal,
-                    color: isActive ? AppColors.primary : (isCompleted ? AppColors.textPrimary : AppColors.textTertiary),
+                    fontWeight: isActive || isCompleted
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isActive
+                        ? AppColors.primary
+                        : (isCompleted
+                            ? AppColors.textPrimary
+                            : AppColors.textTertiary),
                   ),
                 ),
               ],
@@ -337,43 +329,49 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       if (!order.isPaid && order.isQrPayment) {
         bannerIcon = Icons.account_balance_wallet_outlined;
         titleText = 'Chờ thanh toán';
-        subText = 'Vui lòng hoàn tất thanh toán chuyển khoản qua QR để quán bắt đầu chuẩn bị món.';
+        subText =
+            'Vui lòng hoàn tất thanh toán chuyển khoản qua QR để quán bắt đầu chuẩn bị món.';
         iconColor = Colors.orange;
         containerColor = const Color(0xFFFFF9F5);
       } else {
         bannerIcon = Icons.hourglass_empty_rounded;
         titleText = 'Chờ quán xác nhận';
-        subText = 'Quán đang kiểm tra đơn hàng và chuẩn bị xác nhận thời gian chuẩn bị món ăn.';
+        subText =
+            'Quán đang kiểm tra đơn hàng và chuẩn bị xác nhận thời gian chuẩn bị món ăn.';
         iconColor = Colors.orange;
         containerColor = const Color(0xFFFFF9F5);
       }
     } else {
       switch (order.status) {
-      case MockOrderStatus.pendingConfirm:
-        break;
-      case MockOrderStatus.preparing:
-        bannerIcon = Icons.soup_kitchen_outlined;
-        titleText = 'Đang chuẩn bị món';
-        subText = 'Đầu bếp đang chuẩn bị những món ăn nóng hổi cho bạn. Dự kiến xong lúc $pickupTimeStr.';
-        iconColor = AppColors.primary;
-        containerColor = const Color(0xFFFFF4F0);
-        break;
-      case MockOrderStatus.ready:
-        bannerIcon = Icons.check_circle_outline_rounded;
-        titleText = 'Món ăn đã sẵn sàng!';
-        subText = 'Vui lòng đến ngay quầy nhận món của quán và đưa mã đơn hàng để nhận đồ ăn.';
-        iconColor = Colors.green;
-        containerColor = const Color(0xFFE8F5E9);
-        break;
-      case MockOrderStatus.completed:
-        bannerIcon = Icons.celebration_outlined;
-        titleText = 'Đơn hàng hoàn tất';
-        subText = 'Cảm ơn bạn đã đặt món! Chúc bạn có một bữa ăn thật ngon miệng.';
-        iconColor = Colors.blue;
-        containerColor = const Color(0xFFE3F2FD);
-        break;
-      case MockOrderStatus.cancelled:
-        return const SizedBox.shrink(); // Stepper already displays cancel info
+        case MockOrderStatus.pendingConfirm:
+          break;
+        case MockOrderStatus.preparing:
+          bannerIcon = Icons.soup_kitchen_outlined;
+          titleText = 'Đang chuẩn bị món';
+          subText =
+              'Đầu bếp đang chuẩn bị những món ăn nóng hổi cho bạn. Dự kiến xong lúc $pickupTimeStr.';
+          iconColor = AppColors.primary;
+          containerColor = const Color(0xFFFFF4F0);
+          break;
+        case MockOrderStatus.ready:
+          bannerIcon = Icons.check_circle_outline_rounded;
+          titleText = 'Món ăn đã sẵn sàng!';
+          subText =
+              'Vui lòng đến ngay quầy nhận món của quán và đưa mã đơn hàng để nhận đồ ăn.';
+          iconColor = Colors.green;
+          containerColor = const Color(0xFFE8F5E9);
+          break;
+        case MockOrderStatus.completed:
+          bannerIcon = Icons.celebration_outlined;
+          titleText = 'Đơn hàng hoàn tất';
+          subText =
+              'Cảm ơn bạn đã đặt món! Chúc bạn có một bữa ăn thật ngon miệng.';
+          iconColor = Colors.blue;
+          containerColor = const Color(0xFFE3F2FD);
+          break;
+        case MockOrderStatus.cancelled:
+          return const SizedBox
+              .shrink(); // Stepper already displays cancel info
       }
     }
 
@@ -440,14 +438,18 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(3),
                         ),
                         child: const Text(
                           'Quán',
-                          style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -467,7 +469,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+                const Icon(Icons.chevron_right,
+                    size: 18, color: AppColors.textTertiary),
               ],
             ),
           ),
@@ -478,7 +481,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: order.items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.outlineVariant),
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: AppColors.outlineVariant),
             itemBuilder: (context, index) {
               final item = order.items[index];
               return Padding(
@@ -528,28 +532,38 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (item.sizeLabel != null && item.sizeLabel!.isNotEmpty) ...[
+                          if (item.sizeLabel != null &&
+                              item.sizeLabel!.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
                               'Size: ${item.sizeLabel}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500),
                             ),
                           ],
-                          if (item.extras != null && item.extras!.trim().isNotEmpty) ...[
+                          if (item.extras != null &&
+                              item.extras!.trim().isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
                               item.extras!.split('\n').join(', '),
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
-                          if (item.note != null && item.note!.trim().isNotEmpty) ...[
+                          if (item.note != null &&
+                              item.note!.trim().isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.edit_note_rounded, size: 14, color: AppColors.primary),
+                                const Icon(Icons.edit_note_rounded,
+                                    size: 14, color: AppColors.primary),
                                 const SizedBox(width: 2),
                                 Expanded(
                                   child: Text(
@@ -576,12 +590,16 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                       children: [
                         Text(
                           '${_formatPrice(item.price)}đ',
-                          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'x${item.quantity}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
@@ -590,7 +608,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               );
             },
           ),
-          if (order.storeNote != null && order.storeNote!.trim().isNotEmpty) ...[
+          if (order.storeNote != null &&
+              order.storeNote!.trim().isNotEmpty) ...[
             const Divider(height: 1, color: AppColors.outlineVariant),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -599,12 +618,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 decoration: BoxDecoration(
                   color: AppColors.bgWarm.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                  border: Border.all(
+                      color: AppColors.outlineVariant.withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.sticky_note_2_rounded, size: 16, color: AppColors.primary),
+                    const Icon(Icons.sticky_note_2_rounded,
+                        size: 16, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -656,10 +677,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             'Mã đơn hàng',
             order.orderNumber.isNotEmpty ? '#${order.orderNumber}' : order.id,
             isCopyable: true,
-            copyValue: order.orderNumber.isNotEmpty ? order.orderNumber : order.id,
+            copyValue:
+                order.orderNumber.isNotEmpty ? order.orderNumber : order.id,
           ),
           const SizedBox(height: 10),
-          _buildMetadataRow('Thời gian đặt hàng', '$orderTimeStr ngày $orderDateStr'),
+          _buildMetadataRow(
+              'Thời gian đặt hàng', '$orderTimeStr ngày $orderDateStr'),
           const SizedBox(height: 10),
           _buildMetadataRow('Thời gian nhận dự kiến', pickupTimeStr),
           const SizedBox(height: 10),
@@ -668,7 +691,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           _buildMetadataRow(
             'Phương thức thanh toán',
             order.payments.isNotEmpty
-                ? (order.payments.first.method == 'Tiền mặt' ? 'Thanh toán tiền mặt' : 'Quét mã QR (VietQR/PayOS)')
+                ? (order.payments.first.method == 'Tiền mặt'
+                    ? 'Thanh toán tiền mặt'
+                    : 'Quét mã QR (VietQR/PayOS)')
                 : 'Quét mã QR tại quán',
           ),
           const Divider(height: 24, color: AppColors.outlineVariant),
@@ -677,11 +702,17 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             children: [
               const Text(
                 'Tổng thanh toán',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary),
               ),
               Text(
                 '${_formatPrice(order.totalAmount)}đ',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary),
               ),
             ],
           ),
@@ -691,7 +722,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   }
 
   Widget _buildProposedTimeBanner(MockOrder order) {
-    final newTimeStr = '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
+    final newTimeStr =
+        '${order.pickupTime.hour.toString().padLeft(2, '0')}:${order.pickupTime.minute.toString().padLeft(2, '0')}';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -705,7 +737,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800, size: 22),
+              Icon(Icons.warning_amber_rounded,
+                  color: Colors.orange.shade800, size: 22),
               const SizedBox(width: 8),
               Text(
                 'Quán đề xuất thời gian mới',
@@ -720,7 +753,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           const SizedBox(height: 8),
           Text(
             'Cửa hàng đề xuất thời gian nhận hàng mới vào lúc $newTimeStr (xin thêm phút do quá tải). Bạn có đồng ý không?',
-            style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.4),
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textPrimary, height: 1.4),
           ),
           const SizedBox(height: 12),
           Row(
@@ -728,14 +762,20 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             children: [
               TextButton(
                 onPressed: () {
-                  ref.read(orderProvider.notifier).declineProposedTime(order.id);
+                  ref
+                      .read(orderProvider.notifier)
+                      .declineProposedTime(order.id);
                   TopNotification.show(
                     context,
                     message: 'Đã từ chối đề xuất và hủy đơn hàng.',
                     isError: true,
                   );
                 },
-                child: Text('Từ chối', style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Từ chối',
+                    style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
@@ -749,11 +789,15 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
-                child: const Text('Đồng ý', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: const Text('Đồng ý',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -762,7 +806,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
   }
 
-  Widget _buildMetadataRow(String label, String value, {bool isCopyable = false, String? copyValue}) {
+  Widget _buildMetadataRow(String label, String value,
+      {bool isCopyable = false, String? copyValue}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -774,7 +819,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           children: [
             Text(
               value,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
             ),
             if (isCopyable) ...[
               const SizedBox(width: 4),
@@ -786,7 +834,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     message: 'Đã sao chép mã đơn hàng vào bộ nhớ tạm!',
                   );
                 },
-                child: const Icon(Icons.copy_rounded, size: 14, color: AppColors.textTertiary),
+                child: const Icon(Icons.copy_rounded,
+                    size: 14, color: AppColors.textTertiary),
               ),
             ],
           ],
@@ -796,116 +845,144 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   }
 
   Widget _buildSuggestedStores() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Có thể bạn cũng thích',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
+    final suggestedAsync = ref.watch(recommendedBranchesProvider);
+
+    return suggestedAsync.when(
+      data: (stores) {
+        if (stores.isEmpty) return const SizedBox.shrink();
+        final displayStores = stores.take(9).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Có thể bạn cũng thích',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 30),
+            GridView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayStores.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.62,
+              ),
+              itemBuilder: (context, index) {
+                final store = displayStores[index];
+                return _buildStoreCard(store);
+              },
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _suggestedStores.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.85,
-          ),
-          itemBuilder: (context, index) {
-            final store = _suggestedStores[index];
-            return _buildStoreCard(store);
-          },
-        ),
-      ],
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
-  Widget _buildStoreCard(Map<String, dynamic> store) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest, // White card background
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
+  Widget _buildStoreCard(BranchListItemModel store) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StoreDetailPage(
+              storeName: store.name,
+              category: store.category ?? 'Món ăn',
+              rating: store.rating,
+              reviews: store.reviewsCount ?? 0,
+              deliveryTime: store.deliveryTime,
+              distance: store.distance,
+              icon: Icons.storefront,
+              branchId: store.id,
+              imageUrl: store.imageUrl,
+            ),
+          ),
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image / Icon area
-          Expanded(
+          // Square image with rounded corners
+          AspectRatio(
+            aspectRatio: 1,
             child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
+              borderRadius: BorderRadius.circular(8),
               child: Container(
-                width: double.infinity,
                 color: AppColors.bgWarm,
-                child: Icon(
-                  store['icon'] as IconData,
-                  size: 32,
-                  color: AppColors.textTertiary,
-                ),
+                child: store.imageUrl.isNotEmpty
+                    ? Image.network(
+                        store.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.storefront,
+                              size: 28, color: AppColors.textTertiary),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.storefront,
+                            size: 28, color: AppColors.textTertiary),
+                      ),
               ),
             ),
           ),
-          // Info Area
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  store['name'] as String,
+          const SizedBox(height: 6),
+          // Store name - 2 lines max
+          Text(
+            store.name,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          // Distance & rating
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  store.distance.isNotEmpty ? store.distance : '0.1km',
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star_rounded, size: 12, color: AppColors.star),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${store['rating']}',
-                      style: const TextStyle(fontSize: 10, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${store['distance']}',
-                      style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-                    ),
-                  ],
+              ),
+              if (store.rating > 0) ...[
+                const Text(
+                  ' · ',
+                  style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 0.5),
-                  ),
-                  child: Text(
-                    store['badge'] as String,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
+                const Icon(Icons.star, size: 11, color: AppColors.star),
+                const SizedBox(width: 1),
+                Text(
+                  store.rating.toStringAsFixed(1),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ],
       ),
@@ -913,7 +990,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   }
 
   Widget? _buildBottomActions(MockOrder order) {
-    if (order.status != MockOrderStatus.pendingConfirm && order.status != MockOrderStatus.completed) {
+    if (order.status != MockOrderStatus.pendingConfirm &&
+        order.status != MockOrderStatus.completed) {
       return null;
     }
 
@@ -953,10 +1031,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               child: SizedBox(
                 height: 44,
                 child: ElevatedButton(
-                  onPressed: isReviewed ? null : () => _navigateToReviewPage(order),
+                  onPressed:
+                      isReviewed ? null : () => _navigateToReviewPage(order),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isReviewed ? const Color(0xFFE5E7EB) : AppColors.primary,
-                    foregroundColor: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                    backgroundColor: isReviewed
+                        ? const Color(0xFFE5E7EB)
+                        : AppColors.primary,
+                    foregroundColor:
+                        isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
                     ),
@@ -967,7 +1049,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                      color:
+                          isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
                     ),
                   ),
                 ),
@@ -991,7 +1074,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             child: SizedBox(
               height: 44,
               child: OutlinedButton(
-                onPressed: isUnpaidQr 
+                onPressed: isUnpaidQr
                     ? () => _showCancelReasonsSheet(order.id)
                     : () {
                         showDialog(
@@ -1002,11 +1085,13 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             title: const Text('Liên hệ quán'),
-                            content: Text('Số điện thoại hotline của quán ${order.storeName} là: 1900 1234'),
+                            content: Text(
+                                'Số điện thoại hotline của quán ${order.storeName} là: 1900 1234'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Đóng', style: TextStyle(color: AppColors.primary)),
+                                child: const Text('Đóng',
+                                    style: TextStyle(color: AppColors.primary)),
                               ),
                             ],
                           ),
@@ -1021,7 +1106,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 ),
                 child: Text(
                   isUnpaidQr ? 'Hủy đơn hàng' : 'Liên hệ quán',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -1035,16 +1121,23 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     ? () async {
                         try {
                           final paymentPayload = {
-                            "method": 1, // QrBankTransfer (Enum PaymentMethod index 1)
+                            "method":
+                                1, // QrBankTransfer (Enum PaymentMethod index 1)
                             "transactionReference": null,
                             "note": "Thanh toan don hang ${order.id}",
-                            "returnUrl": "dinex://payment-success?orderId=${order.id}",
-                            "cancelUrl": "dinex://payment-cancel?orderId=${order.id}"
+                            "returnUrl":
+                                "dinex://payment-success?orderId=${order.id}",
+                            "cancelUrl":
+                                "dinex://payment-cancel?orderId=${order.id}"
                           };
-                          final response = await OrderRepository().initiatePayment(order.id, paymentPayload);
-                          final checkoutUrl = response['checkoutUrl'] as String?;
+                          final response = await OrderRepository()
+                              .initiatePayment(order.id, paymentPayload);
+                          final checkoutUrl =
+                              response['checkoutUrl'] as String?;
                           final qrCode = response['qrCode'] as String?;
-                          final amountVal = (response['amount'] as num?)?.toDouble() ?? order.totalAmount.toDouble();
+                          final amountVal =
+                              (response['amount'] as num?)?.toDouble() ??
+                                  order.totalAmount.toDouble();
 
                           if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
                             if (mounted) {
@@ -1061,12 +1154,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                               );
                             }
                           } else {
-                            throw Exception('Không nhận được liên kết thanh toán từ PayOS');
+                            throw Exception(
+                                'Không nhận được liên kết thanh toán từ PayOS');
                           }
                         } catch (e) {
                           TopNotification.show(
                             context,
-                            message: 'Lỗi khởi tạo thanh toán: ${e.toString().replaceAll('Exception: ', '')}',
+                            message:
+                                'Lỗi khởi tạo thanh toán: ${e.toString().replaceAll('Exception: ', '')}',
                             isError: true,
                           );
                         }
@@ -1082,7 +1177,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 ),
                 child: Text(
                   isUnpaidQr ? 'Thanh toán ngay' : 'Hủy đơn hàng',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -1138,7 +1234,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                         ),
                         GestureDetector(
                           onTap: () => Navigator.pop(ctx),
-                          child: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 22),
+                          child: const Icon(Icons.close_rounded,
+                              color: AppColors.textSecondary, size: 22),
                         ),
                       ],
                     ),
@@ -1152,13 +1249,13 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   ),
                   const SizedBox(height: 12),
                   const Divider(height: 1, color: AppColors.outlineVariant),
-
                   Flexible(
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: reasons.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.outlineVariant),
+                      separatorBuilder: (_, __) => const Divider(
+                          height: 1, color: AppColors.outlineVariant),
                       itemBuilder: (context, index) {
                         final reason = reasons[index];
                         final isSelected = selectedReason == reason;
@@ -1169,7 +1266,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                             });
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 14),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -1183,8 +1281,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                                   ),
                                 ),
                                 Icon(
-                                  isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                                  color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                                  isSelected
+                                      ? Icons.radio_button_checked_rounded
+                                      : Icons.radio_button_off_rounded,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.textTertiary,
                                   size: 20,
                                 ),
                               ],
@@ -1196,7 +1298,6 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   ),
                   const Divider(height: 1, color: AppColors.outlineVariant),
                   const SizedBox(height: 16),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: SizedBox(
@@ -1207,22 +1308,27 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                             ? null
                             : () {
                                 // 1. Cancel order
-                                ref.read(orderProvider.notifier).cancelOrder(id);
+                                ref
+                                    .read(orderProvider.notifier)
+                                    .cancelOrder(id);
                                 // 2. Dismiss sheet
                                 Navigator.pop(ctx);
                                 // 3. Push CancelSuccessPage
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CancelSuccessPage(orderId: id),
+                                    builder: (_) =>
+                                        CancelSuccessPage(orderId: id),
                                   ),
                                 );
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.3),
+                          disabledBackgroundColor:
+                              AppColors.primary.withValues(alpha: 0.3),
                           foregroundColor: Colors.white,
-                          disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
+                          disabledForegroundColor:
+                              Colors.white.withValues(alpha: 0.6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -1230,7 +1336,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                         ),
                         child: const Text(
                           'Hủy đơn hàng',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -1278,9 +1385,11 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           branchId: order.branchId.isNotEmpty ? order.branchId : null,
         );
       }
-      TopNotification.show(context, message: 'Đã thêm toàn bộ món vào giỏ hàng!', isError: false);
+      TopNotification.show(context,
+          message: 'Đã thêm toàn bộ món vào giỏ hàng!', isError: false);
     } catch (e) {
-      TopNotification.show(context, message: 'Không thể mua lại: $e', isError: true);
+      TopNotification.show(context,
+          message: 'Không thể mua lại: $e', isError: true);
     }
   }
 

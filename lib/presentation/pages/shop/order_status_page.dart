@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../data/models/branch_model.dart';
+import 'store_detail_page.dart';
 import 'cancel_success_page.dart';
 import 'order_detail_page.dart';
 import 'order_review_page.dart';
@@ -21,13 +24,20 @@ class OrderStatusPage extends ConsumerStatefulWidget {
   ConsumerState<OrderStatusPage> createState() => _OrderStatusPageState();
 }
 
-class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTickerProviderStateMixin {
+class _OrderStatusPageState extends ConsumerState<OrderStatusPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  static const _tabs = ['Tất cả', 'Chờ thanh toán', 'Chờ xác nhận', 'Chờ nhận đơn', 'Chờ đánh giá', 'Trả hàng'];
+  static const _tabs = [
+    'Tất cả',
+    'Chờ thanh toán',
+    'Chờ xác nhận',
+    'Chờ nhận đơn',
+    'Chờ đánh giá',
+    'Trả hàng'
+  ];
 
   // Removed unused static const _suggestedStores
-
 
   @override
   void initState() {
@@ -91,8 +101,10 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage> with SingleTi
           isScrollable: true,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          labelStyle:
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          unselectedLabelStyle:
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           indicatorColor: AppColors.primary,
           indicatorWeight: 2.5,
           tabAlignment: TabAlignment.start,
@@ -240,7 +252,8 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
         child: Column(
           children: [
             if (visibleOrders.isNotEmpty) ...[
-              ...visibleOrders.map((o) => _buildOrderCard(o, isReviewed: reviewedOrderIds.contains(o.id))),
+              ...visibleOrders.map((o) => _buildOrderCard(o,
+                  isReviewed: reviewedOrderIds.contains(o.id))),
               const SizedBox(height: 12),
             ] else ...[
               // Màn hình rỗng
@@ -654,7 +667,8 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                       color: AppColors.bgWarm.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                          color:
+                              AppColors.outlineVariant.withValues(alpha: 0.5)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,8 +748,8 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                       ),
                       child: const Text(
                         'Hủy đơn hàng',
-                        style:
-                            TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -757,16 +771,21 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                       ),
                       child: const Text(
                         'Mua lại',
-                        style:
-                            TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: isReviewed ? null : () => _navigateToReviewPage(order),
+                      onPressed: isReviewed
+                          ? null
+                          : () => _navigateToReviewPage(order),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isReviewed ? const Color(0xFFE5E7EB) : AppColors.primary,
-                        foregroundColor: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                        backgroundColor: isReviewed
+                            ? const Color(0xFFE5E7EB)
+                            : AppColors.primary,
+                        foregroundColor:
+                            isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         padding: const EdgeInsets.symmetric(
@@ -778,7 +797,9 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isReviewed ? const Color(0xFF9CA3AF) : Colors.white,
+                          color: isReviewed
+                              ? const Color(0xFF9CA3AF)
+                              : Colors.white,
                         ),
                       ),
                     ),
@@ -861,8 +882,8 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: reasons.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, color: AppColors.outlineVariant),
+                      separatorBuilder: (_, __) => const Divider(
+                          height: 1, color: AppColors.outlineVariant),
                       itemBuilder: (context, index) {
                         final reason = reasons[index];
                         final isSelected = selectedReason == reason;
@@ -917,7 +938,9 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                             ? null
                             : () {
                                 // 1. Cancel order in provider
-                                ref.read(orderProvider.notifier).cancelOrder(id);
+                                ref
+                                    .read(orderProvider.notifier)
+                                    .cancelOrder(id);
                                 // 2. Dismiss bottom sheet
                                 Navigator.pop(ctx);
                                 // 3. Navigate to CancelSuccessPage
@@ -959,129 +982,138 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
   }
 
   Widget _buildSuggestedStores() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Có thể bạn cũng thích',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+    final suggestedAsync = ref.watch(recommendedBranchesProvider);
+
+    return suggestedAsync.when(
+      data: (stores) {
+        if (stores.isEmpty) return const SizedBox.shrink();
+        final displayStores = stores.take(9).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Có thể bạn cũng thích',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 30),
+            GridView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayStores.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.62,
+              ),
+              itemBuilder: (context, index) {
+                final store = displayStores[index];
+                return _buildStoreGridCard(store);
+              },
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cardWidth = (constraints.maxWidth - 12) / 2;
-            return Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: List.generate(_suggestedStores.length, (index) {
-                final store = _suggestedStores[index];
-                return _buildStoreGridCard(store, cardWidth);
-              }),
-            );
-          },
-        ),
-      ],
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
-  Widget _buildStoreGridCard(Map<String, dynamic> store, double cardWidth) {
-    return SizedBox(
-      width: cardWidth,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.outlineVariant),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image area
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
+  Widget _buildStoreGridCard(BranchListItemModel store) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StoreDetailPage(
+              storeName: store.name,
+              category: store.category ?? 'Món ăn',
+              rating: store.rating,
+              reviews: store.reviewsCount ?? 0,
+              deliveryTime: store.deliveryTime,
+              distance: store.distance,
+              icon: Icons.storefront,
+              branchId: store.id,
+              imageUrl: store.imageUrl,
+            ),
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
               child: Container(
-                width: double.infinity,
-                height: 100,
                 color: AppColors.bgWarm,
-                child: Icon(
-                  store['icon'] as IconData,
-                  size: 36,
-                  color: AppColors.textTertiary,
+                child: store.imageUrl.isNotEmpty
+                    ? Image.network(
+                        store.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.storefront,
+                              size: 28, color: AppColors.textTertiary),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.storefront,
+                            size: 28, color: AppColors.textTertiary),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            store.name,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  store.distance.isNotEmpty ? store.distance : '0.1km',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textTertiary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    store['name'] as String,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, size: 12, color: AppColors.star),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${store['rating']}',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${store['distance']}',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          '${store['time']}',
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.textSecondary),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      store['badge'] as String,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+              if (store.rating > 0) ...[
+                const Text(' · ',
+                    style:
+                        TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                const Icon(Icons.star, size: 11, color: AppColors.star),
+                const SizedBox(width: 1),
+                Text(
+                  store.rating.toStringAsFixed(1),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textTertiary),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1120,9 +1152,11 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
           branchId: order.branchId.isNotEmpty ? order.branchId : null,
         );
       }
-      TopNotification.show(context, message: 'Đã thêm toàn bộ món vào giỏ hàng!', isError: false);
+      TopNotification.show(context,
+          message: 'Đã thêm toàn bộ món vào giỏ hàng!', isError: false);
     } catch (e) {
-      TopNotification.show(context, message: 'Không thể mua lại: $e', isError: true);
+      TopNotification.show(context,
+          message: 'Không thể mua lại: $e', isError: true);
     }
   }
 

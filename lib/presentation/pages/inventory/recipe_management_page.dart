@@ -15,6 +15,14 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
   String? _selectedRecipeId;
   final List<Map<String, dynamic>> _editingItems = [];
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(inventoryProvider.notifier).fetchInventory();
+    });
+  }
+
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
@@ -46,14 +54,22 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
 
     // Mock unit cost calculation
     int baseCost = 0;
-    if (ing.name.contains('Mì')) {
+    final nameLower = ing.name.toLowerCase();
+    if (nameLower.contains('mì')) {
       baseCost = 32; // 32k/kg = 32đ/gram
-    } else if (ing.name.contains('Bò')) baseCost = 210; // 210k/kg = 210đ/gram
-    else if (ing.name.contains('Hành')) baseCost = 18; // 18k/kg = 18đ/gram
-    else if (ing.name.contains('Gia')) baseCost = 15; // 15k/kg = 15đ/gram
-    else if (ing.name.contains('Tôm')) baseCost = 3000; // 3000đ/con
-    else if (ing.name.contains('Dầu')) baseCost = 24; // 24đ/ml
-    else baseCost = 10;
+    } else if (nameLower.contains('bò')) {
+      baseCost = 210; // 210k/kg = 210đ/gram
+    } else if (nameLower.contains('hành')) {
+      baseCost = 18; // 18k/kg = 18đ/gram
+    } else if (nameLower.contains('gia')) {
+      baseCost = 15; // 15k/kg = 15đ/gram
+    } else if (nameLower.contains('tôm')) {
+      baseCost = 3000; // 3000đ/con
+    } else if (nameLower.contains('dầu')) {
+      baseCost = 24; // 24đ/ml
+    } else {
+      baseCost = 10;
+    }
 
     final costEst = (defaultQty * baseCost).toInt();
 
@@ -73,14 +89,22 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
     
     // Get ingredient unit cost
     int baseCost = 0;
-    if (item['ingredientName'].contains('Mì')) {
+    final itemLower = item['ingredientName'].toString().toLowerCase();
+    if (itemLower.contains('mì')) {
       baseCost = 32;
-    } else if (item['ingredientName'].contains('Bò')) baseCost = 210;
-    else if (item['ingredientName'].contains('Hành')) baseCost = 18;
-    else if (item['ingredientName'].contains('Gia')) baseCost = 15;
-    else if (item['ingredientName'].contains('Tôm')) baseCost = 3000;
-    else if (item['ingredientName'].contains('Dầu')) baseCost = 24;
-    else baseCost = 10;
+    } else if (itemLower.contains('bò')) {
+      baseCost = 210;
+    } else if (itemLower.contains('hành')) {
+      baseCost = 18;
+    } else if (itemLower.contains('gia')) {
+      baseCost = 15;
+    } else if (itemLower.contains('tôm')) {
+      baseCost = 3000;
+    } else if (itemLower.contains('dầu')) {
+      baseCost = 24;
+    } else {
+      baseCost = 10;
+    }
 
     setState(() {
       item['costEstimate'] = (qty * baseCost).toInt();
@@ -96,47 +120,94 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
   }
 
   void _showIngredientSelector(List<InventoryIngredient> ingredients) {
+    final searchController = TextEditingController();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Chọn nguyên liệu thêm vào công thức',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final query = searchController.text.toLowerCase();
+            final filtered = query.isEmpty
+                ? ingredients
+                : ingredients.where((e) => e.name.toLowerCase().contains(query)).toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.4,
-                ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: ingredients.length,
-                  itemBuilder: (context, index) {
-                    final ing = ingredients[index];
-                    return ListTile(
-                      title: Text(ing.name, style: const TextStyle(color: AppColors.textPrimary)),
-                      subtitle: Text('Tồn hiện tại: ${ing.currentStock} ${ing.unit}', style: const TextStyle(color: AppColors.textSecondary)),
-                      trailing: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _addRecipeItemRow(ing);
-                      },
-                    );
-                  },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Chọn nguyên liệu thêm vào công thức',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Tìm nguyên liệu...',
+                        hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.35,
+                      ),
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.search_off, size: 40, color: AppColors.textSecondary),
+                                    SizedBox(height: 8),
+                                    Text('Không tìm thấy nguyên liệu', style: TextStyle(color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final ing = filtered[index];
+                                return ListTile(
+                                  title: Text(ing.name, style: const TextStyle(color: AppColors.textPrimary)),
+                                  subtitle: Text('Tồn hiện tại: ${ing.currentStock} ${ing.unit}', style: const TextStyle(color: AppColors.textSecondary)),
+                                  trailing: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    _addRecipeItemRow(ing);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -168,6 +239,53 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(inventoryProvider);
+
+    if (!state.isInitialized) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AppColors.onPrimary, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Công thức món ăn',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onPrimary),
+          ),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    if (state.recipes.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AppColors.onPrimary, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Công thức món ăn',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onPrimary),
+          ),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: Text(
+            'Chưa có món ăn nào trong thực đơn chi nhánh',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
+        ),
+      );
+    }
 
     if (state.recipes.isNotEmpty && _selectedRecipeId == null) {
       _selectedRecipeId = state.recipes.first.menuItemId;

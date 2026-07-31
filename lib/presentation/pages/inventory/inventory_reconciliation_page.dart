@@ -13,6 +13,7 @@ class InventoryReconciliationPage extends ConsumerStatefulWidget {
 
 class _InventoryReconciliationPageState extends ConsumerState<InventoryReconciliationPage> {
   final List<Map<String, dynamic>> _auditRows = [];
+  bool _isLoading = false;
 
   final List<String> _reconciliationReasons = [
     'Hao hụt chế biến',
@@ -37,7 +38,7 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
     }
   }
 
-  void _submitReconciliation() {
+  void _submitReconciliation() async {
     final List<Map<String, dynamic>> auditsPayload = [];
 
     for (var row in _auditRows) {
@@ -64,9 +65,27 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
       return;
     }
 
-    ref.read(inventoryProvider.notifier).reconcileStock(auditsPayload);
-    TopNotification.show(context, message: 'Đã thực hiện cân đối tồn kho thành công');
-    Navigator.pop(context);
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await ref.read(inventoryProvider.notifier).reconcileStock(auditsPayload);
+      if (mounted) {
+        TopNotification.show(context, message: 'Đã thực hiện cân đối tồn kho thành công');
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        TopNotification.show(context, message: 'Cân đối thất bại: $e', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -85,8 +104,10 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
@@ -213,7 +234,18 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
         ],
       ),
     ),
-  );
+    if (_isLoading)
+      Positioned.fill(
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.3),
+          child: const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+      ),
+  ],
+),
+);
 }
 
   Widget _buildAuditItemRow(Map<String, dynamic> row) {

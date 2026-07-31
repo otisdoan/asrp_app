@@ -6,6 +6,8 @@ import 'store_detail_page.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
+import '../../../data/models/branch_search_model.dart';
+import '../../../providers/branch_provider.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
@@ -25,20 +27,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   bool _submitted = false;
   String _selectedFilter = 'Đúng nhất';
   String? _selectedCategory;
+  double? _minRating;
+  bool? _hasPromo;
+  double? _maxPrice;
 
-  // Mock autocomplete data
-  static const _allSuggestions = [
-    'Phở', 'Phở bò tái', 'Phở gà', 'Phở bò viên',
-    'Cơm', 'Cơm tấm', 'Cơm sườn', 'Cơm gà',
-    'Bún bò', 'Bún bò Huế', 'Bún chả',
-    'Trà sữa', 'Trà sữa trân châu', 'Trà đào',
-    'Bánh canh', 'Bánh canh cua', 'Bánh canh cá lóc', 'Bánh canh ghẹ',
-    'Bánh mì', 'Gà rán', 'Lẩu', 'Pizza',
-  ];
+
 
   @override
   void initState() {
     super.initState();
+    // Luôn tải lại lịch sử tìm kiếm mới nhất từ DB khi vào trang
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(searchHistoryProvider.notifier).loadHistory();
+    });
     if (widget.initialCategory != null) {
       _selectedCategory = widget.initialCategory;
       _query = widget.initialCategory!;
@@ -63,16 +64,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _submitted = true;
       _query = value.trim();
     });
+    ref.read(searchHistoryProvider.notifier).addQuery(value.trim());
     _focusNode.unfocus();
   }
 
-  List<String> _getAutocompleteSuggestions() {
-    if (_query.isEmpty) return [];
-    return _allSuggestions
-        .where((s) => s.toLowerCase().contains(_query.toLowerCase()))
-        .take(6)
-        .toList();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -194,29 +190,41 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   // STATE 1: TYPING — Autocomplete suggestions
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildTypingView() {
-    final suggestions = _getAutocompleteSuggestions();
+    if (_query.isNotEmpty) {
+      final suggestionsAsync = ref.watch(searchAutocompleteProvider(_query));
+      return suggestionsAsync.when(
+        data: (suggestions) => ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            if (suggestions.isNotEmpty) ...[
+              ...suggestions.map((s) => _buildSuggestionItem(s)),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              _buildSearchInCategory('Nhà hàng'),
+              _buildSearchInCategory('Món ăn'),
+            ],
+          ],
+        ),
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+        error: (err, stack) => const SizedBox.shrink(),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        // Autocomplete suggestions
-        if (suggestions.isNotEmpty) ...[
-          ...suggestions.map((s) => _buildSuggestionItem(s)),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-          // Search in categories
-          _buildSearchInCategory('Nhà hàng'),
-          _buildSearchInCategory('Món ăn'),
-        ],
-        // Default state (no query yet)
-        if (_query.isEmpty) ...[
-          const SizedBox(height: 12),
-          _buildHistorySection(),
-          const SizedBox(height: 24),
-          _buildQuickSuggestionsSection(),
-          const SizedBox(height: 24),
-          _buildRecommendedSection(),
-          const SizedBox(height: 20),
-        ],
+        const SizedBox(height: 12),
+        _buildHistorySection(),
+        const SizedBox(height: 24),
+        _buildQuickSuggestionsSection(),
+        const SizedBox(height: 24),
+        _buildRecommendedSection(),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -284,198 +292,324 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildHistorySection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final historyAsync = ref.watch(searchHistoryProvider);
+
+    return historyAsync.when(
+      data: (historyList) {
+        if (historyList.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Tìm kiếm gần đây',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tìm kiếm gần đây',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      ref.read(searchHistoryProvider.notifier).clearHistory();
+                    },
+                    child: const Text(
+                      'Xóa',
+                      style: TextStyle(fontSize: 13, color: AppColors.primary),
+                    ),
+                  ),
+                ],
               ),
-              GestureDetector(
-                onTap: () => setState(() {}),
-                child: const Text(
-                  'Xóa',
-                  style: TextStyle(fontSize: 13, color: AppColors.primary),
+              const SizedBox(height: 10),
+              ...historyList.map((item) => InkWell(
+                onTap: () {
+                  _searchController.text = item;
+                  _onSubmitted(item);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.history, size: 18, color: Colors.grey[400]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(item, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                      ),
+                      Icon(Icons.north_west, size: 16, color: Colors.grey[400]),
+                    ],
+                  ),
                 ),
-              ),
+              )).toList(),
             ],
           ),
-          const SizedBox(height: 10),
-          ..._buildHistoryItems(),
-        ],
-      ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
-  List<Widget> _buildHistoryItems() {
-    final history = ['Phở bò tái', 'Cơm sườn nướng', 'Trà sữa trân châu'];
-    return history.map((item) => InkWell(
-      onTap: () {
-        _searchController.text = item;
-        _onSubmitted(item);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
+  Widget _buildQuickSuggestionsSection() {
+    final suggestionsAsync = ref.watch(quickSuggestionsProvider);
+    return suggestionsAsync.when(
+      data: (suggestions) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.history, size: 18, color: Colors.grey[400]),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(item, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+            const Text(
+              'Gợi ý tìm kiếm',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             ),
-            Icon(Icons.north_west, size: 16, color: Colors.grey[400]),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: suggestions.map((s) => GestureDetector(
+                onTap: () {
+                  _searchController.text = s;
+                  _onSubmitted(s);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.outlineVariant),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 6),
+                      Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                    ],
+                  ),
+                ),
+              )).toList(),
+            ),
           ],
         ),
       ),
-    )).toList();
-  }
-
-  Widget _buildQuickSuggestionsSection() {
-    const suggestions = ['Phở', 'Cơm', 'Bún bò', 'Trà sữa', 'Gà rán', 'Cơm tấm', 'Bánh mì'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Gợi ý tìm kiếm',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: suggestions.map((s) => GestureDetector(
-              onTap: () {
-                _searchController.text = s;
-                _onSubmitted(s);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.outlineVariant),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🔥', style: TextStyle(fontSize: 12)),
-                    const SizedBox(width: 6),
-                    Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-                  ],
-                ),
-              ),
-            )).toList(),
-          ),
-        ],
-      ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
   Widget _buildRecommendedSection() {
-    final stores = [
-      {'name': 'BMC Phở Express', 'distance': '1.2km', 'rating': 4.8, 'image': 'assets/images/pho.jpg'},
-      {'name': 'Phở Bò Tái Nạm', 'distance': '2.1km', 'rating': 4.5, 'image': 'assets/images/pho_bo.png'},
-      {'name': 'Cơm Văn Phòng', 'distance': '0.8km', 'rating': 4.3, 'image': 'assets/images/com.webp'},
-      {'name': 'Trà Sữa ToCoToCo', 'distance': '1.5km', 'rating': 4.6, 'image': 'assets/images/tra_sua.jpg'},
-      {'name': 'BMC Phở Gà', 'distance': '3.2km', 'rating': 4.7, 'image': 'assets/images/pho.jpg'},
-      {'name': 'Cơm Tấm Sài Gòn', 'distance': '2.5km', 'rating': 4.4, 'image': 'assets/images/com.webp'},
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Được đề xuất',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 12),
-          GridView.builder(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.65,
-            ),
-            itemCount: stores.length,
-            itemBuilder: (_, index) {
-              final store = stores[index];
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        image: DecorationImage(
-                          image: AssetImage(store['image'] as String),
-                          fit: BoxFit.cover,
+    final recommendedAsync = ref.watch(recommendedBranchesProvider);
+    return recommendedAsync.when(
+      data: (stores) {
+        if (stores.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Được đề xuất',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.65,
+                ),
+                itemCount: stores.length,
+                itemBuilder: (_, index) {
+                  final store = stores[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => StoreDetailPage(
+                          branchId: store.id,
+                          storeName: store.name,
+                          category: store.category ?? 'Đồ ăn · Đồ uống',
+                          rating: store.rating,
+                          reviews: store.reviewsCount ?? 150,
+                          deliveryTime: store.deliveryTime,
+                          distance: store.distance,
+                          icon: Icons.store,
+                          imageUrl: store.imageUrl,
                         ),
-                      ),
+                      ));
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              image: DecorationImage(
+                                image: _getBranchImageProvider(store.imageUrl),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          store.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.2),
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Text(
+                              store.distance,
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                            const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                            const Icon(Icons.star, size: 12, color: Color(0xFFFFC107)),
+                            const SizedBox(width: 2),
+                            Text(
+                              store.rating.toString(),
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    store['name'] as String,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.2),
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Text(
-                        store['distance'] as String,
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                      const Icon(Icons.star, size: 12, color: Color(0xFFFFC107)),
-                      const SizedBox(width: 2),
-                      Text(
-                        store['rating'].toString(),
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
+                  );
+                },
+              ),
+            ],
           ),
-        ],
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildResultsView() {
-    return Column(
-      children: [
-        if (_selectedCategory != null) _buildCategoryRow(),
-        _buildFilterChips(),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            itemCount: _storeResults.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
-            itemBuilder: (_, index) => _buildStoreResultCard(_storeResults[index]),
+    final searchParams = SearchQueryParams(
+      query: _query,
+      sortBy: _selectedFilter,
+      minRating: _minRating,
+      hasPromo: _hasPromo == true || _selectedFilter == 'Khuyến mãi',
+      maxPrice: _maxPrice,
+    );
+    final resultsAsync = ref.watch(searchResultsProvider(searchParams));
+
+    return resultsAsync.when(
+      data: (stores) => Column(
+        children: [
+          if (_selectedCategory != null) _buildCategoryRow(),
+          _buildFilterChips(),
+          Expanded(
+            child: stores.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off, size: 48, color: AppColors.textPlaceholder),
+                          SizedBox(height: 12),
+                          Text(
+                            'Không tìm thấy kết quả phù hợp',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    itemCount: stores.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+                    itemBuilder: (_, index) => _buildStoreResultCard(stores[index]),
+                  ),
+          ),
+        ],
+      ),
+      loading: () => Column(
+        children: [
+          if (_selectedCategory != null) _buildCategoryRow(),
+          _buildFilterChips(),
+          Expanded(
+            child: _buildResultsShimmer(),
+          ),
+        ],
+      ),
+      error: (err, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Text('Đã xảy ra lỗi khi tìm kiếm: $err'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultsShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        itemCount: 3,
+        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+        itemBuilder: (_, __) => Padding(
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(width: 150, height: 14, color: Colors.white),
+                    const SizedBox(height: 8),
+                    Container(width: 100, height: 12, color: Colors.white),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: List.generate(3, (index) => Container(
+                        width: 80,
+                        height: 110,
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      )),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -637,16 +771,36 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  void _showFilterSheet() {
-    showModalBottomSheet(
+  void _showFilterSheet() async {
+    final result = await showModalBottomSheet<FilterResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => const _FilterSheetContent(),
+      builder: (_) => _FilterSheetContent(
+        initialSortBy: _selectedFilter,
+        initialMinRating: _minRating,
+        initialHasPromo: _hasPromo,
+        initialMaxPrice: _maxPrice,
+        initialCategory: _selectedCategory,
+      ),
     );
+
+    if (result != null) {
+      setState(() {
+        _selectedFilter = result.sortBy;
+        _minRating = result.minRating;
+        _hasPromo = result.hasPromo;
+        _maxPrice = result.maxPrice;
+        _selectedCategory = result.selectedCategory;
+        if (result.selectedCategory != null) {
+          _query = result.selectedCategory!;
+          _searchController.text = result.selectedCategory!;
+        }
+      });
+    }
   }
 
   Widget _buildFilterChips() {
@@ -703,53 +857,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  // Mock store results with food items
-  static final _storeResults = [
-    _StoreResult(
-      name: 'BÚN, BÁNH CANH & CƠM GÀ XỐI MỠ - 296 Diên Hồng',
-      rating: 4.9,
-      distance: '6.9km',
-      time: '37 phút',
-      discount: 'Mã giảm 19%',
-      image: 'assets/images/pho.jpg',
-      foods: [
-        _FoodItem(name: 'Bánh canh chả cá', price: '27.000', image: 'assets/images/pho.jpg'),
-        _FoodItem(name: 'Bánh canh xương bò', price: '32.000', image: 'assets/images/pho_bo.png'),
-        _FoodItem(name: 'Bánh canh riêu', price: '27.000', image: 'assets/images/com.webp'),
-        _FoodItem(name: 'Bánh canh tái', price: '30.000', image: 'assets/images/tra_sua.jpg'),
-      ],
-    ),
-    _StoreResult(
-      name: 'Bánh Canh & Bánh Cuốn - Phượng - 423 Nguyễn Thị Minh Khai',
-      rating: 4.8,
-      distance: '7.8km',
-      time: '42 phút',
-      discount: 'Mã giảm 11%',
-      image: 'assets/images/pho_bo.png',
-      foods: [
-        _FoodItem(name: 'Bánh Canh Chả Cá (sợi to)', price: '32.000', image: 'assets/images/pho_bo.png'),
-        _FoodItem(name: 'Bánh Canh Chả Cá (sợi nhỏ)', price: '32.000', image: 'assets/images/pho.jpg'),
-        _FoodItem(name: 'Bánh Canh Xương (sợi to)', price: '38.000', image: 'assets/images/com.webp'),
-        _FoodItem(name: 'Bánh Canh Đặc Biệt', price: '52.000', image: 'assets/images/tra_sua.jpg'),
-      ],
-    ),
-    _StoreResult(
-      name: 'Bếp Mẹ Gấu - Bún Thịt Nướng, Bánh Canh & Cơm - Nguyễn Thị Minh Khai',
-      rating: 4.8,
-      distance: '7.2km',
-      time: '37 phút',
-      discount: 'Mã giảm 19%',
-      image: 'assets/images/com.webp',
-      foods: [
-        _FoodItem(name: 'Cơm sườn nướng', price: '35.000', image: 'assets/images/com.webp'),
-        _FoodItem(name: 'Bún thịt nướng', price: '30.000', image: 'assets/images/pho.jpg'),
-        _FoodItem(name: 'Bánh canh cua', price: '40.000', image: 'assets/images/pho_bo.png'),
-        _FoodItem(name: 'Cơm gà xối mỡ', price: '38.000', image: 'assets/images/tra_sua.jpg'),
-      ],
-    ),
-  ];
+  ImageProvider _getBranchImageProvider(String imageUrl) {
+    if (imageUrl.startsWith('http') || imageUrl.startsWith('https')) {
+      return NetworkImage(imageUrl);
+    } else if (imageUrl.isNotEmpty) {
+      return AssetImage(imageUrl);
+    } else {
+      return const AssetImage('assets/images/pho.jpg');
+    }
+  }
 
-  Widget _buildStoreResultCard(_StoreResult store) {
+  Widget _buildStoreResultCard(BranchSearchResultModel store) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       child: Row(
@@ -760,24 +878,26 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             onTap: () {
               Navigator.push(context, MaterialPageRoute(
                 builder: (_) => StoreDetailPage(
+                  branchId: store.id,
                   storeName: store.name,
                   category: 'Đồ ăn · Đồ uống',
                   rating: store.rating,
                   reviews: 150,
-                  deliveryTime: store.time,
+                  deliveryTime: store.deliveryTime,
                   distance: store.distance,
                   icon: Icons.store,
-                  imageUrl: store.image,
+                  imageUrl: store.imageUrl,
                 ),
               ));
             },
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                store.image,
+              child: Image(
+                image: _getBranchImageProvider(store.imageUrl),
                 width: 56,
                 height: 56,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.store, size: 56, color: Colors.grey),
               ),
             ),
           ),
@@ -791,14 +911,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(
                       builder: (_) => StoreDetailPage(
+                        branchId: store.id,
                         storeName: store.name,
                         category: 'Đồ ăn · Đồ uống',
                         rating: store.rating,
                         reviews: 150,
-                        deliveryTime: store.time,
+                        deliveryTime: store.deliveryTime,
                         distance: store.distance,
                         icon: Icons.store,
-                        imageUrl: store.image,
+                        imageUrl: store.imageUrl,
                       ),
                     ));
                   },
@@ -840,84 +961,102 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           _buildInfoDivider(),
                           Text(store.distance, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           _buildInfoDivider(),
-                          Text(store.time, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          Text(store.deliveryTime, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                       const SizedBox(height: 8),
                       // Discount badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.primary),
-                          borderRadius: BorderRadius.circular(4),
+                      if (store.discount.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.primary),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            store.discount,
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                          ),
                         ),
-                        child: Text(
-                          store.discount,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
-                        ),
-                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
                 // Food items horizontal scroll
-                SizedBox(
-                  height: 150,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: store.foods.length,
-                    itemBuilder: (_, index) {
-                      final food = store.foods[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => StoreDetailPage(
-                              storeName: store.name,
-                              category: 'Đồ ăn · Đồ uống',
-                              rating: store.rating,
-                              reviews: 150,
-                              deliveryTime: store.time,
-                              distance: store.distance,
-                              icon: Icons.store,
-                              highlightFoodName: food.name,
-                              imageUrl: store.image,
-                            ),
-                          ));
-                        },
-                        child: Container(
-                          width: 105,
-                          margin: const EdgeInsets.only(right: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.asset(
-                                  food.image,
-                                  width: 105,
-                                  height: 85,
-                                  fit: BoxFit.cover,
+                if (store.foods.isNotEmpty)
+                  SizedBox(
+                    height: 150,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: store.foods.length,
+                      itemBuilder: (_, index) {
+                        final food = store.foods[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => StoreDetailPage(
+                                branchId: store.id,
+                                storeName: store.name,
+                                category: 'Đồ ăn · Đồ uống',
+                                rating: store.rating,
+                                reviews: 150,
+                                deliveryTime: store.deliveryTime,
+                                distance: store.distance,
+                                icon: Icons.store,
+                                highlightFoodName: food.name,
+                                imageUrl: store.imageUrl,
+                              ),
+                            ));
+                          },
+                          child: Container(
+                            width: 105,
+                            margin: const EdgeInsets.only(right: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image(
+                                    image: _getBranchImageProvider(food.image),
+                                    width: 105,
+                                    height: 85,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 105,
+                                      height: 85,
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.restaurant, color: Colors.grey),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                food.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, color: AppColors.textPrimary, height: 1.2),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${food.price}đ',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
-                              ),
-                            ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  food.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${food.price}đ',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -938,20 +1077,88 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 }
 
-// ─── Filter Sheet ────────────────────────────────────────────────────────────
-class _FilterSheetContent extends StatefulWidget {
-  const _FilterSheetContent();
-  @override
-  State<_FilterSheetContent> createState() => _FilterSheetContentState();
+// ─── Filter Result Class ──────────────────────────────────────────────────────
+class FilterResult {
+  final String sortBy;
+  final double? minRating;
+  final bool? hasPromo;
+  final double? maxPrice;
+  final String? selectedCategory;
+
+  FilterResult({
+    required this.sortBy,
+    this.minRating,
+    this.hasPromo,
+    this.maxPrice,
+    this.selectedCategory,
+  });
 }
 
-class _FilterSheetContentState extends State<_FilterSheetContent> {
+// ─── Filter Sheet ────────────────────────────────────────────────────────────
+class _FilterSheetContent extends ConsumerStatefulWidget {
+  final String initialSortBy;
+  final double? initialMinRating;
+  final bool? initialHasPromo;
+  final double? initialMaxPrice;
+  final String? initialCategory;
+
+  const _FilterSheetContent({
+    required this.initialSortBy,
+    this.initialMinRating,
+    this.initialHasPromo,
+    this.initialMaxPrice,
+    this.initialCategory,
+  });
+
+  @override
+  ConsumerState<_FilterSheetContent> createState() => _FilterSheetContentState();
+}
+
+class _FilterSheetContentState extends ConsumerState<_FilterSheetContent> {
   // Lọc theo
   String _sortBy = 'Được đề xuất';
   // Tùy chọn quán
   final Set<String> _storeOptions = {};
-  // Phí giao hàng
-  String _deliveryFee = 'Tất cả';
+  // Giá
+  String _priceFilter = 'Tất cả';
+  // Loại ẩm thực
+  String? _selectedCuisine;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCuisine = widget.initialCategory;
+    // Map initialSortBy
+    if (widget.initialSortBy == 'Đúng nhất') {
+      _sortBy = 'Được đề xuất';
+    } else if (widget.initialSortBy == 'Gần tôi') {
+      _sortBy = 'Khoảng cách';
+    } else if (widget.initialSortBy == 'Đánh giá') {
+      _sortBy = 'Đánh giá';
+    } else {
+      _sortBy = widget.initialSortBy;
+    }
+
+    if (widget.initialMinRating == 4.4) {
+      _storeOptions.add('rating');
+    }
+    if (widget.initialHasPromo == true) {
+      _storeOptions.add('promo');
+    }
+    if (widget.initialSortBy == 'Bán chạy') {
+      _storeOptions.add('bestseller');
+    }
+
+    if (widget.initialMaxPrice == 30000) {
+      _priceFilter = 'Dưới 30.000đ';
+    } else if (widget.initialMaxPrice == 50000) {
+      _priceFilter = 'Dưới 50.000đ';
+    } else if (widget.initialMaxPrice == 100000) {
+      _priceFilter = 'Dưới 100.000đ';
+    } else {
+      _priceFilter = 'Tất cả';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1002,10 +1209,10 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
                 // ─── Giá ───
                 _buildSectionTitle('Giá'),
                 const SizedBox(height: 12),
-                _buildRadioItem(null, 'Tất cả', _deliveryFee, (v) => setState(() => _deliveryFee = v)),
-                _buildRadioItem(null, 'Dưới 30.000đ', _deliveryFee, (v) => setState(() => _deliveryFee = v)),
-                _buildRadioItem(null, 'Dưới 50.000đ', _deliveryFee, (v) => setState(() => _deliveryFee = v)),
-                _buildRadioItem(null, 'Dưới 100.000đ', _deliveryFee, (v) => setState(() => _deliveryFee = v)),
+                _buildRadioItem(null, 'Tất cả', _priceFilter, (v) => setState(() => _priceFilter = v)),
+                _buildRadioItem(null, 'Dưới 30.000đ', _priceFilter, (v) => setState(() => _priceFilter = v)),
+                _buildRadioItem(null, 'Dưới 50.000đ', _priceFilter, (v) => setState(() => _priceFilter = v)),
+                _buildRadioItem(null, 'Dưới 100.000đ', _priceFilter, (v) => setState(() => _priceFilter = v)),
                 const Divider(height: 32),
 
                 // ─── Loại ẩm thực ───
@@ -1030,7 +1237,8 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
                       setState(() {
                         _sortBy = 'Được đề xuất';
                         _storeOptions.clear();
-                        _deliveryFee = 'Tất cả';
+                        _priceFilter = 'Tất cả';
+                        _selectedCuisine = null;
                       });
                     },
                     child: Container(
@@ -1050,7 +1258,50 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      var finalSortBy = 'Đúng nhất';
+                      if (_sortBy == 'Được đề xuất') {
+                        finalSortBy = 'Đúng nhất';
+                      } else if (_sortBy == 'Khoảng cách') {
+                        finalSortBy = 'Gần tôi';
+                      } else if (_sortBy == 'Đánh giá') {
+                        finalSortBy = 'Đánh giá';
+                      }
+
+                      double? finalMinRating;
+                      if (_storeOptions.contains('rating')) {
+                        finalMinRating = 4.4;
+                      }
+
+                      bool? finalHasPromo;
+                      if (_storeOptions.contains('promo')) {
+                        finalHasPromo = true;
+                      }
+
+                      if (_storeOptions.contains('bestseller')) {
+                        finalSortBy = 'Bán chạy';
+                      }
+
+                      double? finalMaxPrice;
+                      if (_priceFilter == 'Dưới 30.000đ') {
+                        finalMaxPrice = 30000;
+                      } else if (_priceFilter == 'Dưới 50.000đ') {
+                        finalMaxPrice = 50000;
+                      } else if (_priceFilter == 'Dưới 100.000đ') {
+                        finalMaxPrice = 100000;
+                      }
+
+                      Navigator.pop(
+                        context,
+                        FilterResult(
+                          sortBy: finalSortBy,
+                          minRating: finalMinRating,
+                          hasPromo: finalHasPromo,
+                          maxPrice: finalMaxPrice,
+                          selectedCategory: _selectedCuisine,
+                        ),
+                      );
+                    },
                     child: Container(
                       height: 44,
                       decoration: BoxDecoration(
@@ -1163,78 +1414,90 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
   }
 
   Widget _buildCuisineGrid() {
-    final cuisines = [
-      {'name': 'Phở', 'image': 'assets/images/pho.jpg'},
-      {'name': 'Bún', 'image': 'assets/images/pho_bo.png'},
-      {'name': 'Cơm', 'image': 'assets/images/com.webp'},
-      {'name': 'Đồ uống', 'image': 'assets/images/tra_sua.jpg'},
-      {'name': 'Tráng miệng', 'image': 'assets/images/tra_sua.jpg'},
-      {'name': 'Mì', 'image': 'assets/images/pho.jpg'},
-      {'name': 'Chay', 'image': 'assets/images/com.webp'},
-      {'name': 'Đồ ăn vặt', 'image': 'assets/images/pho_bo.png'},
-    ];
+    final categoriesAsync = ref.watch(categoriesFutureProvider);
 
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: cuisines.map((c) => SizedBox(
-        width: 70,
-        child: Column(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  c['image']!,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
+    return categoriesAsync.when(
+      data: (categories) {
+        if (categories.isEmpty) return const SizedBox.shrink();
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: categories.map((c) {
+            final isSelected = _selectedCuisine == c.name;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedCuisine = null;
+                  } else {
+                    _selectedCuisine = c.name;
+                  }
+                });
+              },
+              child: SizedBox(
+                width: 70,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          width: 2.5,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: c.imageUrl.isNotEmpty
+                            ? Image.network(
+                                c.imageUrl,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/images/pho.jpg',
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/images/pho.jpg',
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      c.name,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              c['name']!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
-            ),
-          ],
+            );
+          }).toList(),
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(8.0),
+          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
         ),
-      )).toList(),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
-}
-
-// ─── Models ──────────────────────────────────────────────────────────────────
-class _StoreResult {
-  final String name;
-  final double rating;
-  final String distance;
-  final String time;
-  final String discount;
-  final String image;
-  final List<_FoodItem> foods;
-
-  _StoreResult({
-    required this.name,
-    required this.rating,
-    required this.distance,
-    required this.time,
-    required this.discount,
-    required this.image,
-    required this.foods,
-  });
-}
-
-class _FoodItem {
-  final String name;
-  final String price;
-  final String image;
-
-  _FoodItem({required this.name, required this.price, required this.image});
 }
 

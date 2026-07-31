@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/branch_registration_provider.dart';
@@ -9,6 +10,48 @@ import '../../../providers/staff_management_provider.dart';
 import '../../../data/models/staff_member_model.dart';
 import '../../../data/models/branch_model.dart';
 
+String _formatPhone(String phone) {
+  final clean = phone.trim();
+  if (clean.startsWith('+84')) {
+    return '0${clean.substring(3)}';
+  }
+  if (clean.startsWith('84') && clean.length > 9) {
+    return '0${clean.substring(2)}';
+  }
+  return clean;
+}
+
+String _parseError(dynamic e) {
+  String errorMsg = e.toString().replaceAll('Exception: ', '');
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final msg = data['detail'] ?? 
+                  data['Detail'] ?? 
+                  data['message'] ?? 
+                  data['error'] ?? 
+                  data['title'] ?? 
+                  data['Title'];
+      if (msg != null) {
+        errorMsg = msg.toString();
+      }
+    }
+  }
+
+  if (errorMsg.contains('SuperAdmin/Admin users cannot be assigned') ||
+      errorMsg.contains('Admin or SuperAdmin cannot be assigned')) {
+    return 'Tài khoản này là Chủ thương hiệu (Admin/SuperAdmin), không thể bổ nhiệm làm nhân sự chi nhánh.';
+  }
+  if (errorMsg.contains('Inactive users cannot be assigned')) {
+    return 'Tài khoản này đang bị vô hiệu hóa, vui lòng kích hoạt lại trước.';
+  }
+  if (errorMsg.contains('Phone number is already registered')) {
+    return 'Số điện thoại này đã được đăng ký bởi tài khoản khác.';
+  }
+  
+  return errorMsg;
+}
+
 class StaffManagementPage extends ConsumerStatefulWidget {
   const StaffManagementPage({super.key});
 
@@ -17,8 +60,7 @@ class StaffManagementPage extends ConsumerStatefulWidget {
       _StaffManagementPageState();
 }
 
-class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
-    with WidgetsBindingObserver {
+class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
   // Lọc chi nhánh dành cho SuperAdmin: 'Tất cả' | các chi nhánh động
   String _selectedBranchTab = 'Tất cả';
   List<String> _branchOptions = [];
@@ -30,64 +72,70 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  
+  // Loading state
+  bool _isLoadingStaff = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(myBrandBranchesFutureProvider);
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeMetrics() {
-    final bottomInset = WidgetsBinding
-        .instance.platformDispatcher.views.first.viewInsets.bottom;
-    if (bottomInset == 0 && _searchFocusNode.hasFocus) {
-      _searchFocusNode.unfocus();
-    }
-  }
-
   Future<void> _fetchStaffList() async {
+    setState(() {
+      _isLoadingStaff = true;
+    });
+
     final notifier = ref.read(staffManagementProvider.notifier);
     final user = ref.read(currentUserProvider);
     final registration = ref.read(branchRegistrationProvider);
-    final isMultiBranch = registration.registeredBranches.length > 1;
     final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
         user?.role.toLowerCase() == 'admin';
-    final isSuperAdmin = isBrandOwner && isMultiBranch;
+    final isSuperAdmin = isBrandOwner;
 
-    if (isSuperAdmin) {
-      if (_selectedBranchTab == 'Tất cả') {
-        try {
-          final results = await Future.wait(
-              _realBranches.map((b) => notifier.getStaffListForBranch(b.id)));
-          final combined = results.expand((list) => list).toList();
-          notifier.setStaffList(combined);
-        } catch (e) {
-          print(
-              '[StaffManagementPage] Error fetching staff for all branches: $e');
+    try {
+      if (isSuperAdmin) {
+        if (_selectedBranchTab == 'Tất cả') {
+          try {
+            final results = await Future.wait(
+                _realBranches.map((b) => notifier.getStaffListForBranch(b.id)));
+            final combined = results.expand((list) => list).toList();
+            notifier.setStaffList(combined);
+          } catch (e) {
+            print(
+                '[StaffManagementPage] Error fetching staff for all branches: $e');
+          }
+        } else {
+          final bId = _branchNameToId[_selectedBranchTab];
+          if (bId != null) {
+            await notifier.fetchStaffMembers(bId);
+          }
         }
       } else {
-        final bId = _branchNameToId[_selectedBranchTab];
-        if (bId != null) {
+        final bId = user?.branchId ?? registration.approvedFirstBranchId;
+        if (bId != null && bId.isNotEmpty) {
           await notifier.fetchStaffMembers(bId);
+        } else {
+          if (_realBranches.isNotEmpty) {
+            await notifier.fetchStaffMembers(_realBranches.first.id);
+          }
         }
       }
-    } else {
-      final bId = user?.branchId ?? registration.approvedFirstBranchId;
-      if (bId != null && bId.isNotEmpty) {
-        await notifier.fetchStaffMembers(bId);
-      } else {
-        if (_realBranches.isNotEmpty) {
-          await notifier.fetchStaffMembers(_realBranches.first.id);
-        }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingStaff = false;
+        });
       }
     }
   }
@@ -96,12 +144,9 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final registration = ref.watch(branchRegistrationProvider);
-    final isMultiBranch = registration.registeredBranches.length > 1;
     final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
         user?.role.toLowerCase() == 'admin';
-
-    // Chỉ hiển thị giao diện đa chi nhánh nếu là Chủ thương hiệu và có trên 1 chi nhánh thực tế
-    final isSuperAdmin = isBrandOwner && isMultiBranch;
+    final isSuperAdmin = isBrandOwner;
 
     // Chi nhánh của Admin/Manager
     String adminBranch = 'Quận 1';
@@ -120,15 +165,35 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
       adminBranch = _realBranches.first.name;
     }
 
-    final branchesAsyncValue = ref.watch(branchesFutureProvider);
+    final branchesAsyncValue = ref.watch(myBrandBranchesFutureProvider);
 
     branchesAsyncValue.whenData((branches) {
-      if (!_isInitialized) {
-        _realBranches = branches;
-        _branchOptions = branches.map((b) => b.name).toList();
-        _branchNameToId = {for (var b in branches) b.name: b.id};
-        _isInitialized = true;
+      _realBranches = branches;
+      final List<String> options = [];
+      final Map<String, String> nameToId = {};
 
+      for (int i = 0; i < branches.length; i++) {
+        final b = branches[i];
+        String displayName = b.name;
+        final duplicateCount = branches.where((x) => x.name == b.name).length;
+        if (duplicateCount > 1) {
+          if (b.address != null && b.address!.isNotEmpty) {
+            displayName = '${b.name} (${b.address})';
+          } else {
+            displayName = '${b.name} (#${i + 1})';
+          }
+        }
+        options.add(displayName);
+        nameToId[displayName] = b.id;
+        nameToId[b.name] = b.id;
+        nameToId[b.id] = b.id;
+      }
+
+      _branchOptions = options;
+      _branchNameToId = nameToId;
+
+      if (!_isInitialized) {
+        _isInitialized = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _fetchStaffList();
         });
@@ -155,31 +220,47 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
 
     // Lọc tiếp theo từ khóa tìm kiếm
     if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
+      final query = _searchQuery.toLowerCase().trim();
       filteredList = filteredList.where((m) {
+        final cleanPhone = m.phone.replaceAll(RegExp(r'\D'), '');
+        final cleanQuery = query.replaceAll(RegExp(r'\D'), '');
+        
+        if (cleanQuery.isNotEmpty && RegExp(r'^\d+$').hasMatch(cleanQuery)) {
+          final matchNormal = cleanPhone.contains(cleanQuery);
+          
+          String normalizedPhone = cleanPhone;
+          if (normalizedPhone.startsWith('84')) {
+            normalizedPhone = '0' + normalizedPhone.substring(2);
+          }
+          final matchNormalized = normalizedPhone.contains(cleanQuery);
+          
+          return matchNormal || matchNormalized;
+        }
+        
         return m.fullName.toLowerCase().contains(query) ||
-            m.phone.contains(query);
+            m.phone.toLowerCase().contains(query);
       }).toList();
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: const Color(0xFFF9FAFB),
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           isSuperAdmin
-              ? 'Quản lý nhân sự toàn chuỗi'
+              ? 'Phân công Quản lý chi nhánh'
               : 'Quản lý nhân sự chi nhánh',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
           ),
         ),
         centerTitle: true,
@@ -197,16 +278,19 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
             // ─── Staff List Directory ──────────────────────────────────────────
             Expanded(
               child: branchesAsyncValue.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                 error: (err, stack) =>
                     Center(child: Text('Lỗi tải chi nhánh: $err')),
                 data: (_) {
+                  if (_isLoadingStaff) {
+                    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  }
                   if (filteredList.isEmpty) {
                     return _buildEmptyState();
                   }
                   return ListView.builder(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                    physics: const BouncingScrollPhysics(),
                     itemCount: filteredList.length,
                     itemBuilder: (context, index) {
                       final member = filteredList[index];
@@ -220,14 +304,48 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
         ),
       ),
       // ─── FAB: Add new staff member ─────────────────────────────────────────
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openStaffDialog(null, isSuperAdmin, adminBranch),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add, size: 20),
-        label: Text(
-          isBrandOwner ? 'Bổ nhiệm quản lý/nhân viên' : 'Thêm nhân viên mới',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+      floatingActionButton: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.primary, Color(0xFFF95C40)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _openStaffDialog(null, isSuperAdmin, adminBranch),
+            borderRadius: BorderRadius.circular(26),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.person_add_alt_1_rounded, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    isSuperAdmin ? 'Bổ nhiệm Quản lý chi nhánh' : 'Thêm nhân viên mới',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -237,18 +355,18 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
   Widget _buildSearchBar(bool isSuperAdmin) {
     return Padding(
       key: const ValueKey('staff_search_bar_padding'),
-      padding: EdgeInsets.fromLTRB(16, isSuperAdmin ? 10 : 28, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, isSuperAdmin ? 10 : 16, 16, 12),
       child: Container(
-        height: 48,
+        height: 50,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.outlineVariant),
-          boxShadow: const [
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF0F1F3)),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x05000000),
-              blurRadius: 6,
-              offset: Offset(0, 3),
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -261,13 +379,13 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
               _searchQuery = val;
             });
           },
-          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            hintText: 'Tìm kiếm nhân viên',
+            hintText: 'Tìm kiếm nhân viên...',
             hintStyle:
-                const TextStyle(color: AppColors.textTertiary, fontSize: 13),
+                const TextStyle(color: AppColors.textPlaceholder, fontSize: 13),
             prefixIcon: const Icon(Icons.search_rounded,
-                color: AppColors.textTertiary, size: 20),
+                color: AppColors.textSecondary, size: 22),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.cancel_rounded,
@@ -281,7 +399,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                   )
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
         ),
       ),
@@ -292,8 +410,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
   Widget _buildBranchTabs() {
     final List<String> tabs = ['Tất cả', ..._branchOptions];
     return Container(
-      height: 48,
-      margin: const EdgeInsets.only(top: 14, bottom: 6),
+      height: 40,
+      margin: const EdgeInsets.only(top: 16, bottom: 4),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -309,7 +427,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                 tab,
                 style: TextStyle(
                   color: isSelected ? Colors.white : AppColors.textSecondary,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 13,
                 ),
               ),
@@ -323,14 +441,12 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                 }
               },
               selectedColor: AppColors.primary,
-              backgroundColor: AppColors.bgSoft,
+              backgroundColor: const Color(0xFFF3F4F6),
+              elevation: 0,
+              pressElevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color:
-                      isSelected ? AppColors.primary : AppColors.outlineVariant,
-                  width: 1,
-                ),
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide.none,
               ),
               showCheckmark: false,
             ),
@@ -346,60 +462,90 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
     Color badgeBgColor;
     Color badgeTextColor;
     String displayRole;
+    LinearGradient avatarGradient;
 
-    switch (member.role) {
-      case 'Admin':
-        badgeBgColor = const Color(0xFFFFECEB);
-        badgeTextColor = Colors.red.shade900;
+    switch (member.role.trim().toLowerCase()) {
+      case 'admin':
+        badgeBgColor = const Color(0xFFFEF2F2);
+        badgeTextColor = const Color(0xFFEF4444);
         displayRole = 'Chủ thương hiệu';
+        avatarGradient = const LinearGradient(
+          colors: [Color(0xFFFCA5A5), Color(0xFFEF4444)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
         break;
-      case 'Manager':
-        badgeBgColor = const Color(0xFFFFF2E6);
-        badgeTextColor = Colors.orange.shade900;
-        displayRole = 'Quản lý chi nhánh';
+      case 'manager':
+        badgeBgColor = const Color(0xFFFFF7ED);
+        badgeTextColor = const Color(0xFFF97316);
+        displayRole = 'Quản lý / Thu ngân';
+        avatarGradient = const LinearGradient(
+          colors: [Color(0xFFFDBA74), Color(0xFFF97316)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
         break;
-      case 'Staff':
+      case 'staff':
       default:
-        badgeBgColor = const Color(0xFFEAF8EB);
-        badgeTextColor = Colors.green.shade900;
-        displayRole = 'Nhân viên phục vụ';
+        badgeBgColor = const Color(0xFFECFDF5);
+        badgeTextColor = const Color(0xFF10B981);
+        displayRole = 'Phục vụ';
+        avatarGradient = const LinearGradient(
+          colors: [Color(0xFF6EE7B7), Color(0xFF10B981)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
     }
 
-    final initials =
-        member.fullName.trim().split(' ').last.substring(0, 1).toUpperCase();
+    final trimmedName = member.fullName.trim();
+    final initials = trimmedName.isNotEmpty
+        ? trimmedName.split(' ').last.substring(0, 1).toUpperCase()
+        : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF0F1F3)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 6,
-            offset: Offset(0, 3),
+            color: Colors.black.withOpacity(0.015),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Letter Avatar
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            // Premium Gradient Avatar
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: avatarGradient,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: avatarGradient.colors.last.withOpacity(0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
 
             // Info Detail
             Expanded(
@@ -410,33 +556,35 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                     children: [
                       Expanded(
                         child: Text(
-                          member.fullName,
+                          member.fullName.isNotEmpty
+                              ? member.fullName
+                              : 'Chưa cập nhật tên',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
+                            letterSpacing: -0.2,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 6),
-                      // Branch Badge (Visible to SuperAdmin or for confirmation)
+                      // Branch Badge (Visible to SuperAdmin)
                       if (isSuperAdmin)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.bgSoft,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: AppColors.outlineVariant),
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             member.branchName,
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textTertiary,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -449,7 +597,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                           size: 13, color: AppColors.textTertiary),
                       const SizedBox(width: 4),
                       Text(
-                        member.phone,
+                        _formatPhone(member.phone),
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -458,46 +606,75 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   // Role Badge
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: badgeBgColor,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       displayRole,
                       style: TextStyle(
                         color: badgeTextColor,
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
 
-            // Actions (Edit/Delete)
-            Column(
+            // Actions (Premium Circular Buttons with Clean Spacing)
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined,
-                      color: AppColors.textSecondary, size: 20),
-                  onPressed: () =>
-                      _openStaffDialog(member, isSuperAdmin, adminBranch),
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
+                // Edit Circular Button
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF3F4F6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _openStaffDialog(member, isSuperAdmin, adminBranch),
+                      customBorder: const CircleBorder(),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        color: AppColors.textSecondary,
+                        size: 16,
+                      ),
+                    ),
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      color: Colors.red, size: 20),
-                  onPressed: () => _confirmDelete(member),
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
+                const SizedBox(width: 12),
+                // Delete Circular Button
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEF2F2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _confirmDelete(member),
+                      customBorder: const CircleBorder(),
+                      child: const Icon(
+                        Icons.delete_rounded,
+                        color: Colors.redAccent,
+                        size: 16,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -506,6 +683,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
       ),
     );
   }
+
 
   // ─── Add/Edit Custom Dialog Sheet ──────────────────────────────────────────
   void _openStaffDialog(
@@ -589,8 +767,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage>
                   navigator.pop();
                   TopNotification.show(
                     context,
-                    message:
-                        'Lỗi khi vô hiệu hóa: ${e.toString().replaceAll('Exception: ', '')}',
+                    message: 'Lỗi khi vô hiệu hóa: ${_parseError(e)}',
                     isError: true,
                   );
                 }
@@ -679,8 +856,14 @@ class _StaffEditorSheetContentState
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  late TextEditingController _passwordController;
   late String _selectedRole;
   late String _selectedBranch;
+  bool _passwordVisible = false;
+
+  String? _resolvedUserId;
+  bool _isCheckingPhone = false;
+  bool _phoneExists = false;
 
   @override
   void initState() {
@@ -689,20 +872,98 @@ class _StaffEditorSheetContentState
         TextEditingController(text: widget.existing?.fullName ?? '');
     _phoneController =
         TextEditingController(text: widget.existing?.phone ?? '');
+    _passwordController = TextEditingController();
 
-    _selectedRole = widget.existing?.role ?? 'Manager';
-    if (_selectedRole == 'Admin') {
+    if (widget.isSuperAdmin) {
       _selectedRole = 'Manager';
+    } else {
+      _selectedRole = widget.existing?.role ?? 'Staff';
+      if (_selectedRole == 'Admin') {
+        _selectedRole = 'Manager';
+      }
     }
 
-    _selectedBranch = widget.existing?.branchName ??
-        (widget.isSuperAdmin ? widget.branchOptions[0] : widget.adminBranch);
+    final initialBranch = widget.existing?.branchName;
+    if (initialBranch != null && initialBranch.isNotEmpty) {
+      if (widget.branchOptions.contains(initialBranch)) {
+        _selectedBranch = initialBranch;
+      } else {
+        final matched = widget.branchOptions.firstWhere(
+          (b) => b.toLowerCase().startsWith(initialBranch.toLowerCase()) ||
+                 initialBranch.toLowerCase().startsWith(b.toLowerCase()),
+          orElse: () => widget.branchOptions.isNotEmpty ? widget.branchOptions[0] : initialBranch,
+        );
+        _selectedBranch = matched;
+      }
+    } else {
+      _selectedBranch = widget.isSuperAdmin
+          ? (widget.branchOptions.isNotEmpty ? widget.branchOptions[0] : widget.adminBranch)
+          : widget.adminBranch;
+    }
+
+    if (widget.existing == null) {
+      _phoneController.addListener(_onPhoneChanged);
+    }
+  }
+
+  void _onPhoneChanged() {
+    final phone = _phoneController.text.trim();
+    if (phone.length == 10) {
+      _checkPhone(phone);
+    } else {
+      if (_phoneExists || _resolvedUserId != null) {
+        setState(() {
+          _phoneExists = false;
+          _resolvedUserId = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _checkPhone(String phone) async {
+    if (_isCheckingPhone) return;
+    setState(() {
+      _isCheckingPhone = true;
+    });
+
+    try {
+      final notifier = ref.read(staffManagementProvider.notifier);
+      final userMap = await notifier.checkPhoneExists(phone);
+      if (userMap != null) {
+        setState(() {
+          _phoneExists = true;
+          _resolvedUserId = userMap['id']?.toString();
+          final String resolvedName = userMap['fullName']?.toString() ??
+              userMap['username']?.toString() ??
+              '';
+          if (resolvedName.isNotEmpty) {
+            _nameController.text = resolvedName;
+          }
+        });
+      } else {
+        setState(() {
+          _phoneExists = false;
+          _resolvedUserId = null;
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingPhone = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    if (widget.existing == null) {
+      _phoneController.removeListener(_onPhoneChanged);
+    }
     _nameController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -711,397 +972,607 @@ class _StaffEditorSheetContentState
     final isEdit = widget.existing != null;
 
     return _KeyboardAvoidPadding(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4.5,
-              decoration: BoxDecoration(
-                color: AppColors.textTertiary.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-          ),
 
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isEdit
-                      ? 'Chỉnh sửa thông tin'
-                      : (widget.isSuperAdmin
-                          ? 'Bổ nhiệm nhân sự mới'
-                          : 'Thêm nhân viên mới'),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppColors.textSecondary),
-                  onPressed: () => Navigator.pop(context),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
-
-          // Form Content
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // 1. Full Name
-                  const Text(
-                    'Họ và tên nhân sự *',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _nameController,
-                    autofocus: true,
-                    keyboardType: TextInputType.name,
+                  Text(
+                    isEdit
+                        ? 'Chỉnh sửa thông tin'
+                        : (widget.isSuperAdmin
+                            ? 'Bổ nhiệm nhân sự mới'
+                            : 'Thêm nhân viên mới'),
                     style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500),
-                    decoration: InputDecoration(
-                      hintText: 'Nhập họ và tên...',
-                      hintStyle: const TextStyle(
-                          color: AppColors.textPlaceholder, fontSize: 13),
-                      prefixIcon: const Icon(Icons.person_outline_rounded,
-                          color: AppColors.primary, size: 20),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 16),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: AppColors.outlineVariant),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 1.5),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.error, width: 1.0),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.error, width: 1.5),
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Vui lòng nhập họ tên';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 2. Phone
-                  const Text(
-                    'Số điện thoại đăng nhập *',
-                    style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500),
-                    decoration: InputDecoration(
-                      hintText: 'Nhập số điện thoại...',
-                      hintStyle: const TextStyle(
-                          color: AppColors.textPlaceholder, fontSize: 13),
-                      prefixIcon: const Icon(Icons.phone_iphone_rounded,
-                          color: AppColors.primary, size: 20),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 16),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: AppColors.outlineVariant),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 1.5),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.error, width: 1.0),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.error, width: 1.5),
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Vui lòng nhập số điện thoại';
-                      }
-                      if (val.length < 9) {
-                        return 'Số điện thoại tối thiểu 9 chữ số';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 3. Branch selection dropdown (only for brand owner, lock to admin branch for standard admin)
-                  if (widget.isSuperAdmin) ...[
-                    const Text(
-                      'Chi nhánh làm việc *',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedBranch,
-                      dropdownColor: Colors.white,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500),
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.storefront_outlined,
-                            color: AppColors.primary, size: 20),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14, horizontal: 16),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: AppColors.outlineVariant),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: AppColors.primary, width: 1.5),
-                        ),
-                      ),
-                      items: widget.branchOptions.map((branch) {
-                        return DropdownMenuItem<String>(
-                          value: branch,
-                          child: Text(branch),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedBranch = val;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 4. Role choice chips
-                  const Text(
-                    'Phân vai trò / Quyền hạn *',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Quản lý chi nhánh',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.bold)),
-                        selected: _selectedRole == 'Manager',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedRole = 'Manager');
-                          }
-                        },
-                        selectedColor: Colors.orange.shade100,
-                        backgroundColor: AppColors.bgSoft,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                                color: _selectedRole == 'Manager'
-                                    ? Colors.orange.shade400
-                                    : AppColors.outlineVariant)),
-                        labelStyle: TextStyle(
-                          color: _selectedRole == 'Manager'
-                              ? Colors.orange.shade900
-                              : AppColors.textSecondary,
-                        ),
-                        showCheckmark: false,
-                      ),
-                      const SizedBox(width: 12),
-                      ChoiceChip(
-                        label: const Text('Nhân viên phục vụ',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.bold)),
-                        selected: _selectedRole == 'Staff',
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedRole = 'Staff');
-                        },
-                        selectedColor: Colors.green.shade100,
-                        backgroundColor: AppColors.bgSoft,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                                color: _selectedRole == 'Staff'
-                                    ? Colors.green.shade400
-                                    : AppColors.outlineVariant)),
-                        labelStyle: TextStyle(
-                          color: _selectedRole == 'Staff'
-                              ? Colors.green.shade900
-                              : AppColors.textSecondary,
-                        ),
-                        showCheckmark: false,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Bottom buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: const BorderSide(
-                                color: AppColors.outlineVariant),
-                          ),
-                          child: const Text(
-                            'Hủy bỏ',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (_formKey.currentState!.validate()) {
-                              final notifier =
-                                  ref.read(staffManagementProvider.notifier);
-                              final navigator = Navigator.of(context);
-
-                              try {
-                                if (widget.existing == null) {
-                                  final targetBranchId =
-                                      widget.branchNameToId[_selectedBranch] ??
-                                          notifier.activeBranchId;
-
-                                  final newMember = StaffMemberModel(
-                                    id: '',
-                                    fullName: _nameController.text.trim(),
-                                    phone: _phoneController.text.trim(),
-                                    role: _selectedRole,
-                                    branchName: _selectedBranch,
-                                    createdAt: DateTime.now().toIso8601String(),
-                                  );
-                                  await notifier.addStaffMember(newMember,
-                                      targetBranchId: targetBranchId);
-                                } else {
-                                  final targetBranchId =
-                                      widget.branchNameToId[_selectedBranch] ??
-                                          notifier.activeBranchId;
-
-                                  final updated = widget.existing!.copyWith(
-                                    fullName: _nameController.text.trim(),
-                                    phone: _phoneController.text.trim(),
-                                    role: _selectedRole,
-                                    branchName: _selectedBranch,
-                                  );
-                                  await notifier.updateStaffMember(updated,
-                                      targetBranchId: targetBranchId);
-                                }
-
-                                widget.onSaveSuccess();
-                                navigator.pop();
-
-                                TopNotification.show(
-                                  context,
-                                  message: widget.existing == null
-                                      ? 'Đã thêm thành công nhân sự mới.'
-                                      : 'Đã cập nhật thông tin nhân viên.',
-                                );
-                              } catch (e) {
-                                TopNotification.show(
-                                  context,
-                                  message:
-                                      'Lỗi: ${e.toString().replaceAll('Exception: ', '')}',
-                                  isError: true,
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            isEdit ? 'Lưu thay đổi' : 'Thêm nhân sự',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            const Divider(height: 1, color: AppColors.divider),
+
+            // Form Content
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1. Phone number field (Always first if not edit)
+                    if (!isEdit) ...[
+                      const Text(
+                        'Số điện thoại đăng nhập *',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w500),
+                        decoration: InputDecoration(
+                          hintText: 'Nhập số điện thoại...',
+                          hintStyle: const TextStyle(
+                              color: AppColors.textPlaceholder, fontSize: 13),
+                          prefixIcon: const Icon(Icons.phone_iphone_rounded,
+                              color: AppColors.primary, size: 20),
+                          suffixIcon: _isCheckingPhone
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                          AppColors.primary),
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14, horizontal: 16),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: AppColors.outlineVariant),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: AppColors.primary, width: 1.5),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.0),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: AppColors.error, width: 1.5),
+                          ),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Vui lòng nhập số điện thoại';
+                          }
+                          if (val.length < 9) {
+                            return 'Số điện thoại tối thiểu 9 chữ số';
+                          }
+                          return null;
+                        },
+                      ),
+                      if (_phoneExists) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Tìm thấy tài khoản trên hệ thống',
+                                      style: TextStyle(
+                                          color: Colors.green.shade900,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '• Họ và tên: ${_nameController.text}',
+                                style: TextStyle(
+                                    color: Colors.green.shade900,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '• Trạng thái: Hợp lệ để bổ nhiệm làm nhân sự.',
+                                style: TextStyle(
+                                    color: Colors.green.shade900,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (_phoneController.text.trim().length == 10 &&
+                          !_isCheckingPhone) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline_rounded,
+                                  color: Colors.red.shade800, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Số điện thoại chưa đăng ký tài khoản. Vui lòng đăng ký trước khi bổ nhiệm.',
+                                  style: TextStyle(
+                                      color: Colors.red.shade900,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                    ],
+
+                    // 2. Profile card (Only shown in Edit mode to display read-only user info)
+                    if (isEdit) ...[
+                      const Text(
+                        'Thông tin nhân sự',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _nameController.text.isNotEmpty
+                                        ? _nameController.text
+                                        : 'Chưa cập nhật tên',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Số điện thoại: ${_formatPhone(_phoneController.text)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+
+
+                    // 3. Branch selection dropdown (only for brand owner, lock to admin branch for standard admin)
+                    if (widget.isSuperAdmin) ...[
+                      const Text(
+                        'Chi nhánh làm việc *',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (context) {
+                          final effectiveOptions = List<String>.from(widget.branchOptions);
+                          if (_selectedBranch.isNotEmpty && !effectiveOptions.contains(_selectedBranch)) {
+                            effectiveOptions.add(_selectedBranch);
+                          }
+                          return DropdownButtonFormField<String>(
+                            initialValue: _selectedBranch,
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w500),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.storefront_outlined,
+                                  color: AppColors.primary, size: 20),
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 16),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.outlineVariant),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary, width: 1.5),
+                              ),
+                            ),
+                            items: effectiveOptions.map((branch) {
+                              return DropdownMenuItem<String>(
+                                value: branch,
+                                child: Text(branch),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedBranch = val;
+                                });
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                     // 4. Role choice chips
+                    if (widget.isSuperAdmin) ...[
+                      const Text(
+                        'Vai trò bổ nhiệm *',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        height: 52,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF97316), width: 1.5),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.admin_panel_settings_rounded, color: Color(0xFFF97316), size: 22),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Quản lý chi nhánh (Manager)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFC2410C),
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.check_circle_rounded, color: Color(0xFFF97316), size: 20),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      const Text(
+                        'Phân vai trò nhân viên *',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          // Card 1: Staff (Nhân viên)
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedRole = 'Staff'),
+                              child: Container(
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: _selectedRole == 'Staff'
+                                      ? const Color(0xFFECFDF5)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _selectedRole == 'Staff'
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFE5E7EB),
+                                    width: _selectedRole == 'Staff' ? 1.5 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.badge_rounded,
+                                      color: _selectedRole == 'Staff'
+                                          ? const Color(0xFF10B981)
+                                          : AppColors.textSecondary,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Nhân viên',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: _selectedRole == 'Staff'
+                                            ? const Color(0xFF047857)
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Card 2: Manager (Thu ngân / Quản lý)
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedRole = 'Manager'),
+                              child: Container(
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: _selectedRole == 'Manager'
+                                      ? const Color(0xFFFFF7ED)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _selectedRole == 'Manager'
+                                        ? const Color(0xFFF97316)
+                                        : const Color(0xFFE5E7EB),
+                                    width: _selectedRole == 'Manager' ? 1.5 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.admin_panel_settings_rounded,
+                                      color: _selectedRole == 'Manager'
+                                          ? const Color(0xFFF97316)
+                                          : AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Thu ngân / Quản lý',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: _selectedRole == 'Manager'
+                                            ? const Color(0xFFC2410C)
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 28),
+
+                    // Bottom buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: const BorderSide(
+                                  color: AppColors.outlineVariant),
+                            ),
+                            child: const Text(
+                              'Hủy bỏ',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: (widget.existing == null &&
+                                    !_phoneExists)
+                                ? null
+                                : () async {
+                                    if (_formKey.currentState!.validate()) {
+                                      final notifier = ref.read(
+                                          staffManagementProvider.notifier);
+                                      final navigator = Navigator.of(context);
+
+                                      try {
+                                        if (widget.existing == null) {
+                                          final targetBranchId =
+                                              widget.branchNameToId[
+                                                      _selectedBranch] ??
+                                                  notifier.activeBranchId;
+
+                                          final newMember = StaffMemberModel(
+                                            id: '',
+                                            fullName:
+                                                _nameController.text.trim(),
+                                            phone: _phoneController.text.trim(),
+                                            role: _selectedRole,
+                                            branchName: _selectedBranch,
+                                            createdAt: DateTime.now()
+                                                .toIso8601String(),
+                                          );
+                                          await notifier.addStaffMember(
+                                            newMember,
+                                            targetBranchId: targetBranchId,
+                                            existingUserId: _resolvedUserId,
+                                          );
+                                        } else {
+                                          final originalBranchId =
+                                              widget.existing!.branchId ??
+                                              widget.branchNameToId[
+                                                      widget.existing!
+                                                          .branchName] ??
+                                                  notifier.activeBranchId ??
+                                                  '';
+                                          final targetBranchId =
+                                              widget.branchNameToId[
+                                                      _selectedBranch] ??
+                                                  notifier.activeBranchId ??
+                                                  '';
+
+                                          final updated =
+                                              widget.existing!.copyWith(
+                                            fullName:
+                                                _nameController.text.trim(),
+                                            phone: _phoneController.text.trim(),
+                                            role: _selectedRole,
+                                            branchName: _selectedBranch,
+                                          );
+                                          await notifier.updateStaffMember(
+                                            updated,
+                                            originalBranchId: originalBranchId,
+                                            targetBranchId: targetBranchId,
+                                            originalRole: widget.existing!.role,
+                                          );
+                                        }
+
+                                        widget.onSaveSuccess();
+                                        navigator.pop();
+
+                                        TopNotification.show(
+                                          context,
+                                          message: widget.existing == null
+                                              ? 'Đã thêm thành công nhân sự mới.'
+                                              : 'Đã cập nhật thông tin nhân viên.',
+                                        );
+                                      } catch (e) {
+                                        TopNotification.show(
+                                          context,
+                                          message: 'Lỗi: ${_parseError(e)}',
+                                          isError: true,
+                                        );
+                                      }
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              isEdit ? 'Lưu thay đổi' : 'Thêm nhân sự',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

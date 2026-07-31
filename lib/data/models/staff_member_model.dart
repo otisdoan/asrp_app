@@ -4,6 +4,7 @@ class StaffMemberModel {
   final String phone;
   final String role; // 'Admin' | 'Manager' | 'Staff'
   final String branchName; // Chi nhánh liên kết (e.g. 'Quận 1', 'Quận 3')
+  final String? branchId;
   final String createdAt;
 
   const StaffMemberModel({
@@ -12,6 +13,7 @@ class StaffMemberModel {
     required this.phone,
     required this.role,
     required this.branchName,
+    this.branchId,
     required this.createdAt,
   });
 
@@ -21,6 +23,7 @@ class StaffMemberModel {
     String? phone,
     String? role,
     String? branchName,
+    String? branchId,
     String? createdAt,
   }) {
     return StaffMemberModel(
@@ -29,6 +32,7 @@ class StaffMemberModel {
       phone: phone ?? this.phone,
       role: role ?? this.role,
       branchName: branchName ?? this.branchName,
+      branchId: branchId ?? this.branchId,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -40,6 +44,7 @@ class StaffMemberModel {
       phone: (json['phone'] ?? json['Phone'] ?? json['phoneNumber'] ?? json['PhoneNumber'])?.toString() ?? '',
       role: (json['role'] ?? json['Role'])?.toString() ?? 'Staff',
       branchName: (json['branchName'] ?? json['BranchName'])?.toString() ?? 'Quận 1',
+      branchId: (json['branchId'] ?? json['BranchId'])?.toString(),
       createdAt: (json['createdAt'] ?? json['CreatedAt'])?.toString() ?? '',
     );
   }
@@ -50,6 +55,7 @@ class StaffMemberModel {
         'phone': phone,
         'role': role,
         'branchName': branchName,
+        'branchId': branchId,
         'createdAt': createdAt,
       };
 }

@@ -124,24 +124,52 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
     }
   }
 
-  /// Đăng ký thêm một chi nhánh mới (khi thương hiệu đã được duyệt)
-  void registerNewBranch({
+  /// Đăng ký thêm một chi nhánh mới (Gửi đơn lên Server để SuperAdmin duyệt)
+  Future<void> registerNewBranch({
+    required String brandName,
+    required String category,
     required String branchName,
     required String phone,
     required String address,
     required String gps,
-  }) {
-    final updatedBranches = List<Map<String, String>>.from(state.registeredBranches)
-      ..add({
-        'branchName': branchName,
-        'phone': phone,
-        'address': address,
-        'gps': gps,
-      });
+    required String taxCode,
+    required String bankName,
+    required String bankAccount,
+    required String bankOwner,
+  }) async {
+    try {
+      await _merchantRepository.submitMerchantApplication(
+        brandName: brandName,
+        category: category,
+        taxCode: taxCode,
+        bankName: bankName,
+        bankAccount: bankAccount,
+        bankOwner: bankOwner,
+        branchName: branchName,
+        phone: phone,
+        address: address,
+      );
 
-    state = state.copyWith(
-      registeredBranches: updatedBranches,
-    );
+      final updatedBranches = List<Map<String, String>>.from(state.registeredBranches)
+        ..add({
+          'branchName': branchName,
+          'phone': phone,
+          'address': address,
+          'gps': gps,
+        });
+
+      state = state.copyWith(
+        status: 'pending',
+        branchName: branchName,
+        phone: phone,
+        address: address,
+        gps: gps,
+        registeredBranches: updatedBranches,
+      );
+    } catch (e) {
+      print('[BranchRegistrationNotifier] Error creating new branch application: $e');
+      rethrow;
+    }
   }
 
   /// Mock phê duyệt hồ sơ từ Admin (chuyển trạng thái sang approved)

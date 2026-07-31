@@ -5,7 +5,20 @@ import '../../../providers/cart_provider.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../core/network/dio_client.dart';
+import '../../../providers/branch_provider.dart';
 import 'store_detail_page.dart';
+
+final chatHistoryProvider = StateProvider<List<Map<String, dynamic>>>((ref) {
+  return [
+    {
+      'isUser': false,
+      'text': 'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay? (Bạn có thể chọn câu hỏi gợi ý bên dưới hoặc tự nhập câu hỏi nhé)',
+      'time': '18:32',
+      'showChips': true,
+    }
+  ];
+});
 
 class ChatAssistantPage extends ConsumerStatefulWidget {
   const ChatAssistantPage({super.key});
@@ -15,92 +28,81 @@ class ChatAssistantPage extends ConsumerStatefulWidget {
 }
 
 class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'isUser': false,
-      'text': 'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay? (Bạn có thể chọn câu hỏi gợi ý bên dưới hoặc tự nhập câu hỏi nhé)',
-      'time': '18:32',
-      'showChips': true,
-    }
-  ];
+  late final String _sessionId = 'session_default_user';
 
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTyping = false;
   OverlayEntry? _activeOverlayEntry;
 
-  final List<Map<String, dynamic>> _bunBoRecommendations = [
-    {
-      'branchId': 'Quận 3',
-      'storeName': 'Chi nhánh Quận 3',
-      'dishName': 'Bún bò Huế đặc biệt',
-      'priceText': '55.000đ',
-      'priceAmount': 55000,
-      'distance': '1.2 km',
-      'deliveryTime': '20 phút',
-      'rating': 4.9,
-      'reviews': 320,
-      'tag': 'Rẻ nhất',
-      'tagBg': AppColors.badgeSaleBg,
-      'tagColor': AppColors.badgeSaleText,
-    },
-    {
-      'branchId': 'Phú Nhuận',
-      'storeName': 'Chi nhánh Phú Nhuận',
-      'dishName': 'Bún bò Huế giò heo',
-      'priceText': '59.000đ',
-      'priceAmount': 59000,
-      'distance': '2.5 km',
-      'deliveryTime': '25 phút',
-      'rating': 4.8,
-      'reviews': 180,
-      'tag': 'Yêu thích',
-      'tagBg': AppColors.badgeHotBg,
-      'tagColor': AppColors.badgeHotText,
-    },
-    {
-      'branchId': 'Quận 1',
-      'storeName': 'Chi nhánh Quận 1',
-      'dishName': 'Bún bò Huế thập cẩm',
-      'priceText': '65.000đ',
-      'priceAmount': 65000,
-      'distance': '3.1 km',
-      'deliveryTime': '30 phút',
-      'rating': 4.7,
-      'reviews': 410,
-      'tag': 'Bán chạy',
-      'tagBg': AppColors.badgeBestBg,
-      'tagColor': AppColors.badgeBestText,
-    },
-    {
-      'branchId': 'Trung Tâm',
-      'storeName': 'Bếp trung tâm DineX',
-      'dishName': 'Bún bò Huế chay',
-      'priceText': '50.000đ',
-      'priceAmount': 50000,
-      'distance': '4.0 km',
-      'deliveryTime': '35 phút',
-      'rating': 4.6,
-      'reviews': 90,
-      'tag': 'Giá sỉ kho',
-      'tagBg': AppColors.badgeNewBg,
-      'tagColor': AppColors.badgeNewText,
-    },
-    {
-      'branchId': 'Tân Bình',
-      'storeName': 'Chi nhánh Tân Bình',
-      'dishName': 'Bún bò Huế sườn bò',
-      'priceText': '58.000đ',
-      'priceAmount': 58000,
-      'distance': '5.8 km',
-      'deliveryTime': '40 phút',
-      'rating': 4.5,
-      'reviews': 75,
-      'tag': 'Món mới',
-      'tagBg': AppColors.badgeNewBg,
-      'tagColor': AppColors.badgeNewText,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadChatHistory();
+    });
+  }
+
+  Future<void> _loadChatHistory() async {
+    try {
+      final response = await DioClient().dio.get('/ai/chat/history', queryParameters: {'sessionId': _sessionId});
+      final List<dynamic> list = response.data as List<dynamic>;
+      if (list.isNotEmpty) {
+        final loadedMessages = list.map((item) {
+          return {
+            'isUser': item['isUser'] as bool,
+            'text': item['text'] as String? ?? '',
+            'time': item['time'] as String? ?? '',
+            'orderDraft': item['orderDraft'],
+            'recommendations': item['recommendations'],
+            'branchRecommendations': item['branchRecommendations'],
+            'showChips': false,
+          };
+        }).toList();
+
+        ref.read(chatHistoryProvider.notifier).state = loadedMessages;
+        _scrollToBottom();
+      }
+    } catch (e) {
+      debugPrint('[ChatAssistant] Error loading chat history: $e');
+    }
+  }
+
+  void _confirmClearHistory() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa lịch sử chat'),
+        content: const Text('Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await DioClient().dio.delete('/ai/chat/history', queryParameters: {'sessionId': _sessionId});
+              } catch (_) {}
+              final now = DateTime.now();
+              final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+              ref.read(chatHistoryProvider.notifier).state = [
+                {
+                  'isUser': false,
+                  'text': 'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay?',
+                  'time': timeStr,
+                  'showChips': true,
+                }
+              ];
+            },
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -114,76 +116,131 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     });
   }
 
-  void _handleSubmitted(String text) {
+  void _handleSubmitted(String text) async {
     if (text.trim().isEmpty) return;
     _textController.clear();
 
     final now = DateTime.now();
     final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
+    // 1. Hide chips in previous messages and add user message
+    ref.read(chatHistoryProvider.notifier).update((state) {
+      final updated = state.map((msg) => {...msg, 'showChips': false}).toList();
+      return [
+        ...updated,
+        {
+          'isUser': true,
+          'text': text,
+          'time': timeStr,
+          'showChips': false,
+        }
+      ];
+    });
+
     setState(() {
-      for (var msg in _messages) {
-        msg['showChips'] = false;
-      }
-      _messages.add({
-        'isUser': true,
-        'text': text,
-        'time': timeStr,
-        'showChips': false,
-      });
       _isTyping = true;
     });
     _scrollToBottom();
 
-    final lowercaseText = text.toLowerCase();
-    final isBunBoQuery = lowercaseText.contains('bún bò') ||
-        lowercaseText.contains('bun bo') ||
-        lowercaseText.contains('ngon') ||
-        lowercaseText.contains('rẻ') ||
-        lowercaseText.contains('chi nhánh');
+    // 2. Get branch list and resolve active branch ID
+    final branchesAsync = ref.read(branchesFutureProvider);
+    String branchId = '00000000-0000-0000-0000-000000000000'; // Default GUID
+    branchesAsync.whenData((list) {
+      if (list.isNotEmpty) {
+        branchId = list.first.id;
+      }
+    });
 
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // 3. Format chat history
+    final currentMessages = ref.read(chatHistoryProvider);
+    final history = currentMessages
+        .where((m) => m['isUser'] != null)
+        .map((m) => {
+              'role': m['isUser'] == true ? 'user' : 'assistant',
+              'content': m['text'] as String,
+            })
+        .toList();
+    // Exclude the last message we just added
+    if (history.isNotEmpty) {
+      history.removeLast();
+    }
+
+    try {
+      final response = await DioClient().dio.post(
+        '/ai/chat',
+        data: {
+          'branchId': branchId,
+          'sessionId': _sessionId,
+          'message': text,
+          'chatHistory': history,
+        },
+      );
+
       if (!mounted) return;
+
+      final data = response.data;
       final replyTime = DateTime.now();
       final replyTimeStr = '${replyTime.hour.toString().padLeft(2, '0')}:${replyTime.minute.toString().padLeft(2, '0')}';
 
+      // Log API response for debugging
+      print('================ [Flutter AI Chat] RESPONSE LOG ================');
+      print('User Message: $text');
+      print('AI Reply: ${data['reply']}');
+      print('Recommendations (keywords): ${data['recommendations']}');
+      print('BranchRecommendations (cards): ${data['branchRecommendations']}');
+      print('===============================================================');
+
+      ref.read(chatHistoryProvider.notifier).update((state) => [
+        ...state,
+        {
+          'isUser': false,
+          'text': data['reply'] as String? ?? 'Xin lỗi, hệ thống đang gặp sự cố.',
+          'time': replyTimeStr,
+          'orderPreview': data['orderDraftPreview'],
+          'orderDraft': data['orderDraft'],
+          'resolvedItems': data['resolvedItems'],
+          'recommendations': data['recommendations'],
+          'branchRecommendations': data['branchRecommendations'],
+          'showChips': true,
+        }
+      ]);
+
       setState(() {
         _isTyping = false;
-        for (var msg in _messages) {
-          msg['showChips'] = false;
-        }
-        if (isBunBoQuery) {
-          _messages.add({
-            'isUser': false,
-            'text':
-                'Dựa trên dữ liệu đánh giá và giá cả thực tế trên toàn hệ thống DineX, tôi xin đề xuất Top 5 chi nhánh phục vụ món Bún bò Huế ngon và rẻ nhất cho bạn:',
-            'isRecommendation': true,
-            'time': replyTimeStr,
-            'showChips': true,
-          });
-        } else {
-          _messages.add({
-            'isUser': false,
-            'text':
-                'Xin lỗi, hiện tại tôi chỉ có dữ liệu thực đơn bún bò của chuỗi cửa hàng DineX. Bạn có muốn hỏi về "Bún Bò Huế ngon rẻ nhất" để tôi có thể gợi ý các chi nhánh tốt nhất không?',
-            'isRecommendation': false,
-            'time': replyTimeStr,
-            'showChips': true,
-          });
-        }
       });
       _scrollToBottom();
-    });
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('[ChatAssistant] Error calling AI chat: $e');
+      
+      ref.read(chatHistoryProvider.notifier).update((state) => [
+        ...state,
+        {
+          'isUser': false,
+          'text': 'Không thể kết nối đến máy chủ AI. Vui lòng kiểm tra lại kết nối mạng.',
+          'time': timeStr,
+          'showChips': true,
+        }
+      ]);
+
+      setState(() {
+        _isTyping = false;
+      });
+      _scrollToBottom();
+    }
   }
+
+
 
   void _addToCart(Map<String, dynamic> branch) {
     final bid = branch['branchId'] as String;
+    final realMenuItemId = branch['menuItemId'] as String?;
     final item = CartItemModel(
-      id: '${bid}_bunbo',
-      menuItemId: '${bid}_bunbo',
+      id: realMenuItemId != null ? '${bid}_$realMenuItemId' : '${bid}_bunbo',
+      menuItemId: realMenuItemId ?? '${bid}_bunbo',
       imageUrl: '',
       name: branch['dishName'] as String,
-      priceAmount: branch['priceAmount'] as int,
+      priceAmount: (branch['priceAmount'] as num).toInt(),
       priceDisplay: branch['priceText'] as String,
       quantity: 1,
     );
@@ -212,13 +269,13 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         builder: (_) => StoreDetailPage(
           storeName: branch['storeName'] as String,
           category: 'Quán ăn',
-          rating: branch['rating'] as double,
-          reviews: branch['reviews'] as int,
+          rating: (branch['rating'] as num).toDouble(),
+          reviews: (branch['reviews'] as num).toInt(),
           deliveryTime: branch['deliveryTime'] as String,
           distance: branch['distance'] as String,
           icon: Icons.restaurant,
           branchId: branch['branchId'] as String,
-          highlightFoodName: 'Bún bò Huế',
+          highlightFoodName: branch['dishName'] as String?,
         ),
       ),
     );
@@ -318,6 +375,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
+    final messages = ref.watch(chatHistoryProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFDFB), // Ultra-clean light orange-tinted background
       appBar: AppBar(
@@ -352,10 +410,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
               ),
             ),
             const SizedBox(width: 12),
-            Column(
+            const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Trợ lý ảo AI DineX',
                   style: TextStyle(
                     fontSize: 15,
@@ -364,32 +422,17 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF4ADE80),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Hoạt động',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF4ADE80),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+            tooltip: 'Xóa lịch sử chat',
+            onPressed: _confirmClearHistory,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -399,18 +442,19 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               physics: const BouncingScrollPhysics(),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
+              itemCount: messages.length + (_isTyping ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == _messages.length && _isTyping) {
+                if (index == messages.length && _isTyping) {
                   return _buildTypingIndicator();
                 }
 
-                final msg = _messages[index];
+                final msg = messages[index];
                 final isUser = msg['isUser'] as bool;
                 final text = msg['text'] as String;
-                final isRec = msg['isRecommendation'] as bool? ?? false;
                 final time = msg['time'] as String? ?? '';
                 final showChips = msg['showChips'] as bool? ?? false;
+                final recommendations = msg['recommendations'] as List<dynamic>?;
+                final branchRecommendations = msg['branchRecommendations'] as List<dynamic>?;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
@@ -462,12 +506,12 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                                 ),
                               ),
                             ),
-                            if (isRec) ...[
+                            if (branchRecommendations != null && branchRecommendations.isNotEmpty) ...[
                               const SizedBox(height: 16),
-                              _buildRecommendationsList(),
+                              _buildRecommendationsList(branchRecommendations),
                             ],
                             if (showChips) ...[
-                              _buildInlineSuggestiveChips(),
+                              _buildInlineSuggestiveChips(recommendations),
                             ],
                           ],
                         ),
@@ -574,12 +618,14 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     );
   }
 
-  Widget _buildInlineSuggestiveChips() {
-    final chips = [
-      'Cho tôi chi nhánh bán món Bún Bò Huế ngon, rẻ nhất',
-      'Phở bò ngon Quận 1',
-      'Có món nước gì rẻ không?'
-    ];
+  Widget _buildInlineSuggestiveChips(List<dynamic>? recommendations) {
+    final chips = (recommendations != null && recommendations.isNotEmpty)
+        ? recommendations.cast<String>()
+        : [
+            'Cho tôi chi nhánh bán món Bún Bò Huế ngon, rẻ nhất',
+            'Phở bò ngon Quận 1',
+            'Có món nước gì rẻ không?'
+          ];
 
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, left: 4.0, right: 4.0),
@@ -603,9 +649,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
             ),
             onPressed: () => _handleSubmitted(chipText),
             backgroundColor: const Color(0xFFFFF4F0),
-            side: const BorderSide(color: Color(0xFFFFE5DA), width: 1.0),
+            side: const BorderSide(color: Color(0xFFFFECE2), width: 0.5),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(10),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -784,14 +830,18 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     );
   }
 
-  Widget _buildRecommendationsList() {
+  Widget _buildRecommendationsList(List<dynamic>? branchRecommendations) {
+    if (branchRecommendations == null || branchRecommendations.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final list = branchRecommendations;
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _bunBoRecommendations.length,
+      itemCount: list.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final rec = _bunBoRecommendations[index];
+        final rec = list[index];
         final String tag = rec['tag'] as String? ?? '';
         
         Color tagBgColor;
@@ -832,31 +882,38 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFF4F0),
-                          shape: BoxShape.circle,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFF4F0),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.storefront_rounded,
+                            color: Color(0xFFEA580C),
+                            size: 12,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.storefront_rounded,
-                          color: Color(0xFFEA580C),
-                          size: 12,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            rec['storeName'] as String,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        rec['storeName'] as String,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -884,20 +941,48 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFFFEDD5), width: 1.0),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.ramen_dining_rounded,
-                        color: Color(0xFFEA580C),
-                        size: 32,
-                      ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: (rec['imageUrl'] != null && (rec['imageUrl'] as String).isNotEmpty)
+                          ? Image.network(
+                              rec['imageUrl'] as String,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.ramen_dining_rounded,
+                                    color: Color(0xFFEA580C),
+                                    size: 32,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.ramen_dining_rounded,
+                                  color: Color(0xFFEA580C),
+                                  size: 32,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -907,6 +992,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                       children: [
                         Text(
                           rec['dishName'] as String,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,

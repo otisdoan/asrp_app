@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../data/models/branch_model.dart';
+import 'store_detail_page.dart';
 import 'order_status_page.dart';
 
 /// Orders Page — shows order status categories and suggested stores.
@@ -16,20 +19,6 @@ class OrdersPage extends ConsumerStatefulWidget {
 }
 
 class _OrdersPageState extends ConsumerState<OrdersPage> {
-  // Mock suggested stores (10 items for grid)
-  static const _suggestedStores = [
-    {'name': 'Hiên Coffee', 'rating': 4.7, 'distance': '0.3km', 'time': '15 phút', 'badge': 'Giảm 11%', 'icon': Icons.coffee},
-    {'name': 'Trạm Cà Phê', 'rating': 5.0, 'distance': '0.3km', 'time': '22 phút', 'badge': 'Giảm 11%', 'icon': Icons.local_cafe},
-    {'name': 'Cơm Tấm A Vũ', 'rating': 4.8, 'distance': '1.2km', 'time': '30 phút', 'badge': 'Giảm 15%', 'icon': Icons.rice_bowl},
-    {'name': 'Phở Hà Nội', 'rating': 4.6, 'distance': '0.8km', 'time': '20 phút', 'badge': 'Giảm 10%', 'icon': Icons.ramen_dining},
-    {'name': 'Bánh Mì Khói', 'rating': 4.9, 'distance': '0.5km', 'time': '10 phút', 'badge': 'Giảm 20%', 'icon': Icons.lunch_dining},
-    {'name': 'Gà Rán KFC', 'rating': 4.5, 'distance': '1.5km', 'time': '25 phút', 'badge': 'Giảm 30%', 'icon': Icons.fastfood},
-    {'name': 'Bún Bò Huế', 'rating': 4.7, 'distance': '2.0km', 'time': '35 phút', 'badge': 'Giảm 12%', 'icon': Icons.soup_kitchen},
-    {'name': 'Trà Sữa ToCoToCo', 'rating': 4.4, 'distance': '0.6km', 'time': '12 phút', 'badge': 'Giảm 25%', 'icon': Icons.local_drink},
-    {'name': 'Pizza Company', 'rating': 4.3, 'distance': '1.8km', 'time': '30 phút', 'badge': 'Giảm 18%', 'icon': Icons.local_pizza},
-    {'name': 'Kem Bạch Đằng', 'rating': 4.6, 'distance': '0.9km', 'time': '15 phút', 'badge': 'Giảm 10%', 'icon': Icons.icecream},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -43,18 +32,53 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
     final allOrders = ref.watch(orderProvider);
 
     // Tính toán số đơn thực tế từ provider dựa trên business mapping
-    final pendingPaymentCount = allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && !o.isPaid && o.isQrPayment).length;
-    final pendingConfirmCount = allOrders.where((o) => o.status == MockOrderStatus.pendingConfirm && (o.isPaid || !o.isQrPayment)).length;
-    final preparingAndReadyCount = allOrders.where((o) => o.status == MockOrderStatus.preparing || o.status == MockOrderStatus.ready).length;
-    final completedCount = allOrders.where((o) => o.status == MockOrderStatus.completed).length;
-    final cancelledCount = allOrders.where((o) => o.status == MockOrderStatus.cancelled).length;
+    final pendingPaymentCount = allOrders
+        .where((o) =>
+            o.status == MockOrderStatus.pendingConfirm &&
+            !o.isPaid &&
+            o.isQrPayment)
+        .length;
+    final pendingConfirmCount = allOrders
+        .where((o) =>
+            o.status == MockOrderStatus.pendingConfirm &&
+            (o.isPaid || !o.isQrPayment))
+        .length;
+    final preparingAndReadyCount = allOrders
+        .where((o) =>
+            o.status == MockOrderStatus.preparing ||
+            o.status == MockOrderStatus.ready)
+        .length;
+    final completedCount =
+        allOrders.where((o) => o.status == MockOrderStatus.completed).length;
+    final cancelledCount =
+        allOrders.where((o) => o.status == MockOrderStatus.cancelled).length;
 
     final statusCategories = [
-      {'icon': Icons.account_balance_wallet_outlined, 'label': 'Chờ thanh\ntoán', 'count': pendingPaymentCount},
-      {'icon': Icons.hourglass_top_rounded, 'label': 'Chờ xác\nnhận', 'count': pendingConfirmCount},
-      {'icon': Icons.takeout_dining_outlined, 'label': 'Chờ nhận\nđơn', 'count': preparingAndReadyCount},
-      {'icon': Icons.rate_review_outlined, 'label': 'Chờ đánh\ngiá', 'count': completedCount},
-      {'icon': Icons.replay_rounded, 'label': 'Trả hàng', 'count': cancelledCount},
+      {
+        'icon': Icons.account_balance_wallet_outlined,
+        'label': 'Chờ thanh\ntoán',
+        'count': pendingPaymentCount
+      },
+      {
+        'icon': Icons.hourglass_top_rounded,
+        'label': 'Chờ xác\nnhận',
+        'count': pendingConfirmCount
+      },
+      {
+        'icon': Icons.takeout_dining_outlined,
+        'label': 'Chờ nhận\nđơn',
+        'count': preparingAndReadyCount
+      },
+      {
+        'icon': Icons.rate_review_outlined,
+        'label': 'Chờ đánh\ngiá',
+        'count': completedCount
+      },
+      {
+        'icon': Icons.replay_rounded,
+        'label': 'Trả hàng',
+        'count': cancelledCount
+      },
     ];
 
     return Column(
@@ -132,9 +156,12 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
               ),
               GestureDetector(
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => const OrderStatusPage(initialTabIndex: 0),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const OrderStatusPage(initialTabIndex: 0),
+                      ));
                 },
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -148,7 +175,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                       ),
                     ),
                     SizedBox(width: 2),
-                    Icon(Icons.chevron_right, color: AppColors.onPrimary, size: 18),
+                    Icon(Icons.chevron_right,
+                        color: AppColors.onPrimary, size: 18),
                   ],
                 ),
               ),
@@ -160,7 +188,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
   }
 
   // ─── Status Icons Row ──────────────────────────────────────────────────
-  Widget _buildStatusRow(BuildContext context, List<Map<String, dynamic>> categories) {
+  Widget _buildStatusRow(
+      BuildContext context, List<Map<String, dynamic>> categories) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
@@ -193,9 +222,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
   }) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => OrderStatusPage(initialTabIndex: tabIndex),
-        ));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderStatusPage(initialTabIndex: tabIndex),
+            ));
       },
       child: SizedBox(
         width: 60,
@@ -223,7 +254,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                         color: AppColors.error,
                         shape: BoxShape.circle,
                       ),
-                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      constraints:
+                          const BoxConstraints(minWidth: 18, minHeight: 18),
                       child: Text(
                         '$count',
                         style: const TextStyle(
@@ -254,126 +286,140 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
     );
   }
 
-  // ─── Suggested Stores (Grid 2 per row) ──────────────────────────────────
+  // ─── Suggested Stores (Grid 3 per row) ──────────────────────────────────
   Widget _buildSuggestedStores() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Có thể bạn cũng thích',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+    final suggestedAsync = ref.watch(recommendedBranchesProvider);
+
+    return suggestedAsync.when(
+      data: (stores) {
+        if (stores.isEmpty) return const SizedBox.shrink();
+        final displayStores = stores.take(9).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Có thể bạn cũng thích',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 30),
+            GridView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayStores.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.62,
+              ),
+              itemBuilder: (context, index) {
+                final store = displayStores[index];
+                return _buildStoreGridCard(store);
+              },
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: List.generate(_suggestedStores.length, (index) {
-            final store = _suggestedStores[index];
-            return _buildStoreGridCard(store);
-          }),
-        ),
-      ],
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
-  Widget _buildStoreGridCard(Map<String, dynamic> store) {
-    final screenWidth = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize.width /
-        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
-    final cardWidth = (screenWidth - 24 - 12) / 2; // 12 padding each side + 12 gap
-
-    return SizedBox(
-      width: cardWidth,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.outlineVariant),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image area
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
+  Widget _buildStoreGridCard(BranchListItemModel store) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StoreDetailPage(
+              storeName: store.name,
+              category: store.category ?? 'Món ăn',
+              rating: store.rating,
+              reviews: store.reviewsCount ?? 0,
+              deliveryTime: store.deliveryTime,
+              distance: store.distance,
+              icon: Icons.storefront,
+              branchId: store.id,
+              imageUrl: store.imageUrl,
+            ),
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
               child: Container(
-                width: double.infinity,
-                height: 100,
                 color: AppColors.bgWarm,
-                child: Icon(
-                  store['icon'] as IconData,
-                  size: 36,
-                  color: AppColors.textTertiary,
+                child: store.imageUrl.isNotEmpty
+                    ? Image.network(
+                        store.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.storefront,
+                              size: 28, color: AppColors.textTertiary),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.storefront,
+                            size: 28, color: AppColors.textTertiary),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            store.name,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  store.distance.isNotEmpty ? store.distance : '0.1km',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textTertiary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    store['name'] as String,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, size: 12, color: AppColors.star),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${store['rating']}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${store['distance']}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          '${store['time']}',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      store['badge'] as String,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+              if (store.rating > 0) ...[
+                const Text(' · ',
+                    style:
+                        TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                const Icon(Icons.star, size: 11, color: AppColors.star),
+                const SizedBox(width: 1),
+                Text(
+                  store.rating.toStringAsFixed(1),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textTertiary),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -1,7 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/topping_selection_model.dart';
 import '../../../data/repositories/order_repository.dart';
@@ -39,6 +43,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String? _selectedPickupTime;
   bool _isLoading = true;
   bool _isFirstLoad = true;
+  bool _useDxCoins = false;
   int _previewDiscount = 0;
   int? _previewSubtotal;
   int? _previewTotal;
@@ -84,10 +89,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     return {
       "branchId": widget.branchId ??
-          branchCart.branchId ??
-          "2ea54df9-f2b0-42d2-ad20-bcb01f7e8b0e",
+          branchCart.branchId,
       "pickupTime": selectedTime,
-      "items": branchCart.items.map((item) {
+      "items": branchCart.items
+          .where((item) => isUuid(item.menuItemId))
+          .map((item) {
         String? sizeId;
         if (item.sizeId != null && isUuid(item.sizeId)) {
           sizeId = item.sizeId;
@@ -107,12 +113,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             .map((t) => {"toppingId": t.toppingId, "quantity": 1})
             .toList();
 
-        final menuItemId = isUuid(item.menuItemId)
-            ? item.menuItemId
-            : "3cf9ad92-b267-4dac-a01b-7ef3f61b414a"; // Fallback to a valid item UUID if mock
-
         return {
-          "menuItemId": menuItemId,
+          "menuItemId": item.menuItemId,
           "sizeId": sizeId,
           "quantity": item.quantity,
           "note": item.note,
@@ -181,10 +183,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
+    final user = ref.watch(currentUserProvider);
     final branchCart = _getBranchCart(cart);
 
     // Listen to changes in the cart to fetch updated discount in the background
     ref.listen<CartState>(cartProvider, (previous, next) {
+      if (_isLoading) return;
       final nextBranchCart = _getBranchCart(next);
       if (nextBranchCart.items.isNotEmpty) {
         _fetchOrderPreview(showLoader: false);
@@ -213,12 +217,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
     }
 
-    // Always calculate subtotal and total based on local cart items first,
-    // to maintain 100% visual consistency with the items list (as requested).
-    // The backend preview's discount is subtracted if available.
     final subtotal = branchCart.subtotal;
+    final userPoints = user?.points ?? 0;
+    final maxUsableDx = min(userPoints, subtotal);
+    final dxDiscount = _useDxCoins ? maxUsableDx : 0;
     final total =
-        (subtotal - _previewDiscount + _serviceFee).clamp(0, 99999999);
+        (subtotal - _previewDiscount - dxDiscount + _serviceFee).clamp(0, 99999999);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -236,8 +240,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           // ─── Payment Method ────────────────────────────────────
           SliverToBoxAdapter(child: _buildPaymentMethod()),
 
+          // ─── DX Loyalty Coins Redemption Card ──────────────────
+          SliverToBoxAdapter(child: _buildDxRedemptionCard(user, subtotal)),
+
           // ─── Price Breakdown ───────────────────────────────────
-          SliverToBoxAdapter(child: _buildPriceBreakdown(subtotal, total)),
+          SliverToBoxAdapter(child: _buildPriceBreakdown(subtotal, total, dxDiscount)),
 
           // ─── Terms ─────────────────────────────────────────────
           SliverToBoxAdapter(child: _buildTerms()),
@@ -1003,8 +1010,83 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  // ─── DX Loyalty Coins Redemption Card ─────────────────────────────────
+  Widget _buildDxRedemptionCard(UserModel? user, int subtotal) {
+    final userPoints = user?.points ?? 0;
+    if (userPoints <= 0) return const SizedBox.shrink();
+
+    final maxUsableDx = min(userPoints, subtotal);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF59E0B),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.stars_rounded, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Dùng ${NumberFormat('#,###', 'vi_VN').format(userPoints)} Xu DX',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF92400E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _useDxCoins
+                        ? 'Đã áp dụng giảm -${_formatPrice(maxUsableDx)}đ tiền mặt'
+                        : 'Bật công tắc để khấu trừ tiền mặt ngay',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFB45309),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: _useDxCoins,
+              activeColor: const Color(0xFFD97706),
+              onChanged: (val) {
+                setState(() {
+                  _useDxCoins = val;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Price Breakdown ───────────────────────────────────────────────────
-  Widget _buildPriceBreakdown(int subtotal, int total) {
+  Widget _buildPriceBreakdown(int subtotal, int total, int dxDiscount) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
       child: Column(
@@ -1026,6 +1108,28 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: const TextStyle(
                       fontSize: 14,
                       color: Colors.green,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ],
+          if (dxDiscount > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Giảm giá Xu DX',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFD97706),
+                      fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '-${_formatPrice(dxDiscount)}đ',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFD97706),
                       fontWeight: FontWeight.bold),
                 ),
               ],

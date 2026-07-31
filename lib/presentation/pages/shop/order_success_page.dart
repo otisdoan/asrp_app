@@ -1,67 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../data/models/branch_model.dart';
 import 'order_detail_page.dart';
+import 'store_detail_page.dart';
 
-/// OrderSuccessPage — Shown after successfully placing an order.
-/// Displays confirmation message and a "You might also like" recommended store grid in light theme.
-class OrderSuccessPage extends StatelessWidget {
+class OrderSuccessPage extends ConsumerWidget {
   final String orderId;
 
   const OrderSuccessPage({super.key, required this.orderId});
 
-  static const _suggestedStores = [
-    {
-      'name': 'Hiên Coffee',
-      'rating': 4.7,
-      'distance': '0.3km',
-      'time': '15 phút',
-      'badge': 'Giảm 11%',
-      'icon': Icons.coffee
-    },
-    {
-      'name': 'Trạm Cà Phê',
-      'rating': 5.0,
-      'distance': '0.3km',
-      'time': '22 phút',
-      'badge': 'Giảm 11%',
-      'icon': Icons.local_cafe
-    },
-    {
-      'name': 'Cơm Tấm A Vũ',
-      'rating': 4.8,
-      'distance': '1.2km',
-      'time': '30 phút',
-      'badge': 'Giảm 15%',
-      'icon': Icons.rice_bowl
-    },
-    {
-      'name': 'Phở Hà Nội',
-      'rating': 4.6,
-      'distance': '0.8km',
-      'time': '20 phút',
-      'badge': 'Giảm 10%',
-      'icon': Icons.ramen_dining
-    },
-    {
-      'name': 'Bánh Mì Khói',
-      'rating': 4.9,
-      'distance': '0.5km',
-      'time': '10 phút',
-      'badge': 'Giảm 20%',
-      'icon': Icons.lunch_dining
-    },
-    {
-      'name': 'Gà Rán KFC',
-      'rating': 4.5,
-      'distance': '1.5km',
-      'time': '25 phút',
-      'badge': 'Giảm 30%',
-      'icon': Icons.fastfood
-    },
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background, // Light background
       appBar: AppBar(
@@ -176,23 +127,37 @@ class OrderSuccessPage extends StatelessWidget {
                               color: AppColors.textPrimary,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 30),
 
-                          // Two column store grid
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _suggestedStores.length,
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 0.82,
-                            ),
-                            itemBuilder: (context, index) {
-                              final store = _suggestedStores[index];
-                              return _buildStoreCard(store);
+                          ref.watch(recommendedBranchesProvider).when(
+                            data: (stores) {
+                              if (stores.isEmpty) return const SizedBox.shrink();
+                              final displayStores = stores.take(9).toList();
+
+                              return GridView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: displayStores.length,
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 0.62,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final store = displayStores[index];
+                                  return _buildStoreCard(context, store);
+                                },
+                              );
                             },
+                            loading: () => const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: CircularProgressIndicator(color: AppColors.primary),
+                              ),
+                            ),
+                            error: (_, __) => const SizedBox.shrink(),
                           ),
                         ],
                       ),
@@ -208,85 +173,82 @@ class OrderSuccessPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStoreCard(Map<String, dynamic> store) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest, // White card background
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
+  Widget _buildStoreCard(BuildContext context, BranchListItemModel store) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StoreDetailPage(
+              storeName: store.name,
+              category: store.category ?? 'Món ăn',
+              rating: store.rating,
+              reviews: store.reviewsCount ?? 0,
+              deliveryTime: store.deliveryTime,
+              distance: store.distance,
+              icon: Icons.storefront,
+              branchId: store.id,
+              imageUrl: store.imageUrl,
+            ),
+          ),
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image / Icon area
-          Expanded(
+          AspectRatio(
+            aspectRatio: 1,
             child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
+              borderRadius: BorderRadius.circular(8),
               child: Container(
-                width: double.infinity,
                 color: AppColors.bgWarm,
-                child: Icon(
-                  store['icon'] as IconData,
-                  size: 36,
-                  color: AppColors.textTertiary,
-                ),
+                child: store.imageUrl.isNotEmpty
+                    ? Image.network(
+                        store.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.storefront, size: 28, color: AppColors.textTertiary),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.storefront, size: 28, color: AppColors.textTertiary),
+                      ),
               ),
             ),
           ),
-          // Info Area
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  store['name'] as String,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+          const SizedBox(height: 6),
+          Text(
+            store.name,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  store.distance.isNotEmpty ? store.distance : '0.1km',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star_rounded, size: 13, color: AppColors.star),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${store['rating']}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${store['distance']}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 0.5),
-                  ),
-                  child: Text(
-                    store['badge'] as String,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
+              ),
+              if (store.rating > 0) ...[
+                const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                const Icon(Icons.star, size: 11, color: AppColors.star),
+                const SizedBox(width: 1),
+                Text(
+                  store.rating.toStringAsFixed(1),
+                  style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
                 ),
               ],
-            ),
+            ],
           ),
         ],
       ),

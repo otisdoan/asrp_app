@@ -384,62 +384,75 @@ class _AddToCartPageState extends State<AddToCartPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            )
-          : (_errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.error, fontSize: 16),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchItemDetailsAndInit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
+    final mediaQuery = MediaQuery.of(context);
+    final actualTopPadding = MediaQueryData.fromView(View.of(context)).padding.top;
+    
+    final adjustedMediaQuery = mediaQuery.padding.top == 0
+        ? mediaQuery.copyWith(
+            padding: mediaQuery.padding.copyWith(top: actualTopPadding),
+            viewPadding: mediaQuery.viewPadding.copyWith(top: actualTopPadding),
+          )
+        : mediaQuery;
+
+    return MediaQuery(
+      data: adjustedMediaQuery,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              )
+            : (_errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.error, fontSize: 16),
                           ),
-                          child: const Text('Thử lại'),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _fetchItemDetailsAndInit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              : CustomScrollView(
-                  slivers: [
-                    // ─── Image Header ───────────────────────────────────
-                    _buildImageHeader(context),
-
-                    // ─── Food Name + Price ──────────────────────────────
-                    SliverToBoxAdapter(child: _buildFoodHeader()),
-
-                    // ─── Option Groups (Toppings / Sizes / etc.) ────────
-                    ..._buildOptionGroupSections(),
-
-                    // ─── Note Section ───────────────────────────────────
-                    SliverToBoxAdapter(child: _buildNoteSection()),
-
-                    // ─── Quantity Section ───────────────────────────────
-                    SliverToBoxAdapter(child: _buildQuantitySection()),
-
-                    // Bottom spacing
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                  ],
-                )),
-      // ─── Bottom Add to Cart Button ──────────────────────────
-      bottomNavigationBar: _isLoading || _errorMessage != null ? null : _buildBottomButton(),
+                  )
+                : CustomScrollView(
+                    slivers: [
+                      // ─── Image Header ───────────────────────────────────
+                      _buildImageHeader(context),
+  
+                      // ─── Food Name + Price ──────────────────────────────
+                      SliverToBoxAdapter(child: _buildFoodHeader()),
+  
+                      // ─── Option Groups (Toppings / Sizes / etc.) ────────
+                      ..._buildOptionGroupSections(),
+  
+                      // ─── Note Section ───────────────────────────────────
+                      SliverToBoxAdapter(child: _buildNoteSection()),
+  
+                      // ─── Quantity Section ───────────────────────────────
+                      SliverToBoxAdapter(child: _buildQuantitySection()),
+  
+                      // Bottom spacing
+                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    ],
+                  )),
+        // ─── Bottom Add to Cart Button ──────────────────────────
+        bottomNavigationBar: _isLoading || _errorMessage != null ? null : _buildBottomButton(),
+      ),
     );
   }
 
@@ -449,16 +462,19 @@ class _AddToCartPageState extends State<AddToCartPage> {
       expandedHeight: 220,
       pinned: true,
       backgroundColor: AppColors.background,
-      leading: IconButton(
-        icon: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.inverseSurface.withValues(alpha: 0.26),
-            shape: BoxShape.circle,
+      leading: Center(
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.inverseSurface.withValues(alpha: 0.26),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.close, color: AppColors.onPrimary, size: 20),
           ),
-          child: const Icon(Icons.close, color: AppColors.onPrimary, size: 20),
         ),
-        onPressed: () => Navigator.pop(context),
       ),
       title: null,
       actions: [

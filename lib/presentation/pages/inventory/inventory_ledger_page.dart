@@ -16,11 +16,13 @@ class _InventoryLedgerPageState extends ConsumerState<InventoryLedgerPage> {
   final List<String> _types = ['Tất cả', 'Import', 'Deduction', 'Adjustment'];
 
   String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final localDt = dt.toLocal();
+    return '${localDt.hour.toString().padLeft(2, '0')}:${localDt.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    final localDt = dt.toLocal();
+    return '${localDt.day.toString().padLeft(2, '0')}/${localDt.month.toString().padLeft(2, '0')}/${localDt.year}';
   }
 
   @override

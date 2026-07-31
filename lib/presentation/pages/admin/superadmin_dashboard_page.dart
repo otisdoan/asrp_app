@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../data/models/analytics_model.dart';
+import '../../../providers/analytics_provider.dart';
+import '../../../core/utils/format_utils.dart';
 
 /// SuperAdmin Dashboard Page - Brand-level overview across multiple branches.
 /// Includes KPIs, branch comparative revenue charts, top/bottom seller popularity analytics,
@@ -30,6 +33,35 @@ class _SuperAdminDashboardPageState
     return _selectedDateRange!.duration.inDays + 1;
   }
 
+  BrandDashboardResponseModel? _currentApiData;
+
+  DateTimeRange? get _currentDateRange {
+    final now = DateTime.now();
+    switch (_selectedTimeFilter) {
+      case 'Hôm nay':
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case 'Tuần này':
+        final diff = now.weekday - 1;
+        final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: diff));
+        return DateTimeRange(
+          start: startOfWeek,
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case 'Tháng này':
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        return DateTimeRange(
+          start: startOfMonth,
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case 'Tùy chọn':
+      default:
+        return _selectedDateRange;
+    }
+  }
+
   int _selectedTabIdx =
       0; // 0: Tài chính chuỗi, 1: Kho chuỗi, 2: Vận hành chuỗi
 
@@ -46,29 +78,7 @@ class _SuperAdminDashboardPageState
     }
   }
 
-  // Interactive Live Inventory Stock Levels (Reactive state)
-  final Map<String, Map<String, double>> _inventory = {
-    'Bánh phở tươi': {
-      'Quận 1': 4.5,
-      'Quận 3': 48.0,
-      'Phú Nhuận': 22.0,
-    },
-    'Thịt bò tái': {
-      'Quận 1': 28.0,
-      'Quận 3': 6.5,
-      'Phú Nhuận': 25.0,
-    },
-    'Sườn heo non': {
-      'Quận 1': 8.0,
-      'Quận 3': 32.0,
-      'Phú Nhuận': 5.0,
-    },
-    'Hành lá': {
-      'Quận 1': 1.2,
-      'Quận 3': 10.0,
-      'Phú Nhuận': 5.5,
-    },
-  };
+
 
   // Safe stock thresholds for alert notifications
   double _getSafeThreshold(String ingredient) {
@@ -76,8 +86,7 @@ class _SuperAdminDashboardPageState
     return 10.0; // 10kg default
   }
 
-  // Mock branch revenue datasets based on Time Filter
-  Map<String, double> get _branchRevenues {
+  Map<String, double> _getMockBranchRevenues() {
     if (_selectedTimeFilter == 'Tùy chọn') {
       final double factor = _customRangeDays.toDouble();
       return {
@@ -108,6 +117,19 @@ class _SuperAdminDashboardPageState
           'Phú Nhuận': 27.5,
         };
     }
+  }
+
+  // Mock branch revenue datasets based on Time Filter or live API data
+  Map<String, double> get _branchRevenues {
+    final apiData = _currentApiData;
+    if (apiData == null || apiData.branches.isEmpty) {
+      return _getMockBranchRevenues();
+    }
+    final Map<String, double> revenues = {};
+    for (var branch in apiData.branches) {
+      revenues[branch.branchName] = branch.revenue / 1000000.0;
+    }
+    return revenues;
   }
 
   // Calculated brand KPIs
@@ -205,10 +227,33 @@ class _SuperAdminDashboardPageState
   }
 
   // Opens the beautiful bottom sheet to transfer stocks
-  void _openTransferBottomSheet(String defaultIngredient) {
-    String selectedIngredient = defaultIngredient;
-    String sourceBranch = 'Quận 3'; // default source with plenty of stock
-    String targetBranch = 'Quận 1'; // default targets
+  void _openTransferBottomSheet(
+    String defaultIngredientName,
+    List<BranchDashboardItemModel> branches,
+    Map<String, List<BranchInventoryItem>> branchInventories,
+  ) {
+    String selectedIngredientName = defaultIngredientName;
+
+    final List<BranchInventoryItem> distinctIngredients = [];
+    for (var list in branchInventories.values) {
+      for (var item in list) {
+        if (!distinctIngredients.any((e) => e.ingredientName == item.ingredientName)) {
+          distinctIngredients.add(item);
+        }
+      }
+    }
+
+    if (distinctIngredients.isEmpty) return;
+
+    BranchInventoryItem selectedIngredientItem = distinctIngredients.firstWhere(
+      (e) => e.ingredientName == selectedIngredientName,
+      orElse: () => distinctIngredients.first,
+    );
+
+    String sourceBranchId = branches.isNotEmpty ? branches.first.branchId : '';
+    String targetBranchId = branches.length > 1
+        ? branches.firstWhere((b) => b.branchId != sourceBranchId, orElse: () => branches.last).branchId
+        : sourceBranchId;
     final qtyController = TextEditingController(text: '5.0');
 
     showModalBottomSheet(
@@ -218,8 +263,21 @@ class _SuperAdminDashboardPageState
       builder: (ctx) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            final sourceStock =
-                _inventory[selectedIngredient]?[sourceBranch] ?? 0.0;
+            final sourceList = branchInventories[sourceBranchId] ?? [];
+            final sourceItem = sourceList.firstWhere(
+              (e) => e.ingredientName == selectedIngredientName,
+              orElse: () => BranchInventoryItem(
+                id: '',
+                branchId: sourceBranchId,
+                branchName: '',
+                ingredientId: selectedIngredientItem.ingredientId,
+                ingredientName: selectedIngredientName,
+                unit: selectedIngredientItem.unit,
+                currentStock: 0.0,
+                minStockLevel: 0.0,
+              ),
+            );
+            final sourceStock = sourceItem.currentStock;
 
             return Container(
               decoration: const BoxDecoration(
@@ -275,36 +333,35 @@ class _SuperAdminDashboardPageState
                     const SizedBox(height: 18),
 
                     // 1. Choose Ingredient
-                    const Text('Chọn nguyên liệu',
+                    const Text('Chọn nguyên liệu *',
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.bgSoft,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: selectedIngredient,
+                          value: selectedIngredientName,
                           isExpanded: true,
                           icon: const Icon(Icons.arrow_drop_down,
                               color: AppColors.primary),
-                          items: _inventory.keys.map((ing) {
+                          items: distinctIngredients.map((ing) {
                             return DropdownMenuItem(
-                                value: ing, child: Text(ing));
+                                value: ing.ingredientName, child: Text(ing.ingredientName));
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) {
                               setModalState(() {
-                                selectedIngredient = val;
-                                // Auto adjust branches if overlapping
-                                if (sourceBranch == targetBranch) {
-                                  targetBranch = sourceBranch == 'Quận 3'
-                                      ? 'Quận 1'
-                                      : 'Quận 3';
-                                }
+                                selectedIngredientName = val;
+                                selectedIngredientItem = distinctIngredients.firstWhere(
+                                  (e) => e.ingredientName == selectedIngredientName,
+                                  orElse: () => distinctIngredients.first,
+                                );
                               });
                             }
                           },
@@ -320,7 +377,7 @@ class _SuperAdminDashboardPageState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Chi nhánh nguồn',
+                              const Text('Chi nhánh nguồn *',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold)),
@@ -329,29 +386,26 @@ class _SuperAdminDashboardPageState
                                 padding:
                                     const EdgeInsets.symmetric(horizontal: 10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.bgSoft,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
-                                    value: sourceBranch,
+                                    value: sourceBranchId,
                                     isExpanded: true,
                                     icon: const Icon(Icons.arrow_drop_down,
                                         color: AppColors.primary),
-                                    items: ['Quận 1', 'Quận 3', 'Phú Nhuận']
-                                        .map((br) {
+                                    items: branches.map((br) {
                                       return DropdownMenuItem(
-                                          value: br, child: Text(br));
+                                          value: br.branchId, child: Text(br.branchName));
                                     }).toList(),
                                     onChanged: (val) {
                                       if (val != null) {
                                         setModalState(() {
-                                          sourceBranch = val;
-                                          if (sourceBranch == targetBranch) {
-                                            targetBranch =
-                                                sourceBranch == 'Quận 3'
-                                                    ? 'Quận 1'
-                                                    : 'Quận 3';
+                                          sourceBranchId = val;
+                                          if (sourceBranchId == targetBranchId) {
+                                            targetBranchId = branches.firstWhere((b) => b.branchId != sourceBranchId, orElse: () => branches.first).branchId;
                                           }
                                         });
                                       }
@@ -370,7 +424,7 @@ class _SuperAdminDashboardPageState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Chi nhánh đích',
+                              const Text('Chi nhánh đích *',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold)),
@@ -379,29 +433,26 @@ class _SuperAdminDashboardPageState
                                 padding:
                                     const EdgeInsets.symmetric(horizontal: 10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.bgSoft,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
-                                    value: targetBranch,
+                                    value: targetBranchId,
                                     isExpanded: true,
                                     icon: const Icon(Icons.arrow_drop_down,
                                         color: AppColors.primary),
-                                    items: ['Quận 1', 'Quận 3', 'Phú Nhuận']
-                                        .map((br) {
+                                    items: branches.map((br) {
                                       return DropdownMenuItem(
-                                          value: br, child: Text(br));
+                                          value: br.branchId, child: Text(br.branchName));
                                     }).toList(),
                                     onChanged: (val) {
                                       if (val != null) {
                                         setModalState(() {
-                                          targetBranch = val;
-                                          if (sourceBranch == targetBranch) {
-                                            sourceBranch =
-                                                targetBranch == 'Quận 3'
-                                                    ? 'Quận 1'
-                                                    : 'Quận 3';
+                                          targetBranchId = val;
+                                          if (sourceBranchId == targetBranchId) {
+                                            sourceBranchId = branches.firstWhere((b) => b.branchId != targetBranchId, orElse: () => branches.first).branchId;
                                           }
                                         });
                                       }
@@ -423,17 +474,17 @@ class _SuperAdminDashboardPageState
                             size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Text(
-                          'Tồn kho nguồn tại $sourceBranch: ',
+                          'Tồn kho nguồn tại ${branches.firstWhere((b) => b.branchId == sourceBranchId, orElse: () => BranchDashboardItemModel(branchId: '', branchName: '', isActive: false, status: '', revenue: 0.0, orderCount: 0, completedOrders: 0, pendingOrders: 0, cancelledOrders: 0, averageOrderValue: 0.0, paidOrders: 0, paymentBreakdown: PaymentBreakdownModel(cash: 0.0, payOS: 0.0))).branchName}: ',
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.textSecondary),
                         ),
                         Text(
-                          '${sourceStock.toStringAsFixed(1)} kg',
+                          '${sourceStock.toStringAsFixed(1)} ${selectedIngredientItem.unit.isNotEmpty ? selectedIngredientItem.unit : 'đơn vị'}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: sourceStock <=
-                                    _getSafeThreshold(selectedIngredient)
+                                    _getSafeThreshold(selectedIngredientName)
                                 ? AppColors.error
                                 : AppColors.success,
                           ),
@@ -442,10 +493,12 @@ class _SuperAdminDashboardPageState
                     ),
                     const SizedBox(height: 18),
 
-                    // 3. Input quantity
-                    const Text('Số lượng điều phối (kg)',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.bold)),
+                    // 3. Input quantity with explicit Unit label & suffix
+                    Text(
+                      'Số lượng điều phối (${selectedIngredientItem.unit.isNotEmpty ? selectedIngredientItem.unit : 'đơn vị'}) *',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: qtyController,
@@ -456,12 +509,25 @@ class _SuperAdminDashboardPageState
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.bold),
                       decoration: InputDecoration(
-                        hintText: 'Nhập số kg...',
+                        hintText: 'Nhập số lượng chuyển...',
                         filled: true,
-                        fillColor: AppColors.bgSoft,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none),
+                        fillColor: Colors.white,
+                        suffixText: selectedIngredientItem.unit.isNotEmpty
+                            ? selectedIngredientItem.unit
+                            : null,
+                        suffixStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: AppColors.primary, width: 1.5),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                       ),
@@ -472,7 +538,18 @@ class _SuperAdminDashboardPageState
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          if (sourceBranchId == targetBranchId) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Chi nhánh nguồn và chi nhánh đích không được giống nhau! Vui lòng chọn 2 chi nhánh khác nhau.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
                           final transferQty =
                               double.tryParse(qtyController.text) ?? 0.0;
                           if (transferQty <= 0.0) {
@@ -487,25 +564,61 @@ class _SuperAdminDashboardPageState
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                   content: Text(
-                                      'Không đủ tồn kho nguồn để thực hiện! Tối đa: ${sourceStock.toStringAsFixed(1)}kg.')),
+                                      'Không đủ tồn kho nguồn để thực hiện! Tối đa: ${sourceStock.toStringAsFixed(1)} ${selectedIngredientItem.unit.isNotEmpty ? selectedIngredientItem.unit : 'đơn vị'}.')),
                             );
                             return;
                           }
 
-                          // Execute reactive transfer in State
-                          setState(() {
-                            _inventory[selectedIngredient]![sourceBranch] =
-                                sourceStock - transferQty;
-                            final targetStock = _inventory[selectedIngredient]
-                                    ?[targetBranch] ??
-                                0.0;
-                            _inventory[selectedIngredient]![targetBranch] =
-                                targetStock + transferQty;
-                          });
-
+                          // Capture root navigator reference before closing sheet
+                          final rootNav = Navigator.of(context, rootNavigator: true);
                           Navigator.pop(ctx);
-                          _showTransferSuccessDialog(selectedIngredient,
-                              sourceBranch, targetBranch, transferQty);
+
+                          if (!mounted) return;
+
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(
+                              child: CircularProgressIndicator(color: AppColors.primary),
+                            ),
+                          );
+
+                          final targetIngId = sourceItem.ingredientId.isEmpty ? selectedIngredientItem.ingredientId : sourceItem.ingredientId;
+                          try {
+                            final ticket = await ref.read(analyticsRepositoryProvider).createDirectTransfer(
+                              ingredientId: targetIngId,
+                              sourceBranchId: sourceBranchId,
+                              targetBranchId: targetBranchId,
+                              quantity: transferQty,
+                              note: 'Điều phối chủ động từ Tổng quản trị',
+                            );
+                            
+                            try {
+                              rootNav.pop(); // Close loading dialog
+                            } catch (_) {}
+
+                            for (final b in branches) {
+                              ref.invalidate(branchInventoriesProvider(b.branchId));
+                            }
+                            ref.invalidate(transferTicketsProvider(TransferTicketParams()));
+                            
+                            _showTransferSuccessDialog(
+                              selectedIngredientName,
+                              branches.firstWhere((b) => b.branchId == sourceBranchId).branchName,
+                              branches.firstWhere((b) => b.branchId == targetBranchId).branchName,
+                              transferQty,
+                              ticket.ticketCode,
+                            );
+                          } catch (err) {
+                            try {
+                              rootNav.pop(); // Close loading dialog
+                            } catch (_) {}
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Lỗi vận chuyển: $err')),
+                              );
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
@@ -539,7 +652,7 @@ class _SuperAdminDashboardPageState
 
   // Show a neat success pop up on coordinate completed
   void _showTransferSuccessDialog(
-      String ing, String src, String dst, double qty) {
+      String ing, String src, String dst, double qty, [String? ticketCode]) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -552,12 +665,12 @@ class _SuperAdminDashboardPageState
               height: 56,
               decoration: const BoxDecoration(
                   color: AppColors.successContainer, shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle_outline_rounded,
+              child: const Icon(Icons.local_shipping_rounded,
                   size: 30, color: AppColors.success),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Điều phối thành công!',
+              'Khởi tạo lệnh xuất kho!',
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -565,9 +678,9 @@ class _SuperAdminDashboardPageState
             ),
             const SizedBox(height: 8),
             Text(
-              'Đã chuyển thành công ${qty.toStringAsFixed(1)}kg $ing từ chi nhánh $src đến $dst.',
+              'Đã tạo thành công lệnh điều phối ${ticketCode != null ? "#$ticketCode" : ""}.\nXuất ${qty.toStringAsFixed(1)}kg $ing từ chi nhánh "$src" gửi sang "$dst".\n\nTồn kho chi nhánh nguồn đã xuất kho. Tồn kho chi nhánh đích sẽ tự động cập nhật khi quản lý chi nhánh bấm "Xác nhận nhận hàng".',
               style:
-                  const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
               textAlign: TextAlign.center,
             ),
           ],
@@ -601,6 +714,15 @@ class _SuperAdminDashboardPageState
     final initialChar = displayName.isNotEmpty
         ? displayName.substring(0, 1).toUpperCase()
         : 'S';
+    final dashboardAsync = ref.watch(brandDashboardFutureProvider(_currentDateRange));
+    final List<BranchDashboardItemModel> branchesList = dashboardAsync.value?.branches ?? [];
+    final Map<String, List<BranchInventoryItem>> branchInventories = {};
+    for (var branch in branchesList) {
+      final invAsync = ref.watch(branchInventoriesProvider(branch.branchId));
+      if (invAsync.hasValue) {
+        branchInventories[branch.branchId] = invAsync.value!;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -646,7 +768,45 @@ class _SuperAdminDashboardPageState
                       // 5. Dynamic Tab View contents
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
-                        child: _buildSelectedTabContent(),
+                        child: dashboardAsync.when(
+                          loading: () => const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40.0),
+                              child: CircularProgressIndicator(color: AppColors.primary),
+                            ),
+                          ),
+                          error: (err, stack) => Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Lỗi tải dữ liệu: $err',
+                                    style: const TextStyle(color: AppColors.textPrimary),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () => ref.invalidate(brandDashboardFutureProvider(_currentDateRange)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                    ),
+                                    child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          data: (dashboardData) {
+                            _currentApiData = dashboardData;
+                            // Ensure selected branch filter is valid or reset to all
+                            if (_selectedBranchFilter != 'Tất cả chi nhánh' &&
+                                !_branchRevenues.containsKey(_selectedBranchFilter)) {
+                              _selectedBranchFilter = 'Tất cả chi nhánh';
+                            }
+                            return _buildSelectedTabContent(branchesList, branchInventories);
+                          },
+                        ),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -757,130 +917,6 @@ class _SuperAdminDashboardPageState
     );
   }
 
-  // Beautiful Modal Bottom Sheet to choose a report branch
-  void _showBranchSelectorSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Drag handle bar
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.divider,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Row(
-                children: [
-                  Icon(Icons.storefront_rounded,
-                      color: AppColors.primary, size: 24),
-                  SizedBox(width: 8),
-                  Text(
-                    'Chọn chi nhánh báo cáo',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Xem số liệu doanh thu, tồn kho và độ phổ biến từ chi nhánh được chọn',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 20),
-
-              // Branches options list
-              ...['Tất cả chi nhánh', 'Quận 1', 'Quận 3', 'Phú Nhuận']
-                  .map((branchName) {
-                final isSelected = _selectedBranchFilter == branchName;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary.withValues(alpha: 0.05)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.divider,
-                      width: isSelected ? 1.5 : 1.0,
-                    ),
-                  ),
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primary.withValues(alpha: 0.1)
-                            : AppColors.bgSoft,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        branchName == 'Tất cả chi nhánh'
-                            ? Icons.all_inclusive_rounded
-                            : Icons.store_rounded,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      branchName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                            isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded,
-                            color: AppColors.primary, size: 22)
-                        : const Icon(Icons.circle_outlined,
-                            color: AppColors.textSecondary, size: 20),
-                    onTap: () {
-                      setState(() {
-                        _selectedBranchFilter = branchName;
-                      });
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   // ─── Unified Horizontal Filter Row ──────────────────────────────────────
   Widget _buildFilterRow() {
     final bool isCustom = _selectedTimeFilter == 'Tùy chọn';
@@ -893,44 +929,6 @@ class _SuperAdminDashboardPageState
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
-          // Branch Selector ActionChip
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ActionChip(
-              avatar: const Icon(
-                Icons.storefront_rounded,
-                size: 14,
-                color: AppColors.primary,
-              ),
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedBranchFilter,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 14,
-                    color: AppColors.primary,
-                  ),
-                ],
-              ),
-              onPressed: _showBranchSelectorSheet,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.08),
-              side: const BorderSide(color: AppColors.primary, width: 0.8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
           // Time Filter Chips
           ...['Hôm nay', 'Tuần này', 'Tháng này'].map((filter) {
             final isSelected = _selectedTimeFilter == filter;
@@ -1123,26 +1121,22 @@ class _SuperAdminDashboardPageState
 
   // ─── KPI Cards Section ─────────────────────────────────────────────────
   Widget _buildKPIsSection() {
-    final isAll = _selectedBranchFilter == 'Tất cả chi nhánh';
-
-    int ordersCount = isAll ? 1542 : 524;
-    if (_selectedTimeFilter == 'Hôm nay') {
-      ordersCount = isAll ? 180 : 60;
-    } else if (_selectedTimeFilter == 'Tuần này') {
-      ordersCount = isAll ? 1200 : 400;
-    } else if (_selectedTimeFilter == 'Tùy chọn') {
-      final factor = _customRangeDays;
-      ordersCount = ((isAll ? 180 : 60) * factor).round();
-    }
+    final summary = _currentApiData?.summary;
+    final int ordersCount = summary != null ? summary.completedOrders : 0;
+    final double avgOrderVal = summary != null ? summary.averageOrderValue : 0.0;
+    final double totalRevenue = summary != null ? summary.revenue : _currentFilteredRevenue;
+    final int activeBranches = summary != null ? summary.activeBranches : _activeBranchesCount;
 
     final formattedOrders = ordersCount.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
+    final avgBillStr = FormatUtils.formatCurrency(avgOrderVal);
+    final grossProfitStr = FormatUtils.formatCurrency(totalRevenue * 0.65);
 
     return Column(
       children: [
         _buildKPITile(
           title: 'Chi nhánh hoạt động',
-          value: '$_activeBranchesCount / $_activeBranchesCount tốt',
+          value: '$activeBranches / $activeBranches tốt',
           icon: Icons.store_rounded,
           iconBg: AppColors.successContainer,
           iconColor: AppColors.success,
@@ -1150,8 +1144,7 @@ class _SuperAdminDashboardPageState
         const SizedBox(height: 10),
         _buildKPITile(
           title: 'Lợi nhuận gộp ước tính',
-          value:
-              '${((_currentFilteredRevenue * 0.65) * 1000000).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}đ',
+          value: grossProfitStr,
           icon: Icons.trending_up_rounded,
           iconBg: AppColors.badgeBestBg,
           iconColor: AppColors.badgeBestText,
@@ -1164,12 +1157,11 @@ class _SuperAdminDashboardPageState
           icon: Icons.shopping_bag_rounded,
           iconBg: AppColors.badgeNewBg,
           iconColor: AppColors.badgeNewText,
-          growth: _selectedTimeFilter == 'Hôm nay' ? '+12.4%' : null,
         ),
         const SizedBox(height: 10),
         _buildKPITile(
           title: 'Giá trị trung bình bill',
-          value: '142,500đ',
+          value: avgBillStr,
           icon: Icons.receipt_long_rounded,
           iconBg: AppColors.badgeHotBg,
           iconColor: AppColors.badgeHotText,
@@ -1402,33 +1394,44 @@ class _SuperAdminDashboardPageState
                   ),
                 );
               }),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Divider(color: AppColors.divider, height: 1),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.insights, color: AppColors.primary, size: 14),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Chi nhánh ${list[_selectedChartBarIndex].key} dẫn đầu doanh thu với ${list[_selectedChartBarIndex].value.toStringAsFixed(1)} triệu VNĐ.',
-                  style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic),
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 12),
+            const Divider(color: AppColors.divider, height: 1),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.insights, color: AppColors.primary, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    list.isNotEmpty && _selectedChartBarIndex < list.length
+                        ? 'Chi nhánh ${list[_selectedChartBarIndex].key} dẫn đầu doanh thu với ${list[_selectedChartBarIndex].value.toStringAsFixed(1)} triệu VNĐ.'
+                        : 'Không có dữ liệu so sánh doanh thu chi nhánh.',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
-  // ─── Core Ingredient Stock Alerts UI ──────────────────────────────────
-  Widget _buildStockAlertsGrid() {
+    Widget _buildStockAlertsGrid(
+    List<BranchDashboardItemModel> branches,
+    Map<String, List<BranchInventoryItem>> branchInventories,
+  ) {
+    final Set<String> ingredientNames = {};
+    for (var list in branchInventories.values) {
+      for (var item in list) {
+        ingredientNames.add(item.ingredientName);
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1471,139 +1474,308 @@ class _SuperAdminDashboardPageState
           ),
           const SizedBox(height: 14),
 
-          // Inventory stock mapping
-          ..._inventory.keys.map((ing) {
-            final qtyMap = _inventory[ing]!;
-            final threshold = _getSafeThreshold(ing);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.bgSoft,
-                borderRadius: BorderRadius.circular(12),
+          if (ingredientNames.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20.0),
+              child: Center(
+                child: Text(
+                  'Không có nguyên liệu nào trong kho.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
               ),
+            )
+          else
+            ...ingredientNames.map((ing) {
+              final threshold = _getSafeThreshold(ing);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.bgSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(ing,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary)),
+                        GestureDetector(
+                          onTap: () => _openTransferBottomSheet(ing, branches, branchInventories),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.swap_horiz,
+                                    size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Điều phối',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: branches.map((branch) {
+                        final branchItems = branchInventories[branch.branchId] ?? [];
+                        final item = branchItems.firstWhere(
+                          (e) => e.ingredientName == ing,
+                          orElse: () => BranchInventoryItem(
+                            id: '',
+                            branchId: branch.branchId,
+                            branchName: branch.branchName,
+                            ingredientId: '',
+                            ingredientName: ing,
+                            unit: 'kg',
+                            currentStock: 0.0,
+                            minStockLevel: 0.0,
+                          ),
+                        );
+                        
+                        final double qty = item.currentStock;
+                        final isLow = qty <= threshold;
+
+                        final sameNameBranches = branches.where((b) => b.branchName == branch.branchName).toList();
+                        String branchDisplayName = branch.branchName;
+                        if (sameNameBranches.length > 1) {
+                          final idx = sameNameBranches.indexOf(branch) + 1;
+                          branchDisplayName = '${branch.branchName} (#$idx)';
+                        }
+
+                        return Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 6, horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isLow
+                                    ? AppColors.error.withValues(alpha: 0.5)
+                                    : AppColors.divider,
+                                width: isLow ? 1.2 : 0.8,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  branchDisplayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${qty.toStringAsFixed(1)} ${item.unit}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isLow
+                                        ? AppColors.error
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: isLow
+                                        ? AppColors.error.withValues(alpha: 0.1)
+                                        : AppColors.successContainer
+                                            .withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isLow ? 'Thiếu hụt' : 'Đầy đủ',
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: isLow
+                                          ? AppColors.error
+                                          : AppColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+
+  }
+
+  void _openApproveTicketBottomSheet(BuildContext pageContext, WidgetRef ref, TransferTicketModel ticket, List<BranchDashboardItemModel> branches) {
+    final availableSources = branches.where((b) => b.branchId != ticket.targetBranchId).toList();
+    if (availableSources.isEmpty) {
+      ScaffoldMessenger.of(pageContext).showSnackBar(const SnackBar(content: Text('Không tìm thấy chi nhánh nguồn thích hợp')));
+      return;
+    }
+
+    String selectedSourceId = availableSources.first.branchId;
+
+    showModalBottomSheet(
+      context: pageContext,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(ing,
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary)),
-                      GestureDetector(
-                        onTap: () => _openTransferBottomSheet(ing),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.swap_horiz,
-                                  size: 12, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text(
-                                'Điều phối',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white),
-                              ),
-                            ],
-                          ),
+                      Expanded(
+                        child: Text(
+                          'Duyệt Yêu Cầu #${ticket.ticketCode}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(ctx)),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  Text('Nguyên liệu: ${ticket.quantity.toStringAsFixed(1)}${ticket.unit} ${ticket.ingredientName}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text('Chi nhánh yêu cầu: ${ticket.targetBranchName}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 14),
+                  const Text('Chọn Chi nhánh Xuất Kho (Nguồn) *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedSourceId,
+                        isExpanded: true,
+                        items: availableSources.map((b) {
+                          return DropdownMenuItem<String>(
+                            value: b.branchId,
+                            child: Text(b.branchName),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() {
+                              selectedSourceId = val;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final rootNav = Navigator.of(pageContext, rootNavigator: true);
+                        Navigator.pop(ctx); // Close sheet
 
-                  // Branches stock status list
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: qtyMap.entries.map((branchEntry) {
-                      final isLow = branchEntry.value <= threshold;
+                        if (!pageContext.mounted) return;
 
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 6, horizontal: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isLow
-                                  ? AppColors.error.withValues(alpha: 0.5)
-                                  : AppColors.divider,
-                              width: isLow ? 1.2 : 0.8,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                branchEntry.key,
-                                style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${branchEntry.value.toStringAsFixed(1)} kg',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isLow
-                                      ? AppColors.error
-                                      : AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: isLow
-                                      ? AppColors.error.withValues(alpha: 0.1)
-                                      : AppColors.successContainer
-                                          .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  isLow ? 'Thiếu hụt' : 'Đầy đủ',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: isLow
-                                        ? AppColors.error
-                                        : AppColors.success,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                        showDialog(
+                          context: pageContext,
+                          barrierDismissible: false,
+                          builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                        );
+
+                        try {
+                          await ref.read(analyticsRepositoryProvider).approveTransferTicket(
+                            ticketId: ticket.id,
+                            sourceBranchId: selectedSourceId,
+                          );
+                          try {
+                            rootNav.pop(); // Close loading
+                          } catch (_) {}
+                          for (final b in branches) {
+                            ref.invalidate(branchInventoriesProvider(b.branchId));
+                          }
+                          ref.invalidate(transferTicketsProvider(TransferTicketParams()));
+                          if (pageContext.mounted) {
+                            ScaffoldMessenger.of(pageContext).showSnackBar(
+                              const SnackBar(content: Text('Đã duyệt và xuất kho thành công! Chờ chi nhánh đích nhận hàng.')),
+                            );
+                          }
+                        } catch (e) {
+                          try {
+                            rootNav.pop(); // Close loading
+                          } catch (_) {}
+                          if (pageContext.mounted) {
+                            ScaffoldMessenger.of(pageContext).showSnackBar(
+                              SnackBar(content: Text('Lỗi duyệt yêu cầu: $e')),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Phê Duyệt & Xuất Kho', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ],
               ),
             );
-          }),
-        ],
-      ),
+          },
+        );
+      },
     );
   }
 
   // ─── Best/Worst Sellers UI ─────────────────────────────────────────────
   Widget _buildDishPopularitySection() {
+    final menuPerfAsync = ref.watch(menuPerformanceProvider(
+      BranchAnalyticsParams(branchId: '', dateRange: _currentDateRange),
+    ));
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1618,66 +1790,117 @@ class _SuperAdminDashboardPageState
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Phân tích phổ biến món ăn chuỗi',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 14),
+      child: menuPerfAsync.when(
+        data: (perf) {
+          final topSelling = perf.topSellingItems;
+          final sortedByQty = List<MenuPerformanceItemModel>.from(topSelling)
+            ..sort((a, b) => b.quantitySold.compareTo(a.quantitySold));
 
-          // 1. BEST SELLERS
-          const Row(
+          final bestSellers = sortedByQty.take(3).toList();
+          final worstSellers = sortedByQty.length > 3
+              ? sortedByQty.reversed.take(3).toList()
+              : <MenuPerformanceItemModel>[];
+
+          final int totalQty = sortedByQty.fold(0, (sum, item) => sum + item.quantitySold);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.trending_up, color: AppColors.success, size: 18),
-              SizedBox(width: 6),
-              Text(
-                'Món bán chạy hàng đầu (Best Sellers)',
+              const Text(
+                'Phân tích phổ biến món ăn chuỗi',
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.success),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _buildPopularItemBar(
-              'Phở bò đặc biệt tái chín', 0.44, '44%', AppColors.primary),
-          _buildPopularItemBar(
-              'Cơm sườn nướng mật ong', 0.28, '28%', AppColors.secondary),
-          _buildPopularItemBar(
-              'Cà phê sữa đá Sài Gòn', 0.18, '18%', AppColors.accent),
+              const SizedBox(height: 14),
 
-          const SizedBox(height: 14),
-          const Divider(color: AppColors.divider, height: 1),
-          const SizedBox(height: 14),
-
-          // 2. WORST SELLERS
-          const Row(
-            children: [
-              Icon(Icons.trending_down, color: AppColors.error, size: 18),
-              SizedBox(width: 6),
-              Text(
-                'Món bán chậm nhất (Cần tối ưu)',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.error),
+              // 1. BEST SELLERS
+              const Row(
+                children: [
+                  Icon(Icons.trending_up, color: AppColors.success, size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    'Món bán chạy hàng đầu (Best Sellers)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
+
+              if (bestSellers.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Chưa có dữ liệu bán món trong khoảng thời gian này.',
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                  ),
+                )
+              else
+                ...bestSellers.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final item = entry.value;
+                  final double pct = totalQty > 0 ? (item.quantitySold / totalQty) : 0.0;
+                  final colors = [AppColors.primary, AppColors.secondary, AppColors.accent];
+                  final color = colors[idx % colors.length];
+
+                  return _buildPopularItemBar(
+                    item.name,
+                    pct > 1.0 ? 1.0 : pct,
+                    '${(pct * 100).toStringAsFixed(0)}% (${item.quantitySold} phần)',
+                    color,
+                  );
+                }),
+
+              if (worstSellers.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Divider(color: AppColors.divider, height: 1),
+                const SizedBox(height: 14),
+
+                // 2. WORST SELLERS
+                const Row(
+                  children: [
+                    Icon(Icons.trending_down, color: AppColors.error, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'Món bán chậm nhất (Cần tối ưu)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ...worstSellers.map((item) {
+                  final double pct = totalQty > 0 ? (item.quantitySold / totalQty) : 0.0;
+                  return _buildPopularItemBar(
+                    item.name,
+                    pct > 1.0 ? 1.0 : (pct < 0.05 ? 0.05 : pct),
+                    '${(pct * 100).toStringAsFixed(1)}% (${item.quantitySold} phần)',
+                    const Color(0xFF90A4AE),
+                  );
+                }),
+              ],
             ],
+          );
+        },
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: CircularProgressIndicator(color: AppColors.primary),
           ),
-          const SizedBox(height: 10),
-          _buildPopularItemBar('Bún riêu cua đồng (Phú Nhuận)', 0.03, '3%',
-              const Color(0xFF90A4AE)),
-          _buildPopularItemBar('Trà sữa trân châu (Quận 1)', 0.025, '2.5%',
-              const Color(0xFFB0BEC5)),
-          _buildPopularItemBar('Chè khúc bạch nhãn xuồng (Quận 3)', 0.012,
-              '1.2%', const Color(0xFFCFD8DC)),
-        ],
+        ),
+        error: (err, _) => Text(
+          'Lỗi tải phân tích món ăn: $err',
+          style: const TextStyle(color: AppColors.error, fontSize: 12),
+        ),
       ),
     );
   }
@@ -1783,19 +2006,22 @@ class _SuperAdminDashboardPageState
     );
   }
 
-  Widget _buildSelectedTabContent() {
+  Widget _buildSelectedTabContent(
+    List<BranchDashboardItemModel> branches,
+    Map<String, List<BranchInventoryItem>> branchInventories,
+  ) {
     switch (_selectedTabIdx) {
       case 1:
-        return _buildInventoryTab();
+        return _buildInventoryTab(branches, branchInventories);
       case 2:
-        return _buildOperationsTab();
+        return _buildOperationsTab(branches);
       case 0:
       default:
-        return _buildFinancialTab();
+        return _buildFinancialTab(branches);
     }
   }
 
-  Widget _buildFinancialTab() {
+  Widget _buildFinancialTab(List<BranchDashboardItemModel> branches) {
     final isAll = _selectedBranchFilter == 'Tất cả chi nhánh';
 
     return Column(
@@ -1809,8 +2035,10 @@ class _SuperAdminDashboardPageState
         if (isAll) ...[
           _buildBranchComparisonChart(),
           const SizedBox(height: 16),
+          _buildBranchRevenueBreakdownList(branches),
+          const SizedBox(height: 16),
         ],
-        _buildConsolidatedPayments(),
+        _buildConsolidatedPayments(branches),
         const SizedBox(height: 16),
         _buildConsolidatedOrderSources(),
         const SizedBox(height: 16),
@@ -1818,7 +2046,174 @@ class _SuperAdminDashboardPageState
     );
   }
 
-  Widget _buildConsolidatedPayments() {
+  Widget _buildBranchRevenueBreakdownList(List<BranchDashboardItemModel> branches) {
+    if (branches.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.storefront_rounded, color: AppColors.primary, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Doanh thu từng chi nhánh',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.bgSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${branches.length} chi nhánh',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...branches.map((branch) {
+            final revenueStr = FormatUtils.formatCurrency(branch.revenue);
+            final avgOrderValStr = FormatUtils.formatCurrency(branch.averageOrderValue);
+            final cashValStr = FormatUtils.formatCurrency(branch.paymentBreakdown.cash);
+            final payOsValStr = FormatUtils.formatCurrency(branch.paymentBreakdown.payOS);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.bgSoft.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.store_rounded, color: AppColors.primary, size: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                branch.branchName,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        revenueStr,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, color: AppColors.divider),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildBranchMetricItem('Số đơn', '${branch.completedOrders} đơn'),
+                      _buildBranchMetricItem('TB/Đơn', avgOrderValStr),
+                      _buildBranchMetricItem('Tiền mặt', cashValStr),
+                      _buildBranchMetricItem('PayOS', payOsValStr),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBranchMetricItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 9, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 11, color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsolidatedPayments(List<BranchDashboardItemModel> branches) {
+    double totalCash = 0.0;
+    double totalPayOS = 0.0;
+    double totalRevenue = 0.0;
+
+    for (var b in branches) {
+      totalCash += b.paymentBreakdown.cash;
+      totalPayOS += b.paymentBreakdown.payOS;
+      totalRevenue += b.revenue;
+    }
+
+    if (totalRevenue == 0.0) {
+      totalRevenue = totalCash + totalPayOS;
+    }
+
+    final double payOSPct = totalRevenue > 0 ? (totalPayOS / totalRevenue).clamp(0.0, 1.0) : 0.0;
+    final double cashPct = totalRevenue > 0 ? (totalCash / totalRevenue).clamp(0.0, 1.0) : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1846,12 +2241,18 @@ class _SuperAdminDashboardPageState
           ),
           const SizedBox(height: 12),
           _buildPaymentRow(
-              'Chuyển khoản (QR)', 0.52, AppColors.secondary, '52%'),
-          const SizedBox(height: 8),
-          _buildPaymentRow('Tiền mặt', 0.28, AppColors.primary, '28%'),
+            'Chuyển khoản (PayOS / QR)',
+            payOSPct,
+            AppColors.secondary,
+            '${(payOSPct * 100).toStringAsFixed(1)}%',
+          ),
           const SizedBox(height: 8),
           _buildPaymentRow(
-              'Ví điện tử (Momo/ZaloPay)', 0.20, AppColors.accent, '20%'),
+            'Tiền mặt',
+            cashPct,
+            AppColors.primary,
+            '${(cashPct * 100).toStringAsFixed(1)}%',
+          ),
         ],
       ),
     );
@@ -1925,20 +2326,25 @@ class _SuperAdminDashboardPageState
     );
   }
 
-  Widget _buildInventoryTab() {
+  Widget _buildInventoryTab(
+    List<BranchDashboardItemModel> branches,
+    Map<String, List<BranchInventoryItem>> branchInventories,
+  ) {
     return Column(
       key: const ValueKey('inventory_tab'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStockAlertsGrid(),
+        _buildStockAlertsGrid(branches, branchInventories),
         const SizedBox(height: 16),
-        _buildSupplyChainTracker(),
+        _buildSupplyChainTracker(branches),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  Widget _buildSupplyChainTracker() {
+  Widget _buildSupplyChainTracker(List<BranchDashboardItemModel> branches) {
+    final ticketsAsync = ref.watch(transferTicketsProvider(TransferTicketParams()));
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1953,76 +2359,131 @@ class _SuperAdminDashboardPageState
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: ticketsAsync.when(
+        data: (tickets) {
+          final activeCount = tickets.where((t) => t.status == 'Dispatched' || t.status == 'Pending').length;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Logistics & Bếp trung tâm',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.local_shipping,
-                      color: AppColors.primary, size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    '3 phiếu đang chạy',
+                  const Text(
+                    'Logistics & Bếp trung tâm',
                     style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const Icon(Icons.local_shipping, color: AppColors.primary, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$activeCount phiếu đang chạy',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              if (tickets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(
+                      'Chưa có phiếu vận chuyển hoặc điều phối nào.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ),
+                )
+              else
+                ...tickets.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final ticket = entry.value;
+                  final isPending = ticket.status == 'Pending';
+                  final isDispatched = ticket.status == 'Dispatched';
+                  final isCompleted = ticket.status == 'Completed';
+                  final isRejected = ticket.status == 'Rejected';
+
+                  Color statusColor = AppColors.accent;
+                  String statusText = 'Chờ duyệt';
+                  if (isDispatched) {
+                    statusColor = AppColors.primary;
+                    statusText = 'Đang vận chuyển';
+                  } else if (isCompleted) {
+                    statusColor = AppColors.success;
+                    statusText = 'Hoàn thành';
+                  } else if (isRejected) {
+                    statusColor = AppColors.error;
+                    statusText = 'Đã từ chối';
+                  }
+
+                  final srcName = ticket.sourceBranchName ?? 'Bếp trung tâm';
+                  final dstName = ticket.targetBranchName;
+
+                  String timeText = '';
+                  if (isCompleted) {
+                    timeText = 'Hoàn tất giao hàng';
+                  } else if (isDispatched) {
+                    timeText = 'Đang vận chuyển';
+                  } else if (isPending) {
+                    timeText = 'Chờ tổng quản duyệt';
+                  }
+
+                  return Column(
+                    children: [
+                      if (index > 0) const Divider(color: AppColors.divider, height: 20),
+                      _buildLogisticsItem(
+                        ticket: ticket,
+                        code: '#${ticket.ticketCode}',
+                        route: '$srcName ➔ $dstName',
+                        status: statusText,
+                        statusColor: statusColor,
+                        time: timeText,
+                        itemCount: '${ticket.quantity.toStringAsFixed(1)}${ticket.unit} ${ticket.ingredientName}' +
+                            (ticket.note != null && ticket.note!.isNotEmpty ? ' (${ticket.note})' : ''),
+                        branches: branches,
+                      ),
+                    ],
+                  );
+                }),
             ],
+          );
+        },
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(color: AppColors.primary),
           ),
-          const SizedBox(height: 16),
-          _buildLogisticsItem(
-            code: 'CK-8942',
-            route: 'Bếp trung tâm ➔ Chi nhánh Quận 1',
-            status: 'Đang vận chuyển',
-            statusColor: AppColors.primary,
-            time: 'Dự kiến đến lúc 18:30',
-            itemCount: '150kg bánh phở, 30kg bò',
-          ),
-          const Divider(color: AppColors.divider, height: 16),
-          _buildLogisticsItem(
-            code: 'CK-8941',
-            route: 'Chi nhánh Quận 3 ➔ Chi nhánh Quận 1',
-            status: 'Hoàn thành',
-            statusColor: AppColors.success,
-            time: 'Đã nhận lúc 15:40 (Đủ lượng)',
-            itemCount: '5kg thịt bò tái (Điều phối cứu trợ)',
-          ),
-          const Divider(color: AppColors.divider, height: 16),
-          _buildLogisticsItem(
-            code: 'CK-8940',
-            route: 'Bếp trung tâm ➔ Chi nhánh Phú Nhuận',
-            status: 'Chờ xuất kho',
-            statusColor: AppColors.accent,
-            time: 'Dự kiến xuất lúc 19:00',
-            itemCount: '80kg bánh phở, 20kg sườn',
-          ),
-        ],
+        ),
+        error: (err, _) => Text(
+          'Lỗi tải dữ liệu logistics: $err',
+          style: const TextStyle(color: AppColors.error, fontSize: 12),
+        ),
       ),
     );
   }
 
   Widget _buildLogisticsItem({
+    required TransferTicketModel ticket,
     required String code,
     required String route,
     required String status,
     required Color statusColor,
     required String time,
     required String itemCount,
+    required List<BranchDashboardItemModel> branches,
   }) {
+    final isPending = ticket.status == 'Pending';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2032,22 +2493,24 @@ class _SuperAdminDashboardPageState
             Text(
               code,
               style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 status,
                 style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
               ),
             ),
           ],
@@ -2056,46 +2519,103 @@ class _SuperAdminDashboardPageState
         Text(
           route,
           style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              itemCount,
-              style:
-                  const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            Expanded(
+              child: Text(
+                itemCount,
+                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Text(
-              time,
-              style: const TextStyle(
+            if (time.isNotEmpty)
+              Text(
+                time,
+                style: const TextStyle(
                   fontSize: 10,
                   color: AppColors.textTertiary,
-                  fontStyle: FontStyle.italic),
-            ),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
           ],
         ),
+        if (isPending) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton(
+                onPressed: () async {
+                  try {
+                    await ref.read(analyticsRepositoryProvider).rejectTransferTicket(ticketId: ticket.id);
+                    for (final b in branches) {
+                      ref.invalidate(branchInventoriesProvider(b.branchId));
+                    }
+                    ref.invalidate(transferTicketsProvider(TransferTicketParams()));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã từ chối yêu cầu điều phối.')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi: $e')),
+                      );
+                    }
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Từ chối', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  _openApproveTicketBottomSheet(context, ref, ticket, branches);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Duyệt & Chọn Kho Nguồn', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildOperationsTab() {
+  Widget _buildOperationsTab(List<BranchDashboardItemModel> branches) {
     return Column(
       key: const ValueKey('operations_tab'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDishPopularitySection(),
         const SizedBox(height: 16),
-        _buildBranchSpeedComparison(),
+        _buildBranchSpeedComparison(branches),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  Widget _buildBranchSpeedComparison() {
+  Widget _buildBranchSpeedComparison(List<BranchDashboardItemModel> branches) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2122,14 +2642,70 @@ class _SuperAdminDashboardPageState
             ),
           ),
           const SizedBox(height: 16),
-          _buildSpeedRow('Chi nhánh Quận 1', '12,5 phút', 0.65,
-              AppColors.success, 'Tỷ lệ hủy: 1.5%'),
-          const SizedBox(height: 12),
-          _buildSpeedRow('Chi nhánh Quận 3', '11,8 phút', 0.58,
-              AppColors.primary, 'Tỷ lệ hủy: 1.8%'),
-          const SizedBox(height: 12),
-          _buildSpeedRow('Chi nhánh Phú Nhuận', '13,2 phút', 0.72,
-              AppColors.accent, 'Tỷ lệ hủy: 2.1%'),
+
+          if (branches.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Không có dữ liệu chi nhánh.',
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            )
+          else
+            ...branches.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final branch = entry.value;
+
+              final opsAsync = ref.watch(operationsAnalyticsProvider(
+                BranchAnalyticsParams(branchId: branch.branchId, dateRange: _currentDateRange),
+              ));
+
+              return opsAsync.when(
+                data: (ops) {
+                  final double prepMinutes = ops.summary.averagePreparationMinutes ?? 12.0;
+                  final double cancelRate = ops.summary.cancellationRate;
+                  final colors = [AppColors.success, AppColors.primary, AppColors.accent, AppColors.secondary];
+                  final color = colors[idx % colors.length];
+                  final progressVal = (prepMinutes / 30.0).clamp(0.1, 1.0);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: _buildSpeedRow(
+                      branch.branchName,
+                      '${prepMinutes.toStringAsFixed(1)} phút',
+                      progressVal,
+                      color,
+                      'Tỷ lệ hủy: ${cancelRate.toStringAsFixed(1)}% (${ops.summary.totalOrders} đơn)',
+                    ),
+                  );
+                },
+                loading: () => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(branch.branchName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                    ],
+                  ),
+                ),
+                error: (err, _) {
+                  final double cancelRate = branch.orderCount > 0
+                      ? (branch.cancelledOrders / branch.orderCount * 100)
+                      : 0.0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: _buildSpeedRow(
+                      branch.branchName,
+                      '12.0 phút',
+                      0.5,
+                      AppColors.primary,
+                      'Tỷ lệ hủy: ${cancelRate.toStringAsFixed(1)}%',
+                    ),
+                  );
+                },
+              );
+            }),
         ],
       ),
     );

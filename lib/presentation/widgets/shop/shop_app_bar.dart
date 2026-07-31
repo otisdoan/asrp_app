@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../providers/branch_provider.dart';
 
 class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final TextEditingController? searchController;
@@ -175,14 +176,14 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
 }
 
 // ─── Animated Search Placeholder ─────────────────────────────────────────
-class _AnimatedSearchPlaceholder extends StatefulWidget {
+class _AnimatedSearchPlaceholder extends ConsumerStatefulWidget {
   const _AnimatedSearchPlaceholder();
 
   @override
-  State<_AnimatedSearchPlaceholder> createState() => _AnimatedSearchPlaceholderState();
+  ConsumerState<_AnimatedSearchPlaceholder> createState() => _AnimatedSearchPlaceholderState();
 }
 
-class _AnimatedSearchPlaceholderState extends State<_AnimatedSearchPlaceholder>
+class _AnimatedSearchPlaceholderState extends ConsumerState<_AnimatedSearchPlaceholder>
     with SingleTickerProviderStateMixin {
   static const _hints = [
     'Phở bò tái nạm',
@@ -223,8 +224,15 @@ class _AnimatedSearchPlaceholderState extends State<_AnimatedSearchPlaceholder>
       if (!mounted) return;
       _controller.reverse().then((_) {
         if (!mounted) return;
+
+        final historyAsync = ref.read(searchHistoryProvider);
+        final hints = historyAsync.maybeWhen(
+          data: (list) => list.isNotEmpty ? list : _hints,
+          orElse: () => _hints,
+        );
+
         setState(() {
-          _currentIndex = (_currentIndex + 1) % _hints.length;
+          _currentIndex = (_currentIndex + 1) % hints.length;
         });
         _controller.forward();
         _startCycling();
@@ -240,13 +248,21 @@ class _AnimatedSearchPlaceholderState extends State<_AnimatedSearchPlaceholder>
 
   @override
   Widget build(BuildContext context) {
+    final historyAsync = ref.watch(searchHistoryProvider);
+    final hints = historyAsync.maybeWhen(
+      data: (list) => list.isNotEmpty ? list : _hints,
+      orElse: () => _hints,
+    );
+
+    final index = _currentIndex < hints.length ? _currentIndex : 0;
+
     return ClipRect(
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: SlideTransition(
           position: _slideAnimation,
           child: Text(
-            _hints[_currentIndex],
+            hints[index],
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.primary,

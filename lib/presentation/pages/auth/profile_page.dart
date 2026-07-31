@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../../../providers/branch_registration_provider.dart';
+import '../../../providers/branch_provider.dart';
 import '../../../core/utils/top_notification.dart';
 import '../inventory/inventory_dashboard_page.dart';
 import '../../../data/repositories/branch_repository.dart';
@@ -28,9 +30,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _appBarOpacityNotifier = ValueNotifier<double>(0.0);
     _scrollController = ScrollController()..addListener(_onScroll);
 
-    // Fetch branch registration status from server on page load
+    // Fetch branch registration status and fresh profile points/tier from server on page load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (ref.read(isAuthenticatedProvider)) {
+        ref.read(authProvider.notifier).refreshProfile();
         ref
             .read(branchRegistrationProvider.notifier)
             .fetchApplicationStatus()
@@ -73,6 +76,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final user = ref.watch(currentUserProvider);
     final isLoggedIn = ref.watch(isAuthenticatedProvider);
     final registration = ref.watch(branchRegistrationProvider);
+    final myBranchesAsync = ref.watch(myBrandBranchesFutureProvider);
+    final isBrandOwner =
+        (user?.role.toLowerCase() == 'admin' && user?.branchId == null) ||
+            (user?.role.toLowerCase() == 'superadmin');
+    final branchCount = myBranchesAsync.value?.length ??
+        (registration.registeredBranches.isNotEmpty
+            ? registration.registeredBranches.length
+            : (isBrandOwner ? 2 : 1));
 
     // Fallback if not logged in (though app bar filters, we add extra guard)
     if (!isLoggedIn || user == null) {
@@ -101,7 +112,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Đăng nhập để xem thông tin cá nhân và tích lũy điểm PhoXu hấp dẫn.',
+                    'Đăng nhập để xem thông tin cá nhân và tích lũy điểm DX hấp dẫn.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -137,9 +148,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       backgroundColor: AppColors.bgMain,
       body: Stack(
         children: [
-          SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
+          RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              await ref.read(authProvider.notifier).refreshProfile();
+            },
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
               children: [
                 // 1. Premium Gradient Header Section
                 _buildHeader(context, user),
@@ -174,8 +191,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                       _buildMenuItem(
                         icon: Icons.wine_bar_outlined,
-                        title: 'Thử thách nhận PhoXu',
-                        subtitle: 'Ăn phở tích điểm, nhận quà cực to',
+                        title: 'Thử thách nhận DX',
+                        subtitle: 'Tích xu nhận quà cực to',
                         onTap: () {
                           _showSnackBar(context,
                               'Thử thách ăn Phở sắp ra mắt trong tháng này!');
@@ -329,29 +346,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   : 'Nhân viên'),
                         ),
                         if (user.role.toLowerCase() == 'superadmin' ||
-                            user.role.toLowerCase() == 'admin') ...[
-                          _buildMenuItem(
-                            icon: Icons.analytics_outlined,
-                            title: registration.registeredBranches.length > 1
-                                ? 'Báo cáo doanh thu & Kho'
-                                : 'Báo cáo doanh thu',
-                            subtitle: registration.registeredBranches.length > 1
-                                ? 'Xem doanh thu và quản lý kho chi nhánh chuỗi'
-                                : 'Xem doanh thu và thống kê hoạt động chi nhánh',
-                            onTap: () => context.push(
-                              registration.registeredBranches.length > 1
-                                  ? AppConstants.routeSuperAdminDashboard
-                                  : '/admin/dashboard',
+                            user.role.toLowerCase() == 'admin' ||
+                            user.role.toLowerCase() == 'manager') ...[
+                          if (isBrandOwner || branchCount > 1)
+                            _buildMenuItem(
+                              icon: Icons.dashboard_customize_outlined,
+                              title: 'Báo cáo chuỗi',
+                              subtitle:
+                                  'Xem doanh thu tổng hợp, so sánh chi nhánh & tồn kho chuỗi',
+                              onTap: () => context
+                                  .push(AppConstants.routeSuperAdminDashboard),
+                            )
+                          else
+                            _buildMenuItem(
+                              icon: Icons.analytics_outlined,
+                              title: 'Báo cáo doanh thu',
+                              subtitle:
+                                  'Xem doanh thu và thống kê hoạt động chi nhánh',
+                              onTap: () => context.push('/admin/dashboard'),
                             ),
-                          ),
-                          _buildMenuItem(
-                            icon: Icons.dashboard_customize_outlined,
-                            title: 'Báo cáo chuỗi',
-                            subtitle:
-                                'Xem giao diện báo cáo thương hiệu nhiều chi nhánh',
-                            onTap: () => context
-                                .push(AppConstants.routeSuperAdminDashboard),
-                          ),
                           _buildMenuItem(
                             icon: Icons.people_outline_rounded,
                             title: 'Quản lý nhân viên chi nhánh',
@@ -360,23 +373,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 context.push(AppConstants.routeStaffManagement),
                           ),
                         ],
-                        if (user.role.toLowerCase() == 'superadmin' ||
-                            user.role.toLowerCase() == 'admin' ||
-                            user.role.toLowerCase() == 'manager' ||
+                        if (user.role.toLowerCase() == 'manager' ||
                             user.role.toLowerCase() == 'staff')
                           _buildMenuItem(
                             icon: Icons.point_of_sale_rounded,
-                            title: 'Màn hình POS Nhân viên',
+                            title: 'Màn hình POS nhân viên',
                             subtitle: 'Đặt món tại bàn cho khách chi nhánh',
                             onTap: () =>
                                 context.push(AppConstants.routeStaffHome),
                           ),
-                        if (user.role.toLowerCase() == 'superadmin' ||
-                            user.role.toLowerCase() == 'admin' ||
-                            user.role.toLowerCase() == 'manager')
+                        if (user.role.toLowerCase() == 'manager')
                           _buildMenuItem(
                             icon: Icons.account_balance_wallet_outlined,
-                            title: 'Màn hình Cashier Thu ngân',
+                            title: 'Màn hình Cashier thu ngân',
                             subtitle:
                                 'Duyệt đơn hàng và quản lý doanh thu chi nhánh',
                             onTap: () =>
@@ -444,6 +453,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
               ],
             ),
+          ),
           ),
 
           // Sticky Morphing AppBar
@@ -688,24 +698,32 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   // ─── Golden VIP Rewards Card ─────────────────────────────────────────────
-  Widget _buildRewardsCard(BuildContext context, UserModel user) {
+  Widget _buildRewardsCard(BuildContext context, UserModel? user) {
+    final currencyFormatter = NumberFormat('#,###', 'vi_VN');
+    final points = user?.points ?? 0;
+    final tierName = user?.tierName ?? 'Hạng Đồng';
+    final progress = user?.tierProgress ?? 0.0;
+    final neededPoints = user?.pointsNeededForNextTier ?? 1000;
+    final nextTier = user?.nextTierName ?? 'Bạc';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
-          colors: [Color(0xFF2E2E2E), Color(0xFF4A4A4A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E293B),
+            Color(0xFF0F172A),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: const Color(0xFFF3B844).withValues(alpha: 0.6), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -731,7 +749,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                   const SizedBox(width: 8),
                   const Text(
-                    'BMC REWARDS',
+                    'DX LOYALTY REWARDS',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -750,9 +768,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   border:
                       Border.all(color: const Color(0xFFF3B844), width: 0.8),
                 ),
-                child: const Text(
-                  'Hạng Vàng',
-                  style: TextStyle(
+                child: Text(
+                  tierName,
+                  style: const TextStyle(
                     color: Color(0xFFF5B63F),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -763,7 +781,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 18),
           const Text(
-            'Điểm tích lũy PhoXu',
+            'Số dư Xu tích lũy DX',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -771,37 +789,37 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
           ),
           const SizedBox(height: 2),
-          const Row(
+          Row(
             textBaseline: TextBaseline.alphabetic,
             crossAxisAlignment: CrossAxisAlignment.baseline,
             children: [
               Text(
-                '150',
-                style: TextStyle(
+                currencyFormatter.format(points),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 34,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -1,
                 ),
               ),
-              SizedBox(width: 4),
-              Text(
-                'PhoXu',
+              const SizedBox(width: 6),
+              const Text(
+                'DX',
                 style: TextStyle(
                   color: Color(0xFFF3B844),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           // Tier Progress Bar
-          const ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(6)),
+          ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(6)),
             child: LinearProgressIndicator(
-              value: 0.6,
-              color: Color(0xFFF3B844),
+              value: progress,
+              color: const Color(0xFFF3B844),
               backgroundColor: Colors.white12,
               minHeight: 6,
             ),
@@ -810,20 +828,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Tích thêm 100 PhoXu để thăng hạng Bạch Kim',
-                  style: TextStyle(
-                    color: Colors.white54,
+                  points >= 15000
+                      ? 'Bạn đang ở Cấp độ Tối cao - Hạng Kim Cương'
+                      : 'Tích thêm ${currencyFormatter.format(neededPoints)} DX để thăng hạng $nextTier',
+                  style: const TextStyle(
+                    color: Colors.white70,
                     fontSize: 11,
-                    fontWeight: FontWeight.w200,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => _showSnackBar(
-                    context, 'Chức năng xem lịch sử giao dịch điểm.'),
+                    context, 'Chức năng xem lịch sử giao dịch DX.'),
                 child: const Text(
                   'Xem lịch sử >',
                   style: TextStyle(
@@ -1273,7 +1293,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
                 // Header title
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1287,24 +1308,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textTertiary),
+                        icon: const Icon(Icons.close_rounded,
+                            color: AppColors.textTertiary),
                       ),
                     ],
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.outlineVariant),
                 const SizedBox(height: 8),
-                
+
                 // FutureBuilder Content
                 Flexible(
                   child: FutureBuilder<List<BranchListItemModel>>(
-                    future: BranchRepository().getBranches(brandId: user.brandId),
+                    future: (user.role.toLowerCase() == 'admin' ||
+                            user.role.toLowerCase() == 'superadmin')
+                        ? BranchRepository().getMyBrandBranches()
+                        : BranchRepository().getBranches(brandId: user.brandId),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(32.0),
-                            child: CircularProgressIndicator(color: AppColors.primary),
+                            child: CircularProgressIndicator(
+                                color: AppColors.primary),
                           ),
                         );
                       } else if (snapshot.hasError) {
@@ -1314,12 +1340,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+                                const Icon(Icons.error_outline_rounded,
+                                    color: AppColors.error, size: 48),
                                 const SizedBox(height: 12),
                                 Text(
                                   'Lỗi tải chi nhánh: ${snapshot.error}',
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -1332,11 +1361,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.storefront_rounded, color: AppColors.textTertiary, size: 64),
+                                Icon(Icons.storefront_rounded,
+                                    color: AppColors.textTertiary, size: 64),
                                 SizedBox(height: 16),
                                 Text(
                                   'Chưa có chi nhánh nào hoạt động',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textSecondary),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: AppColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -1348,17 +1381,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       return ListView.separated(
                         shrinkWrap: true,
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         itemCount: branches.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final branch = branches[index];
-                          
+
                           return Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.outlineVariant, width: 0.8),
+                              border: Border.all(
+                                  color: AppColors.outlineVariant, width: 0.8),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.02),
@@ -1382,7 +1417,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                         ? Image.network(
                                             branch.imageUrl,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => const Icon(
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(
                                               Icons.store_rounded,
                                               color: AppColors.primary,
                                               size: 28,
@@ -1399,7 +1435,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 // 2. Info details
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         branch.name,
@@ -1412,7 +1449,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       const SizedBox(height: 4),
                                       Row(
                                         children: [
-                                          const Icon(Icons.star_rounded, color: Colors.orange, size: 14),
+                                          const Icon(Icons.star_rounded,
+                                              color: Colors.orange, size: 14),
                                           const SizedBox(width: 2),
                                           Text(
                                             branch.rating.toStringAsFixed(1),
@@ -1422,38 +1460,50 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                               color: AppColors.textSecondary,
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.bgSoft,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              branch.category ?? 'Món Việt',
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.textTertiary,
+                                          const SizedBox(width: 6),
+                                          Flexible(
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.bgSoft,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                branch.category ?? 'Món Việt',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.textTertiary,
+                                                ),
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 6),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 1.5),
                                             decoration: BoxDecoration(
-                                              color: branch.isActive == true 
-                                                  ? Colors.green.shade50 
+                                              color: branch.isActive == true
+                                                  ? Colors.green.shade50
                                                   : Colors.grey.shade100,
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             child: Text(
-                                              branch.isActive == true ? 'Đang hoạt động' : 'Tạm đóng',
+                                              branch.isActive == true
+                                                  ? 'Đang hoạt động'
+                                                  : 'Tạm đóng',
                                               style: TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.bold,
-                                                color: branch.isActive == true 
-                                                    ? Colors.green.shade700 
+                                                color: branch.isActive == true
+                                                    ? Colors.green.shade700
                                                     : Colors.grey.shade600,
                                               ),
                                             ),
@@ -1473,7 +1523,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       const SizedBox(height: 4),
                                       Row(
                                         children: [
-                                          const Icon(Icons.access_time_rounded, color: AppColors.textTertiary, size: 12),
+                                          const Icon(Icons.access_time_rounded,
+                                              color: AppColors.textTertiary,
+                                              size: 12),
                                           const SizedBox(width: 4),
                                           Text(
                                             'Giờ hoạt động: ${branch.deliveryTime.isNotEmpty ? branch.deliveryTime : "06:00 - 22:30"}',

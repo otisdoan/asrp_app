@@ -83,8 +83,8 @@ class UserModel {
     }
 
     return UserModel(
-      id: (json['id'] ?? json['_id'])?.toString() ?? '',
-      username: (json['username'] ?? json['userName'])?.toString() ?? '',
+      id: (json['id'] ?? json['_id'] ?? json['customerId'] ?? json['userId'])?.toString() ?? '',
+      username: (json['username'] ?? json['userName'] ?? json['phoneNumber'] ?? json['phone'])?.toString() ?? '',
       email: json['email']?.toString(),
       phone: (json['phone'] ?? json['phoneNumber'])?.toString(),
       fullName: json['fullName']?.toString(),
@@ -97,10 +97,11 @@ class UserModel {
       isActive: json['isActive'] is bool
           ? json['isActive'] as bool
           : (json['isActive'] == null || json['isActive']?.toString() == 'true'),
-      points: json['points'] is int
-          ? json['points'] as int
-          : int.tryParse(json['points']?.toString() ?? '') ?? 0,
-      tier: json['tier']?.toString(),
+      points: (json['points'] as num?)?.toInt() ?? 
+              (json['totalPoints'] as num?)?.toInt() ?? 
+              (json['dxCoins'] as num?)?.toInt() ?? 
+              int.tryParse(json['points']?.toString() ?? '') ?? 0,
+      tier: json['tier']?.toString() ?? json['membershipTier']?.toString(),
       address: json['address']?.toString(),
       createdAt: json['createdAt']?.toString() ?? '',
       updatedAt: json['updatedAt']?.toString() ?? '',
@@ -129,4 +130,54 @@ class UserModel {
       };
 
   String get displayName => fullName ?? username;
+
+  /// Member tier calculation based on points/DX
+  String get tierName {
+    if (tier != null && tier!.isNotEmpty) {
+      final t = tier!.toLowerCase();
+      if (t.contains('diamond') || t.contains('kim cương')) return 'Hạng Kim Cương';
+      if (t.contains('gold') || t.contains('vàng')) return 'Hạng Vàng';
+      if (t.contains('silver') || t.contains('bạc')) return 'Hạng Bạc';
+      if (t.contains('bronze') || t.contains('đồng')) return 'Hạng Đồng';
+    }
+    if (points >= 15000) return 'Hạng Kim Cương';
+    if (points >= 5000) return 'Hạng Vàng';
+    if (points >= 1000) return 'Hạng Bạc';
+    return 'Hạng Đồng';
+  }
+
+  String get nextTierName {
+    if (points >= 15000) return 'Tối Cao';
+    if (points >= 5000) return 'Kim Cương';
+    if (points >= 1000) return 'Vàng';
+    return 'Bạc';
+  }
+
+  int get nextTierMilestone {
+    if (points >= 15000) return 15000;
+    if (points >= 5000) return 15000;
+    if (points >= 1000) return 5000;
+    return 1000;
+  }
+
+  int get currentTierMinPoints {
+    if (points >= 15000) return 15000;
+    if (points >= 5000) return 5000;
+    if (points >= 1000) return 1000;
+    return 0;
+  }
+
+  double get tierProgress {
+    if (points >= 15000) return 1.0;
+    final minP = currentTierMinPoints;
+    final maxP = nextTierMilestone;
+    final range = maxP - minP;
+    if (range <= 0) return 1.0;
+    return ((points - minP) / range).clamp(0.0, 1.0);
+  }
+
+  int get pointsNeededForNextTier {
+    if (points >= 15000) return 0;
+    return (nextTierMilestone - points).clamp(0, 999999);
+  }
 }

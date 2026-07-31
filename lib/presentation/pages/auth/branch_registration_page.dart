@@ -166,39 +166,65 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
       final isApproved = registration.status == 'approved';
       if (isApproved || (_formKey3.currentState?.validate() ?? false)) {
         if (isApproved) {
-          // Add additional branch
-          ref.read(branchRegistrationProvider.notifier).registerNewBranch(
-            branchName: _branchNameCtrl.text,
-            phone: _phoneCtrl.text,
-            address: _addressCtrl.text,
-            gps: _gpsCtrl.text,
-          );
-
-          // Giữ nguyên vai trò là Admin khi đăng ký thêm chi nhánh
-          final user = ref.read(currentUserProvider);
-          if (user != null) {
-            final updatedUser = UserModel(
-              id: user.id,
-              username: user.username,
-              email: user.email,
-              phone: user.phone,
-              fullName: user.fullName,
-              avatar: user.avatar,
-              gender: user.gender,
-              birthday: user.birthday,
-              role: 'Admin',
-              isActive: user.isActive,
-              points: user.points,
-              tier: user.tier,
-              address: user.address,
-              createdAt: user.createdAt,
-              updatedAt: DateTime.now().toIso8601String(),
-            );
-            ref.read(authProvider.notifier).setUser(updatedUser);
-          }
+          // Add additional branch via API
           setState(() {
-            _currentStep = 4;
+            _isLoading = true;
           });
+          try {
+            await ref.read(branchRegistrationProvider.notifier).registerNewBranch(
+              brandName: _brandNameCtrl.text.isNotEmpty ? _brandNameCtrl.text : registration.brandName,
+              category: _categoryCtrl.text.isNotEmpty ? _categoryCtrl.text : registration.category,
+              branchName: _branchNameCtrl.text,
+              phone: _phoneCtrl.text,
+              address: _addressCtrl.text,
+              gps: _gpsCtrl.text,
+              taxCode: _taxCodeCtrl.text.isNotEmpty ? _taxCodeCtrl.text : registration.taxCode,
+              bankName: _bankNameCtrl.text.isNotEmpty ? _bankNameCtrl.text : registration.bankName,
+              bankAccount: _bankAccountCtrl.text.isNotEmpty ? _bankAccountCtrl.text : registration.bankAccount,
+              bankOwner: _bankOwnerCtrl.text.isNotEmpty ? _bankOwnerCtrl.text : registration.bankOwner,
+            );
+
+            // Giữ nguyên vai trò là Admin khi đăng ký thêm chi nhánh
+            final user = ref.read(currentUserProvider);
+            if (user != null) {
+              final updatedUser = UserModel(
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                phone: user.phone,
+                fullName: user.fullName,
+                avatar: user.avatar,
+                gender: user.gender,
+                birthday: user.birthday,
+                role: 'Admin',
+                isActive: user.isActive,
+                points: user.points,
+                tier: user.tier,
+                address: user.address,
+                createdAt: user.createdAt,
+                updatedAt: DateTime.now().toIso8601String(),
+              );
+              ref.read(authProvider.notifier).setUser(updatedUser);
+            }
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _currentStep = 4;
+              });
+            }
+          } catch (e) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Lỗi tạo chi nhánh: $e'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
         } else {
           // First branch registration
           setState(() {

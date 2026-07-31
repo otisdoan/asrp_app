@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../data/models/analytics_model.dart';
+import '../../../providers/analytics_provider.dart';
+import '../../../providers/order_provider.dart';
+import '../../../core/utils/format_utils.dart';
 
 /// Admin Dashboard Page - Mobile layout with premium charts, metrics, and transaction details.
 /// Follows RULE: UI-only widgets, AppColors 100%, high visual aesthetics.
@@ -20,59 +24,235 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   int _selectedChartBarIndex = 0;
   int? _expandedTransactionIndex;
   DateTimeRange? _selectedDateRange;
+  String? _selectedBranchId;
 
-  // Calculate the number of days in the selected range
-  int get _customRangeDays {
-    if (_selectedDateRange == null) return 7;
-    return _selectedDateRange!.duration.inDays + 1;
-  }
 
-  // Mock sales trend data based on selected filter
-  List<double> get _trendChartData {
-    if (_selectedTimeFilter == 'Tùy chọn') {
-      final days = _customRangeDays;
-      if (days <= 1) {
-        return [3.5, 9.8, 5.2, 7.5];
-      } else if (days <= 7) {
-        return List.generate(days, (i) => 15.0 + (i * 2.5) % 12.0);
-      } else {
-        return [120.0, 145.5, 130.0, 155.2]; // weekly summaries
-      }
-    }
 
+  DateTimeRange? get _currentDateRange {
+    final now = DateTime.now();
     switch (_selectedTimeFilter) {
-      case 'Tuần này':
-        return [18.2, 22.4, 19.8, 25.6, 32.8, 45.2, 38.5]; // in million VND
-      case 'Tháng này':
-        return [185.0, 210.5, 235.4, 212.0]; // in million VND
       case 'Hôm nay':
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case 'Tuần này':
+        final diff = now.weekday - 1;
+        final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: diff));
+        return DateTimeRange(
+          start: startOfWeek,
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case 'Tháng này':
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        return DateTimeRange(
+          start: startOfMonth,
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case 'Tùy chọn':
       default:
-        return [4.2, 12.8, 6.2, 9.6]; // in million VND (Sáng, Trưa, Chiều, Tối)
+        return _selectedDateRange;
     }
   }
 
-  List<String> get _trendChartLabels {
-    if (_selectedTimeFilter == 'Tùy chọn') {
-      final days = _customRangeDays;
-      if (days <= 1) {
-        return ['Sáng', 'Trưa', 'Chiều', 'Tối'];
-      } else if (days <= 7) {
-        return List.generate(days, (i) => 'N${i + 1}');
-      } else {
-        return ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'];
+  Map<String, dynamic> _getCombinedFinancialData(BranchDashboardDetailModel apiData, SalesTrendModel trendData) {
+    final summary = apiData.summary;
+
+    final cashVal = apiData.paymentBreakdown.cash;
+    final payOsVal = apiData.paymentBreakdown.payOS;
+    final totalPayment = cashVal + payOsVal;
+    
+    final cashPct = totalPayment > 0 ? (cashVal / totalPayment) : 0.0;
+    final payOsPct = totalPayment > 0 ? (payOsVal / totalPayment) : 0.0;
+
+    final netSalesStr = FormatUtils.formatCurrency(summary.revenue);
+    
+    final List<Map<String, dynamic>> updatedPaymentBreakdown = [
+      {
+        'method': 'Tiền mặt',
+        'percentage': cashPct,
+        'value': FormatUtils.formatCurrency(cashVal),
+      },
+      {
+        'method': 'Chuyển khoản PayOS',
+        'percentage': payOsPct,
+        'value': FormatUtils.formatCurrency(payOsVal),
+      },
+      {
+        'method': 'Ví điện tử',
+        'percentage': 0.0,
+        'value': '0đ',
       }
-    }
+    ];
 
-    switch (_selectedTimeFilter) {
-      case 'Tuần này':
-        return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-      case 'Tháng này':
-        return ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'];
-      case 'Hôm nay':
-      default:
-        return ['Sáng', 'Trưa', 'Chiều', 'Tối'];
-    }
+    final foodCostPct = summary.revenue > 0 ? (summary.foodCost / summary.revenue * 100).toStringAsFixed(0) : '0';
+    final grossMarginPct = summary.revenue > 0 ? (summary.grossMargin / summary.revenue * 100).toStringAsFixed(0) : '0';
+
+    final List<Map<String, dynamic>> updatedOrderSources = apiData.orderSources.map((item) {
+      return {
+        'source': item.source,
+        'percentage': item.percentage,
+        'value': FormatUtils.formatCurrency(item.value),
+      };
+    }).toList();
+
+    return {
+      'netSales': netSalesStr,
+      'discounts': FormatUtils.formatCurrency(summary.totalDiscount),
+      'foodCost': FormatUtils.formatCurrency(summary.foodCost),
+      'foodCostPct': '$foodCostPct%',
+      'grossMargin': FormatUtils.formatCurrency(summary.grossMargin),
+      'grossMarginPct': '$grossMarginPct%',
+      'paymentBreakdown': updatedPaymentBreakdown,
+      'orderSources': updatedOrderSources,
+      'cancellationRate': summary.orderCount > 0 
+          ? '${(summary.cancelledOrders / summary.orderCount * 100).toStringAsFixed(1)}%'
+          : '0.0%',
+    };
   }
+
+  Map<String, dynamic> _getCombinedMenuData(MenuPerformanceModel menuData) {
+    // Convert categories
+    final double totalCategoryRevenue = menuData.categoryPerformance.fold(0.0, (sum, item) => sum + item.revenue);
+    final List<Map<String, dynamic>> updatedCategories = menuData.categoryPerformance.map((item) {
+      final double pct = totalCategoryRevenue > 0 ? (item.revenue / totalCategoryRevenue) : 0.0;
+      return {
+        'name': item.categoryName ?? 'Khác',
+        'percentage': pct,
+        'value': FormatUtils.formatCurrency(item.revenue),
+      };
+    }).toList();
+
+    // Convert topItems
+    final List<Map<String, dynamic>> updatedTopItems = menuData.topSellingItems.map((item) {
+      return {
+        'name': item.name,
+        'qty': item.quantitySold,
+        'revenue': FormatUtils.formatCurrency(item.revenue),
+      };
+    }).toList();
+
+    // Convert topToppings
+    final List<Map<String, dynamic>> updatedTopToppings = menuData.topToppings.map((item) {
+      return {
+        'name': item.name,
+        'qty': item.quantitySold,
+        'revenue': FormatUtils.formatCurrency(item.revenue),
+      };
+    }).toList();
+
+    return {
+      'categories': updatedCategories,
+      'topItems': updatedTopItems,
+      'topToppings': updatedTopToppings,
+    };
+  }
+
+  Map<String, dynamic> _getCombinedOperationsData(OperationsAnalyticsModel opsData) {
+    final summary = opsData.summary;
+
+    final double prepTime = summary.averagePreparationMinutes ?? 0.0;
+    final String avgPrepTimeStr = '${prepTime.toStringAsFixed(1)} phút';
+
+    final String cancellationRateStr = '${summary.cancellationRate.toStringAsFixed(1)}%';
+
+    List<Map<String, dynamic>> updatedPeakHours = opsData.peakHours.map((ph) {
+      final nextHour = (ph.hour + 1) % 24;
+      return {
+        'hour': '${ph.hour}h - ${nextHour}h',
+        'value': ph.revenue / 1000000.0,
+      };
+    }).toList();
+
+    return {
+      'avgPrepTime': avgPrepTimeStr,
+      'cancellationRate': cancellationRateStr,
+      'peakHours': updatedPeakHours,
+    };
+  }
+
+  Map<String, dynamic> _getCombinedWastageData(InventoryWastageAnalyticsModel wastageData) {
+    final summary = wastageData.summary;
+
+    final double totalWastageVal = summary.wasteValue ?? 0.0;
+    final String wastageValueStr = FormatUtils.formatCurrency(totalWastageVal);
+
+    // Map transactionBreakdown to wastageReasons
+    final List<Map<String, dynamic>> updatedWastageReasons = wastageData.transactionBreakdown.map((item) {
+      final double itemVal = item.value ?? 0.0;
+      final double pct = totalWastageVal > 0 ? (itemVal / totalWastageVal) : 0.0;
+      
+      String translatedReason = item.type;
+      if (item.type == 'Wastage' || item.type == 'Waste') {
+        translatedReason = 'Mất mát hao phí';
+      } else if (item.type == 'Deduction') {
+        translatedReason = 'Khấu trừ bếp';
+      } else if (item.type == 'Adjustment') {
+        translatedReason = 'Điều chỉnh kho';
+      } else if (item.type == 'Import') {
+        translatedReason = 'Nhập kho';
+      }
+
+      return {
+        'reason': translatedReason,
+        'percentage': pct,
+        'value': FormatUtils.formatCurrency(itemVal),
+      };
+    }).toList();
+
+    // Map wastageItems to topWastedIngredients
+    final List<Map<String, dynamic>> updatedTopWastedIngredients = wastageData.wastageItems.map((item) {
+      final double itemVal = item.value ?? 0.0;
+      return {
+        'name': item.ingredientName,
+        'qty': '${item.quantity.toStringAsFixed(1)} đơn vị',
+        'value': FormatUtils.formatCurrency(itemVal),
+      };
+    }).toList();
+
+    return {
+      'wastageValue': wastageValueStr,
+      'wastageReasons': updatedWastageReasons,
+      'topWastedIngredients': updatedTopWastedIngredients,
+    };
+  }
+
+
+  Widget _buildLoadingWidget() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 40.0),
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(Object err, VoidCallback onRetry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Lỗi tải dữ liệu: $err',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
 
   // Dynamic Tab Title
   String get _selectedTabTitle {
@@ -89,332 +269,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     }
   }
 
-  // Mock statistical data per filter
-  Map<String, dynamic> get _dashboardData {
-    if (_selectedTimeFilter == 'Tùy chọn') {
-      final days = _customRangeDays;
-      double factor = days.toDouble();
-      if (days <= 1) factor = 0.8;
-      
-      final int netSalesVal = (32800000 * factor).round();
-      final int discountsVal = (1200000 * factor).round();
-      final int foodCostVal = (netSalesVal * 0.35).round();
-      final int grossMarginVal = netSalesVal - foodCostVal;
-      
-      String fmt(int val) {
-        return '${val.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}đ';
-      }
-      
-      return {
-        'netSales': fmt(netSalesVal),
-        'discounts': fmt(discountsVal),
-        'foodCost': fmt(foodCostVal),
-        'foodCostPct': '35%',
-        'grossMargin': fmt(grossMarginVal),
-        'grossMarginPct': '65%',
-        
-        'paymentBreakdown': [
-          {'method': 'Tiền mặt', 'percentage': 0.30, 'value': fmt((netSalesVal * 0.30).round())},
-          {'method': 'Chuyển khoản', 'percentage': 0.50, 'value': fmt((netSalesVal * 0.50).round())},
-          {'method': 'Ví điện tử', 'percentage': 0.20, 'value': fmt((netSalesVal * 0.20).round())},
-        ],
-        
-        'orderSources': [
-          {'source': 'Ăn tại chỗ', 'percentage': 0.65, 'value': fmt((netSalesVal * 0.65).round())},
-          {'source': 'Đặt trực tuyến', 'percentage': 0.35, 'value': fmt((netSalesVal * 0.35).round())},
-        ],
-        
-        'categories': [
-          {'name': 'Đồ ăn', 'percentage': 0.70, 'value': fmt((netSalesVal * 0.70).round())},
-          {'name': 'Đồ uống', 'percentage': 0.22, 'value': fmt((netSalesVal * 0.22).round())},
-          {'name': 'Món ăn kèm', 'percentage': 0.08, 'value': fmt((netSalesVal * 0.08).round())},
-        ],
-        
-        'topItems': [
-          {'name': 'Phở bò tái đặc biệt', 'qty': (124 * factor).round(), 'revenue': fmt((8060000 * factor).round())},
-          {'name': 'Cơm tấm sườn bì chả', 'qty': (98 * factor).round(), 'revenue': fmt((5390000 * factor).round())},
-          {'name': 'Cà phê sữa đá Sài Gòn', 'qty': (86 * factor).round(), 'revenue': fmt((2150000 * factor).round())},
-          {'name': 'Bún bò Huế giò heo', 'qty': (62 * factor).round(), 'revenue': fmt((3410000 * factor).round())},
-          {'name': 'Trà đào cam sả', 'qty': (45 * factor).round(), 'revenue': fmt((1305000 * factor).round())},
-        ],
-        
-        'topToppings': [
-          {'name': 'Quẩy giòn rụm', 'qty': (68 * factor).round(), 'revenue': fmt((1020000 * factor).round())},
-          {'name': 'Trứng ốp la', 'qty': (45 * factor).round(), 'revenue': fmt((450000 * factor).round())},
-          {'name': 'Thịt sườn thêm', 'qty': (24 * factor).round(), 'revenue': fmt((720000 * factor).round())},
-        ],
-        
-        'peakHours': [
-          {'hour': '7h - 9h', 'value': 4.5 * factor},
-          {'hour': '11h - 13h', 'value': 12.8 * factor},
-          {'hour': '17h - 19h', 'value': 9.6 * factor},
-          {'hour': '20h - 22h', 'value': 5.9 * factor},
-        ],
-        
-        'avgPrepTime': '13,2 phút',
-        'cancellationRate': '2.1%',
-        
-        'wastageValue': fmt((450000 * factor).round()),
-        'wastageReasons': [
-          {'reason': 'Hết hạn sử dụng', 'percentage': 0.50, 'value': fmt((225000 * factor).round())},
-          {'reason': 'Hao hụt bếp', 'percentage': 0.35, 'value': fmt((157500 * factor).round())},
-          {'reason': 'Mất mát hao phí', 'percentage': 0.15, 'value': fmt((67500 * factor).round())},
-        ],
-        'topWastedIngredients': [
-          {'name': 'Thịt bò thăn', 'qty': '${(1.2 * factor).toStringAsFixed(1)} kg', 'value': fmt((300000 * factor).round())},
-          {'name': 'Sữa tươi tiệt trùng', 'qty': '${(2 * factor).round()} lít', 'value': fmt((60000 * factor).round())},
-          {'name': 'Rau thơm tổng hợp', 'qty': '${(1.5 * factor).toStringAsFixed(1)} kg', 'value': fmt((45000 * factor).round())},
-          {'name': 'Trứng gà ta', 'qty': '${(6 * factor).round()} quả', 'value': fmt((24000 * factor).round())},
-          {'name': 'Hành lá', 'qty': '${(2 * factor).round()} kg', 'value': fmt((20000 * factor).round())},
-        ],
-      };
-    }
 
-    switch (_selectedTimeFilter) {
-      case 'Tuần này':
-        return {
-          'netSales': '202.500.000đ',
-          'discounts': '8.200.000đ',
-          'foodCost': '70.875.000đ',
-          'foodCostPct': '35%',
-          'grossMargin': '131.625.000đ',
-          'grossMarginPct': '65%',
-          
-          'paymentBreakdown': [
-            {'method': 'Tiền mặt', 'percentage': 0.35, 'value': '70.875.000đ'},
-            {'method': 'Chuyển khoản', 'percentage': 0.45, 'value': '91.125.000đ'},
-            {'method': 'Ví điện tử', 'percentage': 0.20, 'value': '40.500.000đ'},
-          ],
-          
-          'orderSources': [
-            {'source': 'Ăn tại chỗ', 'percentage': 0.60, 'value': '121.500.000đ'},
-            {'source': 'Đặt trực tuyến', 'percentage': 0.40, 'value': '81.000.000đ'},
-          ],
-          
-          'categories': [
-            {'name': 'Đồ ăn', 'percentage': 0.65, 'value': '131.625.000đ'},
-            {'name': 'Đồ uống', 'percentage': 0.25, 'value': '50.625.000đ'},
-            {'name': 'Món ăn kèm', 'percentage': 0.10, 'value': '20.250.000đ'},
-          ],
-          
-          'topItems': [
-            {'name': 'Phở bò tái đặc biệt', 'qty': 820, 'revenue': '53.300.000đ'},
-            {'name': 'Cơm tấm sườn bì chả', 'qty': 650, 'revenue': '35.750.000đ'},
-            {'name': 'Cà phê sữa đá Sài Gòn', 'qty': 580, 'revenue': '14.500.000đ'},
-            {'name': 'Bún bò Huế giò heo', 'qty': 420, 'revenue': '23.100.000đ'},
-            {'name': 'Trà đào cam sả', 'qty': 310, 'revenue': '8.990.000đ'},
-          ],
-          
-          'topToppings': [
-            {'name': 'Quẩy giòn rụm', 'qty': 450, 'revenue': '6.750.000đ'},
-            {'name': 'Trứng ốp la', 'qty': 320, 'revenue': '3.200.000đ'},
-            {'name': 'Thịt sườn thêm', 'qty': 180, 'revenue': '5.400.000đ'},
-          ],
-          
-          'peakHours': [
-            {'hour': '7h - 9h', 'value': 28.5},
-            {'hour': '11h - 13h', 'value': 75.2},
-            {'hour': '17h - 19h', 'value': 62.4},
-            {'hour': '20h - 22h', 'value': 36.4},
-          ],
-          
-          'avgPrepTime': '12,5 phút',
-          'cancellationRate': '1.8%',
-          
-          'wastageValue': '4.250.000đ',
-          'wastageReasons': [
-            {'reason': 'Hết hạn sử dụng', 'percentage': 0.55, 'value': '2.337.500đ'},
-            {'reason': 'Hao hụt bếp', 'percentage': 0.30, 'value': '1.275.000đ'},
-            {'reason': 'Mất mát hao phí', 'percentage': 0.15, 'value': '637.500đ'},
-          ],
-          'topWastedIngredients': [
-            {'name': 'Thịt bò thăn', 'qty': '8.5 kg', 'value': '2.125.000đ'},
-            {'name': 'Sữa tươi tiệt trùng', 'qty': '15 lít', 'value': '450.000đ'},
-            {'name': 'Rau thơm tổng hợp', 'qty': '12 kg', 'value': '360.000đ'},
-            {'name': 'Trứng gà ta', 'qty': '60 quả', 'value': '240.000đ'},
-            {'name': 'Hành lá', 'qty': '15 kg', 'value': '150.000đ'},
-          ],
-        };
-      case 'Tháng này':
-        return {
-          'netSales': '842.900.000đ',
-          'discounts': '35.400.000đ',
-          'foodCost': '295.015.000đ',
-          'foodCostPct': '35%',
-          'grossMargin': '547.885.000đ',
-          'grossMarginPct': '65%',
-          
-          'paymentBreakdown': [
-            {'method': 'Tiền mặt', 'percentage': 0.32, 'value': '269.728.000đ'},
-            {'method': 'Chuyển khoản', 'percentage': 0.48, 'value': '404.592.000đ'},
-            {'method': 'Ví điện tử', 'percentage': 0.20, 'value': '168.580.000đ'},
-          ],
-          
-          'orderSources': [
-            {'source': 'Ăn tại chỗ', 'percentage': 0.58, 'value': '488.882.000đ'},
-            {'source': 'Đặt trực tuyến', 'percentage': 0.42, 'value': '354.018.000đ'},
-          ],
-          
-          'categories': [
-            {'name': 'Đồ ăn', 'percentage': 0.67, 'value': '564.743.000đ'},
-            {'name': 'Đồ uống', 'percentage': 0.24, 'value': '202.296.000đ'},
-            {'name': 'Món ăn kèm', 'percentage': 0.09, 'value': '75.861.000đ'},
-          ],
-          
-          'topItems': [
-            {'name': 'Phở bò tái đặc biệt', 'qty': 3420, 'revenue': '222.300.000đ'},
-            {'name': 'Cơm tấm sườn bì chả', 'qty': 2750, 'revenue': '151.250.000đ'},
-            {'name': 'Cà phê sữa đá Sài Gòn', 'qty': 2480, 'revenue': '62.000.000đ'},
-            {'name': 'Bún bò Huế giò heo', 'qty': 1890, 'revenue': '103.950.000đ'},
-            {'name': 'Trà đào cam sả', 'qty': 1320, 'revenue': '38.280.000đ'},
-          ],
-          
-          'topToppings': [
-            {'name': 'Quẩy giòn rụm', 'qty': 1950, 'revenue': '29.250.000đ'},
-            {'name': 'Trứng ốp la', 'qty': 1380, 'revenue': '13.800.000đ'},
-            {'name': 'Thịt sườn thêm', 'qty': 820, 'revenue': '24.600.000đ'},
-          ],
-          
-          'peakHours': [
-            {'hour': '7h - 9h', 'value': 118.5},
-            {'hour': '11h - 13h', 'value': 315.2},
-            {'hour': '17h - 19h', 'value': 262.4},
-            {'hour': '20h - 22h', 'value': 146.8},
-          ],
-          
-          'avgPrepTime': '11,8 phút',
-          'cancellationRate': '1.5%',
-          
-          'wastageValue': '16.850.000đ',
-          'wastageReasons': [
-            {'reason': 'Hết hạn sử dụng', 'percentage': 0.58, 'value': '9.773.000đ'},
-            {'reason': 'Hao hụt bếp', 'percentage': 0.28, 'value': '4.718.000đ'},
-            {'reason': 'Mất mát hao phí', 'percentage': 0.14, 'value': '2.359.000đ'},
-          ],
-          'topWastedIngredients': [
-            {'name': 'Thịt bò thăn', 'qty': '35.0 kg', 'value': '8.750.000đ'},
-            {'name': 'Sữa tươi tiệt trùng', 'qty': '62 lít', 'value': '1.860.000đ'},
-            {'name': 'Rau thơm tổng hợp', 'qty': '50 kg', 'value': '1.500.000đ'},
-            {'name': 'Trứng gà ta', 'qty': '280 quả', 'value': '1.120.000đ'},
-            {'name': 'Hành lá', 'qty': '58 kg', 'value': '580.000đ'},
-          ],
-        };
-      case 'Hôm nay':
-      default:
-        return {
-          'netSales': '32.800.000đ',
-          'discounts': '1.200.000đ',
-          'foodCost': '11.480.000đ',
-          'foodCostPct': '35%',
-          'grossMargin': '21.320.000đ',
-          'grossMarginPct': '65%',
-          
-          'paymentBreakdown': [
-            {'method': 'Tiền mặt', 'percentage': 0.30, 'value': '9.840.000đ'},
-            {'method': 'Chuyển khoản', 'percentage': 0.50, 'value': '16.400.000đ'},
-            {'method': 'Ví điện tử', 'percentage': 0.20, 'value': '6.560.000đ'},
-          ],
-          
-          'orderSources': [
-            {'source': 'Ăn tại chỗ', 'percentage': 0.65, 'value': '21.320.000đ'},
-            {'source': 'Đặt trực tuyến', 'percentage': 0.35, 'value': '11.480.000đ'},
-          ],
-          
-          'categories': [
-            {'name': 'Đồ ăn', 'percentage': 0.70, 'value': '22.960.000đ'},
-            {'name': 'Đồ uống', 'percentage': 0.22, 'value': '7.216.000đ'},
-            {'name': 'Món ăn kèm', 'percentage': 0.08, 'value': '2.624.000đ'},
-          ],
-          
-          'topItems': [
-            {'name': 'Phở bò tái đặc biệt', 'qty': 124, 'revenue': '8.060.000đ'},
-            {'name': 'Cơm tấm sườn bì chả', 'qty': 98, 'revenue': '5.390.000đ'},
-            {'name': 'Cà phê sữa đá Sài Gòn', 'qty': 86, 'revenue': '2.150.000đ'},
-            {'name': 'Bún bò Huế giò heo', 'qty': 62, 'revenue': '3.410.000đ'},
-            {'name': 'Trà đào cam sả', 'qty': 45, 'revenue': '1.305.000đ'},
-          ],
-          
-          'topToppings': [
-            {'name': 'Quẩy giòn rụm', 'qty': 68, 'revenue': '1.020.000đ'},
-            {'name': 'Trứng ốp la', 'qty': 45, 'revenue': '450.000đ'},
-            {'name': 'Thịt sườn thêm', 'qty': 24, 'revenue': '720.000đ'},
-          ],
-          
-          'peakHours': [
-            {'hour': '7h - 9h', 'value': 4.5},
-            {'hour': '11h - 13h', 'value': 12.8},
-            {'hour': '17h - 19h', 'value': 9.6},
-            {'hour': '20h - 22h', 'value': 5.9},
-          ],
-          
-          'avgPrepTime': '13,2 phút',
-          'cancellationRate': '2.1%',
-          
-          'wastageValue': '450.000đ',
-          'wastageReasons': [
-            {'reason': 'Hết hạn sử dụng', 'percentage': 0.50, 'value': '225.000đ'},
-            {'reason': 'Hao hụt bếp', 'percentage': 0.35, 'value': '157.500đ'},
-            {'reason': 'Mất mát hao phí', 'percentage': 0.15, 'value': '67.500đ'},
-          ],
-          'topWastedIngredients': [
-            {'name': 'Thịt bò thăn', 'qty': '1.2 kg', 'value': '300.000đ'},
-            {'name': 'Sữa tươi tiệt trùng', 'qty': '2 lít', 'value': '60.000đ'},
-            {'name': 'Rau thơm tổng hợp', 'qty': '1.5 kg', 'value': '45.000đ'},
-            {'name': 'Trứng gà ta', 'qty': '6 quả', 'value': '24.000đ'},
-            {'name': 'Hành lá', 'qty': '2 kg', 'value': '20.000đ'},
-          ],
-        };
-    }
-  }
-
-  // Mock transactions list (always visible at bottom of Financials tab)
-  final List<Map<String, dynamic>> _transactions = [
-    {
-      'id': 'HD-9842',
-      'time': '10:42 · Hôm nay',
-      'total': 185000,
-      'itemsCount': 3,
-      'items': [
-        {'name': 'Phở bò tái đặc biệt', 'qty': 2, 'price': 65000},
-        {'name': 'Cà phê sữa đá Sài Gòn', 'qty': 1, 'price': 25000},
-        {'name': 'Quẩy giòn rụm', 'qty': 2, 'price': 15000},
-      ],
-      'branch': 'Chi nhánh Quận 1',
-    },
-    {
-      'id': 'HD-9841',
-      'time': '10:15 · Hôm nay',
-      'total': 90000,
-      'itemsCount': 2,
-      'items': [
-        {'name': 'Bún bò Huế giò heo', 'qty': 1, 'price': 55000},
-        {'name': 'Trà đào cam sả', 'qty': 1, 'price': 29000},
-        {'name': 'Khăn lạnh', 'qty': 2, 'price': 3000},
-      ],
-      'branch': 'Chi nhánh Quận 1',
-    },
-    {
-      'id': 'HD-9840',
-      'time': '09:58 · Hôm nay',
-      'total': 135000,
-      'itemsCount': 2,
-      'items': [
-        {'name': 'Cơm tấm sườn bì chả', 'qty': 2, 'price': 55000},
-        {'name': 'Nước ngọt Pepsi', 'qty': 2, 'price': 12500},
-      ],
-      'branch': 'Chi nhánh Quận 1',
-    },
-    {
-      'id': 'HD-9839',
-      'time': '09:30 · Hôm nay',
-      'total': 50000,
-      'itemsCount': 1,
-      'items': [
-        {'name': 'Phở bò viên thập cẩm', 'qty': 1, 'price': 50000},
-      ],
-      'branch': 'Chi nhánh Quận 1',
-    },
-  ];
 
   void _confirmLogout() {
     showDialog(
@@ -509,7 +364,113 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     final rawName = user?.displayName;
     final displayName = (rawName == null || rawName.trim().isEmpty) ? 'Quản trị viên' : rawName;
     final initialChar = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'A';
-    final data = _dashboardData;
+    
+    // Check if the user is a Brand Admin (doesn't have a fixed branchId)
+    final isBrandAdmin = user?.branchId == null || user!.branchId!.isEmpty;
+    final brandDashboardAsync = isBrandAdmin 
+        ? ref.watch(brandDashboardFutureProvider(_currentDateRange))
+        : null;
+
+    String activeBranchId = '';
+    List<BranchDashboardItemModel> availableBranches = [];
+
+    if (!isBrandAdmin) {
+      activeBranchId = user.branchId ?? '';
+    } else {
+      if (brandDashboardAsync != null) {
+        final branchesList = brandDashboardAsync.value?.branches ?? [];
+        availableBranches = branchesList;
+        if (branchesList.isNotEmpty) {
+          final hasSelected = branchesList.any((b) => b.branchId == _selectedBranchId);
+          if (!hasSelected) {
+            activeBranchId = branchesList.first.branchId;
+          } else {
+            activeBranchId = _selectedBranchId!;
+          }
+        }
+      }
+    }
+
+    final params = BranchAnalyticsParams(
+      branchId: activeBranchId,
+      dateRange: _currentDateRange,
+    );
+
+    Widget tabContent;
+    if (isBrandAdmin && brandDashboardAsync != null && brandDashboardAsync.isLoading && activeBranchId.isEmpty) {
+      tabContent = _buildLoadingWidget();
+    } else if (isBrandAdmin && brandDashboardAsync != null && brandDashboardAsync.hasError && activeBranchId.isEmpty) {
+      tabContent = _buildErrorWidget(brandDashboardAsync.error!, () => ref.invalidate(brandDashboardFutureProvider(_currentDateRange)));
+    } else if (activeBranchId.isEmpty) {
+      tabContent = const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40.0),
+          child: Text(
+            'Không tìm thấy chi nhánh nào liên kết với tài khoản này.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    } else {
+      switch (_selectedTabIdx) {
+        case 0:
+          final detailAsync = ref.watch(branchDashboardDetailProvider(params));
+          final trendAsync = ref.watch(salesTrendProvider(params));
+
+          tabContent = detailAsync.when(
+            loading: () => _buildLoadingWidget(),
+            error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(branchDashboardDetailProvider(params))),
+            data: (detailData) {
+              return trendAsync.when(
+                loading: () => _buildLoadingWidget(),
+                error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(salesTrendProvider(params))),
+                data: (trendData) {
+                  final combinedData = _getCombinedFinancialData(detailData, trendData);
+                  final ordersAsync = ref.watch(branchOrdersProvider(activeBranchId));
+                  return _buildFinancialTab(combinedData, detailData, trendData, ordersAsync);
+                },
+              );
+            },
+          );
+          break;
+        case 1:
+          final menuAsync = ref.watch(menuPerformanceProvider(params));
+          tabContent = menuAsync.when(
+            loading: () => _buildLoadingWidget(),
+            error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(menuPerformanceProvider(params))),
+            data: (menuData) {
+              final combinedData = _getCombinedMenuData(menuData);
+              return _buildMenuPerformanceTab(combinedData, menuData);
+            },
+          );
+          break;
+        case 2:
+          final opsAsync = ref.watch(operationsAnalyticsProvider(params));
+          tabContent = opsAsync.when(
+            loading: () => _buildLoadingWidget(),
+            error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(operationsAnalyticsProvider(params))),
+            data: (opsData) {
+              final combinedData = _getCombinedOperationsData(opsData);
+              return _buildOperationsTab(combinedData, opsData);
+            },
+          );
+          break;
+        case 3:
+          final wastageAsync = ref.watch(inventoryWastageProvider(params));
+          tabContent = wastageAsync.when(
+            loading: () => _buildLoadingWidget(),
+            error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(inventoryWastageProvider(params))),
+            data: (wastageData) {
+              final combinedData = _getCombinedWastageData(wastageData);
+              return _buildWastageTab(combinedData, wastageData);
+            },
+          );
+          break;
+        default:
+          tabContent = const SizedBox.shrink();
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -537,13 +498,20 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _selectedTabTitle,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _selectedTabTitle,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              if (isBrandAdmin && availableBranches.length > 1)
+                                _buildBranchSelector(availableBranches, activeBranchId),
+                            ],
                           ),
                           const SizedBox(height: 10),
                           _buildTimeFilterChips(),
@@ -554,7 +522,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                       // 5. Dynamic Tab View contents
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
-                        child: _buildSelectedTabContent(data),
+                        child: tabContent,
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -656,6 +624,42 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBranchSelector(List<BranchDashboardItemModel> branches, String activeBranchId) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.6)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: activeBranchId.isEmpty ? null : activeBranchId,
+          icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 18),
+          elevation: 3,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _selectedBranchId = newValue;
+              });
+            }
+          },
+          items: branches.map<DropdownMenuItem<String>>((BranchDashboardItemModel branch) {
+            return DropdownMenuItem<String>(
+              value: branch.branchId,
+              child: Text(branch.branchName),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -804,23 +808,17 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     );
   }
 
-  Widget _buildSelectedTabContent(Map<String, dynamic> data) {
-    switch (_selectedTabIdx) {
-      case 1:
-        return _buildMenuPerformanceTab(data);
-      case 2:
-        return _buildOperationsTab(data);
-      case 3:
-        return _buildWastageTab(data);
-      case 0:
-      default:
-        return _buildFinancialTab(data);
-    }
-  }
-
   // ─── Financial Tab Widget ──────────────────────────────────────────────
 
-  Widget _buildFinancialTab(Map<String, dynamic> data) {
+  Widget _buildFinancialTab(
+    Map<String, dynamic> data, 
+    BranchDashboardDetailModel apiData, 
+    SalesTrendModel trendData,
+    AsyncValue<List<MockOrder>> ordersAsync,
+  ) {
+    final List<double> chartData = trendData.items.map((e) => e.revenue / 1000000.0).toList();
+    final List<String> labels = trendData.items.map((e) => e.label).toList();
+
     return Column(
       key: const ValueKey('financial_tab'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -830,7 +828,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         const SizedBox(height: 18),
 
         // 2. Interactive Revenue Trend Chart
-        _buildTrendChart(),
+        _buildTrendChart(chartData, labels),
         const SizedBox(height: 18),
 
         // 3. KPI Financial Cards List Stacked to prevent horizontal truncation
@@ -846,7 +844,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         const SizedBox(height: 24),
 
         // 6. Transaction List Table
-        _buildRecentTransactionsSection(),
+        _buildRecentTransactionsSection(ordersAsync),
       ],
     );
   }
@@ -946,13 +944,134 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     );
   }
 
-  Widget _buildTrendChart() {
-    final double maxVal = _trendChartData.reduce((a, b) => a > b ? a : b);
-    final List<double> chartData = _trendChartData;
-    final List<String> labels = _trendChartLabels;
+  String _formatLabel(String label) {
+    if (label.length >= 10 && label.contains('-')) {
+      try {
+        final date = DateTime.parse(label);
+        return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+      } catch (_) {
+        final parts = label.split('-');
+        if (parts.length >= 3) {
+          return '${parts[2]}/${parts[1]}';
+        }
+      }
+    }
+    return label;
+  }
+
+  Widget _buildTrendChart(List<double> chartData, List<String> labels) {
+    if (chartData.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final double maxVal = chartData.reduce((a, b) => a > b ? a : b);
 
     if (_selectedChartBarIndex >= chartData.length) {
       _selectedChartBarIndex = 0;
+    }
+
+    final isScrollable = chartData.length > 7;
+
+    Widget chartRow = Row(
+      mainAxisAlignment: isScrollable ? MainAxisAlignment.start : MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: List.generate(chartData.length, (idx) {
+        final double val = chartData[idx];
+        final double ratio = maxVal > 0 ? val / maxVal : 0;
+        final bool isSelected = _selectedChartBarIndex == idx;
+        final formattedLabel = _formatLabel(labels[idx]);
+
+        final barWidget = GestureDetector(
+          onTap: () => setState(() => _selectedChartBarIndex = idx),
+          behavior: HitTestBehavior.opaque,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: isSelected ? 1.0 : 0.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.textPrimary,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${val.toStringAsFixed(1)}M',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 80 * ratio,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isSelected
+                        ? [AppColors.primary, AppColors.secondary]
+                        : [
+                            AppColors.primary.withValues(alpha: 0.15),
+                            AppColors.secondary.withValues(alpha: 0.15)
+                          ],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : Colors.transparent,
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                formattedLabel,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? AppColors.textPrimary : AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (isScrollable) {
+          return SizedBox(
+            width: 48,
+            child: barWidget,
+          );
+        } else {
+          return Expanded(
+            child: barWidget,
+          );
+        }
+      }),
+    );
+
+    if (isScrollable) {
+      chartRow = SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: chartRow,
+        ),
+      );
     }
 
     return Container(
@@ -995,87 +1114,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
           const SizedBox(height: 24),
           SizedBox(
             height: 140,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(chartData.length, (idx) {
-                final double val = chartData[idx];
-                final double ratio = maxVal > 0 ? val / maxVal : 0;
-                final bool isSelected = _selectedChartBarIndex == idx;
-
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedChartBarIndex = idx),
-                    behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        AnimatedOpacity(
-                          duration: const Duration(milliseconds: 150),
-                          opacity: isSelected ? 1.0 : 0.0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.textPrimary,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${val.toStringAsFixed(1)}M',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          height: 80 * ratio,
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isSelected
-                                  ? [AppColors.primary, AppColors.secondary]
-                                  : [
-                                      AppColors.primary.withValues(alpha: 0.15),
-                                      AppColors.secondary.withValues(alpha: 0.15)
-                                    ],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                            ),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                            border: Border.all(
-                              color: isSelected ? AppColors.primary : Colors.transparent,
-                              width: 1.5,
-                            ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.primary.withValues(alpha: 0.2),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          labels[idx],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? AppColors.textPrimary : AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
+            child: chartRow,
           ),
           const SizedBox(height: 14),
           const Divider(color: AppColors.divider, height: 1),
@@ -1086,11 +1125,11 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _selectedTimeFilter == 'Hôm nay'
-                      ? 'Khoảng thời gian ${labels[_selectedChartBarIndex]} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ'
-                      : _selectedTimeFilter == 'Tuần này'
-                          ? 'Thứ ${labels[_selectedChartBarIndex] == 'CN' ? 'Chủ nhật' : labels[_selectedChartBarIndex].replaceAll('T', '')} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ'
-                          : '${labels[_selectedChartBarIndex]} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ',
+                  chartData.isEmpty || _selectedChartBarIndex >= chartData.length
+                      ? 'Không có dữ liệu xu hướng'
+                      : _selectedTimeFilter == 'Hôm nay'
+                          ? 'Khoảng thời gian ${labels[_selectedChartBarIndex]} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ'
+                          : 'Ngày ${labels[_selectedChartBarIndex]} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1370,7 +1409,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   // ─── Menu Performance Tab Widget ────────────────────────────────────────
 
-  Widget _buildMenuPerformanceTab(Map<String, dynamic> data) {
+  Widget _buildMenuPerformanceTab(Map<String, dynamic> data, MenuPerformanceModel apiData) {
     final List<dynamic> categories = data['categories'] as List<dynamic>;
     final List<dynamic> topItems = data['topItems'] as List<dynamic>;
     final List<dynamic> topToppings = data['topToppings'] as List<dynamic>;
@@ -1405,33 +1444,28 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...categories.map((item) {
-                final double pct = item['percentage'] as double;
-                final String pctText = '${(pct * 100).toStringAsFixed(0)}%';
-                Color barColor = AppColors.primary;
-                if (item['name'] == 'Đồ uống') barColor = AppColors.secondary;
-                if (item['name'] == 'Món ăn kèm') barColor = AppColors.tertiary;
-                return Padding(
+              if (categories.isEmpty)
+                Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Column(
                     children: [
-                      Row(
+                      const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            item['name'] as String,
-                            style: const TextStyle(
+                            'Chưa có dữ liệu',
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                              color: AppColors.textTertiary,
                             ),
                           ),
                           Text(
-                            '${item['value']} ($pctText)',
-                            style: const TextStyle(
+                            '0đ (0%)',
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: AppColors.textTertiary,
                             ),
                           ),
                         ],
@@ -1440,16 +1474,61 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(3),
                         child: LinearProgressIndicator(
-                          value: pct,
+                          value: 0,
                           minHeight: 5,
-                          backgroundColor: AppColors.divider.withValues(alpha: 0.5),
-                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                          backgroundColor: AppColors.divider.withValues(alpha: 0.3),
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.outline),
                         ),
                       ),
                     ],
                   ),
-                );
-              }),
+                )
+              else
+                ...categories.map((item) {
+                  final double pct = item['percentage'] as double;
+                  final String pctText = '${(pct * 100).toStringAsFixed(0)}%';
+                  Color barColor = AppColors.primary;
+                  if (item['name'] == 'Đồ uống') barColor = AppColors.secondary;
+                  if (item['name'] == 'Món ăn kèm') barColor = AppColors.tertiary;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              item['name'] as String,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              '${item['value']} ($pctText)',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: pct,
+                            minHeight: 5,
+                            backgroundColor: AppColors.divider.withValues(alpha: 0.5),
+                            valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
             ],
           ),
         ),
@@ -1481,32 +1560,25 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...List.generate(topItems.length, (index) {
-                final item = topItems[index];
-                final maxQty = topItems.first['qty'] as int;
-                final double pct = (item['qty'] as int) / maxQty;
-                return Padding(
+              if (topItems.isEmpty)
+                Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
                   child: Row(
                     children: [
                       Container(
                         width: 24,
                         height: 24,
-                        decoration: BoxDecoration(
-                          color: index == 0
-                              ? AppColors.primary
-                              : index == 1
-                                  ? AppColors.secondary
-                                  : AppColors.surfaceContainerHigh,
+                        decoration: const BoxDecoration(
+                          color: AppColors.surfaceContainerHigh,
                           shape: BoxShape.circle,
                         ),
-                        child: Center(
+                        child: const Center(
                           child: Text(
-                            '${index + 1}',
+                            '1',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: index < 2 ? Colors.white : AppColors.textSecondary,
+                              color: AppColors.textTertiary,
                             ),
                           ),
                         ),
@@ -1516,27 +1588,27 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            const Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
                                   child: Text(
-                                    item['name'] as String,
-                                    style: const TextStyle(
+                                    'Chưa có dữ liệu',
+                                    style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                                      color: AppColors.textTertiary,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 Text(
-                                  '${item['qty']} món',
-                                  style: const TextStyle(
+                                  '0 món',
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
+                                    color: AppColors.textTertiary,
                                   ),
                                 ),
                               ],
@@ -1545,18 +1617,16 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(3),
                               child: LinearProgressIndicator(
-                                value: pct,
+                                value: 0,
                                 minHeight: 4,
-                                backgroundColor: AppColors.divider.withValues(alpha: 0.5),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  index == 0 ? AppColors.primary : AppColors.secondary,
-                                ),
+                                backgroundColor: AppColors.divider.withValues(alpha: 0.3),
+                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.outline),
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              'Doanh thu: ${item['revenue']}',
-                              style: const TextStyle(
+                            const Text(
+                              'Doanh thu: 0đ',
+                              style: TextStyle(
                                 fontSize: 10,
                                 color: AppColors.textTertiary,
                               ),
@@ -1566,8 +1636,95 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                       ),
                     ],
                   ),
-                );
-              }),
+                )
+              else
+                ...List.generate(topItems.length, (index) {
+                  final item = topItems[index];
+                  final maxQty = topItems.first['qty'] as int;
+                  final double pct = (item['qty'] as int) / maxQty;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: index == 0
+                                ? AppColors.primary
+                                : index == 1
+                                    ? AppColors.secondary
+                                    : AppColors.surfaceContainerHigh,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: index < 2 ? Colors.white : AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item['name'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${item['qty']} món',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: pct,
+                                  minHeight: 4,
+                                  backgroundColor: AppColors.divider.withValues(alpha: 0.5),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    index == 0 ? AppColors.primary : AppColors.secondary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Doanh thu: ${item['revenue']}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
             ],
           ),
         ),
@@ -1599,38 +1756,70 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...topToppings.map((item) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
+              if (topToppings.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 16),
-                          const SizedBox(width: 8),
+                          Icon(Icons.add_circle_outline_rounded, color: AppColors.textTertiary, size: 16),
+                          SizedBox(width: 8),
                           Text(
-                            item['name'] as String,
-                            style: const TextStyle(
+                            'Chưa có dữ liệu',
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: AppColors.textTertiary,
                             ),
                           ),
                         ],
                       ),
                       Text(
-                        'x${item['qty']} (${item['revenue']})',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        'x0 (0đ)',
+                        style: TextStyle(
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary,
+                          color: AppColors.textTertiary,
                         ),
                       ),
                     ],
                   ),
-                );
-              }),
+                )
+              else
+                ...topToppings.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              item['name'] as String,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'x${item['qty']} (${item['revenue']})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
             ],
           ),
         ),
@@ -1640,7 +1829,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   // ─── Operations Tab Widget ─────────────────────────────────────────────
 
-  Widget _buildOperationsTab(Map<String, dynamic> data) {
+  Widget _buildOperationsTab(Map<String, dynamic> data, OperationsAnalyticsModel apiData) {
     final List<dynamic> peakHours = data['peakHours'] as List<dynamic>;
     final String avgPrepTime = data['avgPrepTime'] as String;
     final String cancellationRate = data['cancellationRate'] as String;
@@ -1699,52 +1888,79 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                height: 140,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: peakHours.map((item) {
-                    final double val = item['value'] as double;
-                    final double maxVal = peakHours.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
-                    final double ratio = maxVal > 0 ? val / maxVal : 0;
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${val.toStringAsFixed(1)}M',
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 32,
-                          height: 80 * ratio,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [AppColors.primary, AppColors.secondary],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
+              Builder(
+                builder: (context) {
+                  final bool isScrollable = peakHours.length > 5;
+                  Widget chartRow = Row(
+                    mainAxisAlignment: isScrollable ? MainAxisAlignment.start : MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: peakHours.map((item) {
+                      final double val = item['value'] as double;
+                      final double maxVal = peakHours.isEmpty ? 1.0 : peakHours.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
+                      final double ratio = maxVal > 0 ? val / maxVal : 0;
+                      
+                      final barWidget = Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${val.toStringAsFixed(1)}M',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
                             ),
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          item['hour'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 28,
+                            height: 80 * ratio,
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [AppColors.primary, AppColors.secondary],
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                              ),
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            item['hour'] as String,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      );
+
+                      if (isScrollable) {
+                        return SizedBox(
+                          width: 64,
+                          child: barWidget,
+                        );
+                      } else {
+                        return Expanded(
+                          child: barWidget,
+                        );
+                      }
+                    }).toList(),
+                  );
+
+                  if (isScrollable) {
+                    chartRow = SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: chartRow,
                     );
-                  }).toList(),
-                ),
+                  }
+
+                  return SizedBox(
+                    height: 140,
+                    child: chartRow,
+                  );
+                },
               ),
             ],
           ),
@@ -1809,7 +2025,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   // ─── Wastage Tab Widget ────────────────────────────────────────────────
 
-  Widget _buildWastageTab(Map<String, dynamic> data) {
+  Widget _buildWastageTab(Map<String, dynamic> data, InventoryWastageAnalyticsModel apiData) {
     final String wastageValue = data['wastageValue'] as String;
     final List<dynamic> wastageReasons = data['wastageReasons'] as List<dynamic>;
     final List<dynamic> topWastedIngredients = data['topWastedIngredients'] as List<dynamic>;
@@ -2015,7 +2231,18 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   // ─── Recent Transactions Section Widget ──────────────────────────────────
 
-  Widget _buildRecentTransactionsSection() {
+  String _formatOrderTime(DateTime orderTime) {
+    final now = DateTime.now();
+    final isToday = orderTime.year == now.year && orderTime.month == now.month && orderTime.day == now.day;
+    final timeStr = '${orderTime.hour.toString().padLeft(2, '0')}:${orderTime.minute.toString().padLeft(2, '0')}';
+    if (isToday) {
+      return '$timeStr · Hôm nay';
+    } else {
+      return '$timeStr · ${orderTime.day.toString().padLeft(2, '0')}/${orderTime.month.toString().padLeft(2, '0')}';
+    }
+  }
+
+  Widget _buildRecentTransactionsSection(AsyncValue<List<MockOrder>> ordersAsync) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2023,7 +2250,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Giao dịch hôm nay',
+              'Giao dịch gần đây',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -2048,145 +2275,200 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
           ],
         ),
         const SizedBox(height: 8),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: _transactions.length,
-          itemBuilder: (context, index) {
-            final trans = _transactions[index];
-            final id = trans['id'] as String;
-            final time = trans['time'] as String;
-            final total = trans['total'] as int;
-            final isExpanded = _expandedTransactionIndex == index;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+        ordersAsync.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          ),
+          error: (err, stack) => Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'Lỗi khi tải danh sách giao dịch: ${err.toString()}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.error, fontSize: 12),
               ),
-              child: Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  key: PageStorageKey<String>(id),
-                  initiallyExpanded: isExpanded,
-                  onExpansionChanged: (expanded) {
-                    setState(() {
-                      _expandedTransactionIndex = expanded ? index : null;
-                    });
-                  },
-                  tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: AppColors.successContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check_rounded, color: AppColors.success, size: 18),
+            ),
+          ),
+          data: (orders) {
+            if (orders.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Chưa có giao dịch nào gần đây.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                   ),
-                  title: Row(
-                    children: [
-                      Text(
-                        id,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${(total / 1000).toStringAsFixed(0)}k',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: orders.length > 5 ? 5 : orders.length,
+              itemBuilder: (context, index) {
+                final order = orders[index];
+                final id = order.orderNumber.isNotEmpty ? 'HD-${order.orderNumber}' : 'HD-${order.id.substring(0, 4).toUpperCase()}';
+                final time = _formatOrderTime(order.orderTime);
+                final total = order.totalAmount;
+                final isExpanded = _expandedTransactionIndex == index;
+
+                IconData statusIcon = Icons.check_rounded;
+                Color statusColor = AppColors.success;
+                Color statusBgColor = AppColors.successContainer;
+
+                if (order.status == MockOrderStatus.cancelled) {
+                  statusIcon = Icons.close_rounded;
+                  statusColor = AppColors.error;
+                  statusBgColor = AppColors.badgeHotBg;
+                } else if (order.status != MockOrderStatus.completed) {
+                  statusIcon = Icons.hourglass_empty_rounded;
+                  statusColor = Colors.orange;
+                  statusBgColor = Colors.orange.withValues(alpha: 0.15);
+                }
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  subtitle: Text(
-                    time,
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                  ),
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      key: PageStorageKey<String>(order.id),
+                      initiallyExpanded: isExpanded,
+                      onExpansionChanged: (expanded) {
+                        setState(() {
+                          _expandedTransactionIndex = expanded ? index : null;
+                        });
+                      },
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: statusBgColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(statusIcon, color: statusColor, size: 18),
+                      ),
+                      title: Row(
                         children: [
-                          const Divider(color: AppColors.divider, height: 1),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Chi tiết đơn hàng:',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                          Expanded(
+                            child: Text(
+                              id,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          ...((trans['items'] as List).map((item) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 6.0),
-                              child: Row(
+                          const SizedBox(width: 8),
+                          Text(
+                            '${(total / 1000).toStringAsFixed(0)}k',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        time,
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Divider(color: AppColors.divider, height: 1),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Chi tiết đơn hàng:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ...(order.items.map((item) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 6.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '${item.name} x${item.quantity}',
+                                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                      ),
+                                      Text(
+                                        '${((item.price * item.quantity) / 1000).toStringAsFixed(0)}k',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList()),
+                              const SizedBox(height: 8),
+                              Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    '${item['name']} x${item['qty']}',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  const Text(
+                                    'Nguồn đơn:',
+                                    style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                                   ),
-                                  Text(
-                                    '${((item['price'] * item['qty']) / 1000).toStringAsFixed(0)}k',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgSoft,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      order.orderType == 'Online' || order.orderType == '0' ? 'Đặt trực tuyến' : 'Tại quầy mang đi',
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            );
-                          })),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Nguồn đơn:',
-                                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgSoft,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'Tại quầy mang đi',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         ),

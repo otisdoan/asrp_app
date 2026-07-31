@@ -1,6 +1,7 @@
 import '../../core/network/dio_client.dart';
 import '../../core/constants/api_constants.dart';
 import '../models/auth_response_model.dart';
+import '../models/user_model.dart';
 
 class AuthRepository {
   final DioClient _dioClient = DioClient();
@@ -66,5 +67,29 @@ class AuthRepository {
       }
     }
     return AuthResponseModel.fromJson(data);
+  }
+
+  /// Tải thông tin hồ sơ cá nhân mới nhất từ Server
+  Future<UserModel?> fetchProfile() async {
+    try {
+      print('[AuthRepository] Requesting fetchProfile to /api/users/profile');
+      final response = await _dioClient.dio.get('/api/users/profile');
+      print('[AuthRepository] fetchProfile status: ${response.statusCode}');
+      print('[AuthRepository] fetchProfile response data: ${response.data}');
+
+      final rawData = response.data;
+      Map<String, dynamic> data = {};
+      if (rawData is Map<String, dynamic>) {
+        if (rawData['data'] is Map<String, dynamic>) {
+          data = rawData['data'] as Map<String, dynamic>;
+        } else {
+          data = rawData;
+        }
+      }
+      return UserModel.fromJson(data);
+    } catch (e) {
+      print('[AuthRepository] fetchProfile error: $e');
+      return null;
+    }
   }
 }

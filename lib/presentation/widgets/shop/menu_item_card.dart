@@ -30,7 +30,7 @@ class MenuItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: item.isSoldOut ? null : onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -38,62 +38,83 @@ class MenuItemCard extends StatelessWidget {
           border: Border.all(color: AppColors.outlineVariant),
           boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1))],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Image area
-          SizedBox(
-            height: 80,
-            child: Stack(children: [
-              Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.vertical(top: Radius.circular(8))),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                  child: Image.asset(
-                    item.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(Icons.fastfood_rounded, size: 32, color: AppColors.textTertiary),
+        child: Opacity(
+          opacity: item.isSoldOut ? 0.6 : 1.0,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Image area
+            SizedBox(
+              height: 80,
+              child: Stack(children: [
+                Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.vertical(top: Radius.circular(8))),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    child: Image.asset(
+                      item.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Icon(Icons.fastfood_rounded, size: 32, color: AppColors.textTertiary),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              if (item.badge != null)
-                Positioned(top: 6, left: 6, child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: _badgeBg(item.badge!.type), borderRadius: BorderRadius.circular(4)),
-                  child: Text(item.badge!.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: _badgeText(item.badge!.type))),
-                )),
-            ]),
-          ),
-          // Body
-          Expanded(child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (item.rating != null) Text('★' * item.rating!.round() + '☆' * (5 - item.rating!.round()), style: const TextStyle(fontSize: 9, color: AppColors.star)),
-              Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.3)),
-              const Spacer(),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [
-                Expanded(
-                  child: Text(
-                    item.price,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: onAdd,
-                  child: Container(
-                    width: 24, height: 24,
-                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    child: const Icon(Icons.add, color: Colors.white, size: 16),
-                  ),
-                ),
+                if (item.badge != null)
+                  Positioned(top: 6, left: 6, child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: _badgeBg(item.badge!.type), borderRadius: BorderRadius.circular(4)),
+                    child: Text(item.badge!.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: _badgeText(item.badge!.type))),
+                  )),
+                if (item.isSoldOut)
+                  Positioned(top: 6, right: 6, child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(4)),
+                    child: const Text('Hết hàng', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white)),
+                  )),
               ]),
-            ]),
-          )),
-        ]),
+            ),
+            // Body
+            Expanded(child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (item.rating != null) Text('★' * item.rating!.round() + '☆' * (5 - item.rating!.round()), style: const TextStyle(fontSize: 9, color: AppColors.star)),
+                Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.3)),
+                const Spacer(),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [
+                  Expanded(
+                    child: Text(
+                      item.price,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  item.isSoldOut
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.outlineVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Hết hàng',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                          ),
+                        )
+                      : GestureDetector(
+                          onTap: onAdd,
+                          child: Container(
+                            width: 24, height: 24,
+                            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                            child: const Icon(Icons.add, color: Colors.white, size: 16),
+                          ),
+                        ),
+                ]),
+              ]),
+            )),
+          ]),
+        ),
       ),
     );
   }

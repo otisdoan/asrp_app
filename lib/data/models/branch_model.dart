@@ -135,12 +135,12 @@ class BranchMenuSectionModel {
 
   factory BranchMenuSectionModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'] ?? json['menuItems'];
+    final List<dynamic> itemsList = rawItems is List ? rawItems : [];
     return BranchMenuSectionModel(
-      name: (json['categoryName'] ?? json['name']) as String? ?? '',
-      items: (rawItems as List<dynamic>?)
-              ?.map((e) => MenuItemModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      name: (json['categoryName'] ?? json['name'])?.toString() ?? '',
+      items: itemsList
+          .map((e) => MenuItemModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
     );
   }
 

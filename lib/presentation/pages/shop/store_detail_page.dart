@@ -310,46 +310,57 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       behavior: HitTestBehavior.translucent,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            // ─── App Bar with image ─────────────────────────────
-            _buildSliverAppBar(context, detail),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            if (widget.branchId != null && widget.branchId!.isNotEmpty) {
+              try {
+                await ref.refresh(branchDetailFutureProvider(widget.branchId!).future);
+              } catch (_) {}
+            }
+          },
+          color: AppColors.primary,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // ─── App Bar with image ─────────────────────────────
+              _buildSliverAppBar(context, detail),
 
-            // Spacing
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              // Spacing
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-            // ─── Store Info ─────────────────────────────────────
-            SliverToBoxAdapter(child: _buildStoreInfo(detail)),
+              // ─── Store Info ─────────────────────────────────────
+              SliverToBoxAdapter(child: _buildStoreInfo(detail)),
 
-            // ─── Delivery Info ──────────────────────────────────
-            SliverToBoxAdapter(child: _buildDeliveryInfo(detail)),
+              // ─── Delivery Info ──────────────────────────────────
+              SliverToBoxAdapter(child: _buildDeliveryInfo(detail)),
 
-            // ─── Promos ─────────────────────────────────────────
-            SliverToBoxAdapter(child: _buildPromos(detail)),
+              // ─── Promos ─────────────────────────────────────────
+              SliverToBoxAdapter(child: _buildPromos(detail)),
 
-            // ─── Popular Items ──────────────────────────────────
-            SliverToBoxAdapter(child: _buildPopularItems(detail)),
+              // ─── Popular Items ──────────────────────────────────
+              SliverToBoxAdapter(child: _buildPopularItems(detail)),
 
-            // Spacing
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              // Spacing
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-            // ─── Category Tabs ──────────────────────────────────
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _CategoryTabsDelegate(
-                categories: categories,
-                selectedIndexNotifier: _selectedCategoryNotifier,
-                onSelected: _scrollToSection,
+              // ─── Category Tabs ──────────────────────────────────
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _CategoryTabsDelegate(
+                  categories: categories,
+                  selectedIndexNotifier: _selectedCategoryNotifier,
+                  onSelected: _scrollToSection,
+                ),
               ),
-            ),
 
-            // ─── All Menu Items grouped by category ──────────
-            ..._buildAllMenuSections(categories, menuItems),
+              // ─── All Menu Items grouped by category ──────────
+              ..._buildAllMenuSections(categories, menuItems),
 
-            // Bottom spacing
-            const SliverToBoxAdapter(child: SizedBox(height: 80)),
-          ],
+              // Bottom spacing
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
         ),
         // ─── Floating Cart Bar ─────────────────────────────────
         bottomNavigationBar: (branchCart != null && branchCart.items.isNotEmpty)
@@ -366,8 +377,28 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       return detailAsync.when(
         data: (detail) {
           if (_lastResolvedDetail != detail) {
+            final isFirstLoad = _lastResolvedDetail == null;
             _lastResolvedDetail = detail;
             _invalidateMenuCache();
+            if (isFirstLoad && widget.highlightFoodName != null && widget.highlightFoodName!.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _findFirstMatchingFood();
+                    if (_searchQuery.isNotEmpty) {
+                      _activateTabForHighlightedItem();
+                    }
+                  });
+                  if (_firstMatchingFoodName != null) {
+                    Future.delayed(const Duration(milliseconds: 450), () {
+                      if (mounted) {
+                        _scrollToHighlightedItem();
+                      }
+                    });
+                  }
+                }
+              });
+            }
           }
           return _buildMainScaffold(context, detail);
         },
@@ -1290,6 +1321,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final int likes = item is MenuItemModel ? (item.likesCount ?? 0) : (item['likes'] as int? ?? 0);
     final String? imageUrl = item is MenuItemModel ? item.imageUrl : null;
     final IconData icon = item is MenuItemModel ? Icons.restaurant : (item['icon'] as IconData);
+    final bool isSoldOut = item is MenuItemModel ? item.isSoldOut : (item['isSoldOut'] as bool? ?? false);
 
     final isHighlighted = _firstMatchingFoodName != null &&
         name.toLowerCase() == _firstMatchingFoodName!.toLowerCase();
@@ -1297,7 +1329,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final String? menuItemId = item is MenuItemModel ? (item.menuItemId ?? item.id) : null;
 
     return GestureDetector(
-      onTap: () async {
+      onTap: isSoldOut ? null : () async {
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
             name: name,
@@ -1312,97 +1344,116 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         ));
         _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon, menuItemId: menuItemId);
       },
-      child: Container(
-        key: isHighlighted ? _highlightedItemKey : null,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isHighlighted ? AppColors.bgSoft : Colors.transparent,
-          border: isHighlighted
-              ? Border.all(color: AppColors.secondary.withValues(alpha: 0.5), width: 1.5)
-              : null,
-          borderRadius: isHighlighted ? BorderRadius.circular(12) : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: AppColors.bgWarm,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: (imageUrl != null && imageUrl.isNotEmpty)
-                    ? (imageUrl.startsWith('http')
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Icon(icon, size: 28, color: AppColors.textTertiary),
-                            errorWidget: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary),
-                          )
-                        : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary)))
-                    : Icon(icon, size: 28, color: AppColors.textTertiary),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '$sold đã bán',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$likes lượt thích',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    price,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Add button
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+      child: Opacity(
+        opacity: isSoldOut ? 0.6 : 1.0,
+        child: Container(
+          key: isHighlighted ? _highlightedItemKey : null,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isHighlighted ? AppColors.bgSoft : Colors.transparent,
+            border: isHighlighted
+                ? Border.all(color: AppColors.primary, width: 2.0)
+                : null,
+            borderRadius: isHighlighted ? BorderRadius.circular(12) : null,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: AppColors.bgWarm,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.add, size: 18, color: Colors.white),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: (imageUrl != null && imageUrl.isNotEmpty)
+                      ? (imageUrl.startsWith('http')
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Icon(icon, size: 28, color: AppColors.textTertiary),
+                              errorWidget: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary),
+                            )
+                          : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 28, color: AppColors.textTertiary)))
+                      : Icon(icon, size: 28, color: AppColors.textTertiary),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          '$sold đã bán',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$likes lượt thích',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      price,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Add button / Sold out label
+              Align(
+                alignment: Alignment.bottomRight,
+                child: isSoldOut
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.outlineVariant,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Hết hàng',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.add, size: 18, color: Colors.white),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
