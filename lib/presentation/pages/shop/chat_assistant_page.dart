@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -8,12 +9,17 @@ import '../../../providers/auth_provider.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../providers/branch_provider.dart';
 import 'store_detail_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/utils/format_utils.dart';
+import '../../../data/repositories/order_repository.dart';
+import 'payment_success_page.dart';
 
 final chatHistoryProvider = StateProvider<List<Map<String, dynamic>>>((ref) {
   return [
     {
       'isUser': false,
-      'text': 'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay? (Bạn có thể chọn câu hỏi gợi ý bên dưới hoặc tự nhập câu hỏi nhé)',
+      'text':
+          'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay? (Bạn có thể chọn câu hỏi gợi ý bên dưới hoặc tự nhập câu hỏi nhé)',
       'time': '18:32',
       'showChips': true,
     }
@@ -45,7 +51,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
   Future<void> _loadChatHistory() async {
     try {
-      final response = await DioClient().dio.get('/ai/chat/history', queryParameters: {'sessionId': _sessionId});
+      final response = await DioClient()
+          .dio
+          .get('/ai/chat/history', queryParameters: {'sessionId': _sessionId});
       final List<dynamic> list = response.data as List<dynamic>;
       if (list.isNotEmpty) {
         final loadedMessages = list.map((item) {
@@ -73,7 +81,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Xóa lịch sử chat'),
-        content: const Text('Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này không?'),
+        content: const Text(
+            'Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này không?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -84,14 +93,17 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await DioClient().dio.delete('/ai/chat/history', queryParameters: {'sessionId': _sessionId});
+                await DioClient().dio.delete('/ai/chat/history',
+                    queryParameters: {'sessionId': _sessionId});
               } catch (_) {}
               final now = DateTime.now();
-              final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+              final timeStr =
+                  '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
               ref.read(chatHistoryProvider.notifier).state = [
                 {
                   'isUser': false,
-                  'text': 'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay?',
+                  'text':
+                      'Xin chào! Tôi là trợ lý ảo AI DineX. Tôi có thể giúp gì cho bạn hôm nay?',
                   'time': timeStr,
                   'showChips': true,
                 }
@@ -121,7 +133,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     _textController.clear();
 
     final now = DateTime.now();
-    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
     // 1. Hide chips in previous messages and add user message
     ref.read(chatHistoryProvider.notifier).update((state) {
@@ -180,7 +193,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
       final data = response.data;
       final replyTime = DateTime.now();
-      final replyTimeStr = '${replyTime.hour.toString().padLeft(2, '0')}:${replyTime.minute.toString().padLeft(2, '0')}';
+      final replyTimeStr =
+          '${replyTime.hour.toString().padLeft(2, '0')}:${replyTime.minute.toString().padLeft(2, '0')}';
 
       // Log API response for debugging
       print('================ [Flutter AI Chat] RESPONSE LOG ================');
@@ -191,19 +205,20 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       print('===============================================================');
 
       ref.read(chatHistoryProvider.notifier).update((state) => [
-        ...state,
-        {
-          'isUser': false,
-          'text': data['reply'] as String? ?? 'Xin lỗi, hệ thống đang gặp sự cố.',
-          'time': replyTimeStr,
-          'orderPreview': data['orderDraftPreview'],
-          'orderDraft': data['orderDraft'],
-          'resolvedItems': data['resolvedItems'],
-          'recommendations': data['recommendations'],
-          'branchRecommendations': data['branchRecommendations'],
-          'showChips': true,
-        }
-      ]);
+            ...state,
+            {
+              'isUser': false,
+              'text': data['reply'] as String? ??
+                  'Xin lỗi, hệ thống đang gặp sự cố.',
+              'time': replyTimeStr,
+              'orderPreview': data['orderDraftPreview'],
+              'orderDraft': data['orderDraft'],
+              'resolvedItems': data['resolvedItems'],
+              'recommendations': data['recommendations'],
+              'branchRecommendations': data['branchRecommendations'],
+              'showChips': true,
+            }
+          ]);
 
       setState(() {
         _isTyping = false;
@@ -212,16 +227,17 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     } catch (e) {
       if (!mounted) return;
       debugPrint('[ChatAssistant] Error calling AI chat: $e');
-      
+
       ref.read(chatHistoryProvider.notifier).update((state) => [
-        ...state,
-        {
-          'isUser': false,
-          'text': 'Không thể kết nối đến máy chủ AI. Vui lòng kiểm tra lại kết nối mạng.',
-          'time': timeStr,
-          'showChips': true,
-        }
-      ]);
+            ...state,
+            {
+              'isUser': false,
+              'text':
+                  'Không thể kết nối đến máy chủ AI. Vui lòng kiểm tra lại kết nối mạng.',
+              'time': timeStr,
+              'showChips': true,
+            }
+          ]);
 
       setState(() {
         _isTyping = false;
@@ -230,7 +246,357 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     }
   }
 
+  Widget _buildMiniInvoiceCard(Map<String, dynamic> msg) {
+    final preview = msg['orderPreview'];
+    final resolvedItems = msg['resolvedItems'] as List<dynamic>?;
+    final orderDraft = msg['orderDraft'];
 
+    if (preview == null || resolvedItems == null || resolvedItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final double subtotal = (preview['subtotal'] as num).toDouble();
+    final double discount = (preview['discountAmount'] as num).toDouble();
+    final double finalAmount = (preview['finalAmount'] as num).toDouble();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12, left: 4, right: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFECE2), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD84315).withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Tiêu đề hóa đơn
+          const Row(
+            children: [
+              Icon(Icons.receipt_long_rounded,
+                  color: Color(0xFFEA580C), size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Chi tiết đơn hàng tạm tính',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Color(0xFFFFF4F0), height: 1),
+          const SizedBox(height: 12),
+
+          // Danh sách món ăn
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: resolvedItems.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, idx) {
+              final item = resolvedItems[idx];
+              final String size = item['sizeLabel'] as String? ?? 'Size vừa';
+              final List<dynamic> toppings =
+                  item['toppingLabels'] as List<dynamic>? ?? [];
+              final double price = (item['unitPrice'] as num).toDouble();
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${item['quantity']}x',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFEA580C),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['name'] as String,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                        Text(
+                          '$size${toppings.isNotEmpty ? " • " + toppings.join(", ") : ""}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${(price * (item['quantity'] as int)).toInt()}đ'
+                        .replaceAllMapped(
+                            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                            (Match m) => '${m[1]}.'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Color(0xFFFFF4F0), height: 1),
+          const SizedBox(height: 12),
+
+          // Tính toán giá cả
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Tạm tính',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              Text(
+                  '${subtotal.toInt()}đ'.replaceAllMapped(
+                      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                      (Match m) => '${m[1]}.'),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF374151))),
+            ],
+          ),
+          if (discount > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Giảm giá',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                Text(
+                    '-${discount.toInt()}đ'.replaceAllMapped(
+                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                        (Match m) => '${m[1]}.'),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Tổng cộng',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937))),
+              Text(
+                '${finalAmount.toInt()}đ'.replaceAllMapped(
+                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                    (Match m) => '${m[1]}.'),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFEA580C),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Nút đặt hàng và thanh toán
+          Container(
+            width: double.infinity,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF97316), Color(0xFFEA580C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFEA580C).withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: () => _proceedToCheckout(orderDraft),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.payment_rounded, size: 16, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Xác nhận đặt hàng & Thanh toán',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _proceedToCheckout(dynamic orderDraft) async {
+    if (orderDraft == null) return;
+
+    // Hiển thị loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    try {
+      // 1. Tạo đơn hàng Online (POST /api/orders/online)
+      final createOrderResponse = await DioClient().dio.post(
+        '/orders/online',
+        data: {
+          'branchId': orderDraft['branchId'],
+          'items': orderDraft['items'],
+          'combos': orderDraft['combos'] ?? [],
+          'note': orderDraft['note'] ?? '',
+          'promotionId': orderDraft['promotionId'],
+        },
+      );
+
+      final orderId = createOrderResponse.data['id'] as String;
+
+      // 2. Tạo giao dịch thanh toán PayOS (POST /api/orders/{id}/payments)
+      final paymentResponse = await DioClient().dio.post(
+        '/orders/$orderId/payments',
+        data: {
+          'method': 1, // QrBankTransfer đại diện cho PayOS chuyển khoản
+          'note': 'Thanh toan don hang dat qua AI Chat',
+        },
+      );
+
+      final paymentData = paymentResponse.data;
+      final checkoutUrl = paymentData['checkoutUrl'] as String;
+      final qrCode = paymentData['qrCode'] as String;
+      final double amount = (paymentData['amount'] as num).toDouble();
+
+      // Đóng loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // 3. Cập nhật state tin nhắn trong provider để chèn inline QR card
+      final now = DateTime.now();
+      final timeStr =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      ref.read(chatHistoryProvider.notifier).update((state) => [
+            ...state,
+            {
+              'isUser': false,
+              'text':
+                  'Đơn hàng của bạn đã được khởi tạo. Vui lòng quét mã QR bên dưới để hoàn tất thanh toán:',
+              'time': timeStr,
+              'orderId': orderId,
+              'qrCode': qrCode,
+              'amount': amount,
+              'checkoutUrl': checkoutUrl,
+              'secondsRemaining': 600,
+              'showChips': false,
+            }
+          ]);
+
+      // 4. Khởi chạy luồng Polling ngầm kiểm tra trạng thái đơn hàng ngay tại khung chat
+      _startInlinePaymentPolling(orderId);
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Đóng loading dialog
+      debugPrint('[AI Checkout Error]: $e');
+      if (mounted) {
+        _showTopNotification(
+          'Không thể khởi tạo thanh toán đơn hàng. Vui lòng thử lại.',
+          AppColors.error,
+          Icons.error_outline,
+        );
+      }
+    }
+  }
+
+  // Hàm polling ngầm kiểm tra trạng thái thanh toán
+  void _startInlinePaymentPolling(String orderId) {
+    Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      try {
+        final OrderRepository orderRepository = OrderRepository();
+        final orderJson = await orderRepository.getOrderById(orderId);
+        final status = orderJson['orderStatus']?.toString();
+        final paymentStatus = orderJson['paymentStatus']?.toString();
+
+        bool isPaid = false;
+        if (paymentStatus == 'Paid' || paymentStatus == '1') isPaid = true;
+
+        final payments = orderJson['payments'] as List<dynamic>? ?? [];
+        if (payments.isNotEmpty) {
+          final payStatus = payments.first['status']?.toString();
+          if (payStatus == 'Paid' || payStatus == '36') isPaid = true;
+        }
+
+        if (status == 'Preparing' ||
+            status == '2' ||
+            status == 'ReadyForPickup' ||
+            status == '3' ||
+            status == 'Completed' ||
+            status == '4') {
+          isPaid = true;
+        }
+
+        if (isPaid) {
+          timer.cancel();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentSuccessPage(orderId: orderId),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('[Inline Polling Error]: $e');
+      }
+    });
+  }
 
   void _addToCart(Map<String, dynamic> branch) {
     final bid = branch['branchId'] as String;
@@ -291,7 +657,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
-    
+
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).padding.top + 12,
@@ -377,7 +743,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     final currentUser = ref.watch(currentUserProvider);
     final messages = ref.watch(chatHistoryProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDFB), // Ultra-clean light orange-tinted background
+      backgroundColor:
+          const Color(0xFFFFFDFB), // Ultra-clean light orange-tinted background
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
@@ -453,14 +820,17 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                 final text = msg['text'] as String;
                 final time = msg['time'] as String? ?? '';
                 final showChips = msg['showChips'] as bool? ?? false;
-                final recommendations = msg['recommendations'] as List<dynamic>?;
-                final branchRecommendations = msg['branchRecommendations'] as List<dynamic>?;
+                final recommendations =
+                    msg['recommendations'] as List<dynamic>?;
+                final branchRecommendations =
+                    msg['branchRecommendations'] as List<dynamic>?;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Row(
-                    mainAxisAlignment:
-                        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    mainAxisAlignment: isUser
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (!isUser) ...[
@@ -496,7 +866,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                             _buildChatBubble(text, isUser),
                             const SizedBox(height: 4),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
                               child: Text(
                                 time,
                                 style: const TextStyle(
@@ -506,7 +877,35 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                                 ),
                               ),
                             ),
-                            if (branchRecommendations != null && branchRecommendations.isNotEmpty) ...[
+                            if (!isUser &&
+                                msg['resolvedItems'] != null &&
+                                msg['orderPreview'] != null) ...[
+                              _buildMiniInvoiceCard(msg),
+                            ],
+                            if (!isUser && msg['qrCode'] != null) ...[
+                              InlineQrPaymentCard(
+                                orderId: msg['orderId'],
+                                qrCode: msg['qrCode'],
+                                amount: msg['amount'],
+                                initialSecondsRemaining:
+                                    msg['secondsRemaining'] ?? 600,
+                                onCancel: () {
+                                  // Xử lý hủy đơn hoặc ẩn card QR
+                                  ref
+                                      .read(chatHistoryProvider.notifier)
+                                      .update((state) {
+                                    return state.map((m) {
+                                      if (m['orderId'] == msg['orderId']) {
+                                        return {...m, 'qrCode': null};
+                                      }
+                                      return m;
+                                    }).toList();
+                                  });
+                                },
+                              ),
+                            ],
+                            if (branchRecommendations != null &&
+                                branchRecommendations.isNotEmpty) ...[
                               const SizedBox(height: 16),
                               _buildRecommendationsList(branchRecommendations),
                             ],
@@ -541,12 +940,17 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       decoration: BoxDecoration(
         gradient: isUser
             ? const LinearGradient(
-                colors: [AppColors.primary, AppColors.secondary], // Elegant orange brand gradient
+                colors: [
+                  AppColors.primary,
+                  AppColors.secondary
+                ], // Elegant orange brand gradient
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : null,
-        color: isUser ? null : const Color(0xFFFFFDFB), // Soft warm peach background for AI
+        color: isUser
+            ? null
+            : const Color(0xFFFFFDFB), // Soft warm peach background for AI
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(20),
           topRight: const Radius.circular(20),
@@ -555,7 +959,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         ),
         border: isUser
             ? null
-            : Border.all(color: const Color(0xFFFFE5DA), width: 1.0), // Warm orange border
+            : Border.all(
+                color: const Color(0xFFFFE5DA),
+                width: 1.0), // Warm orange border
         boxShadow: isUser
             ? [
                 BoxShadow(
@@ -729,7 +1135,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                           errorBorder: InputBorder.none,
                           focusedErrorBorder: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                          contentPadding:
+                              EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                         ),
                       ),
                     ),
@@ -800,7 +1207,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     final String initialChar = user != null && user.displayName.isNotEmpty
         ? user.displayName.trim().substring(0, 1).toUpperCase()
         : 'U';
-        
+
     return Container(
       width: 32,
       height: 32,
@@ -843,10 +1250,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       itemBuilder: (context, index) {
         final rec = list[index];
         final String tag = rec['tag'] as String? ?? '';
-        
+
         Color tagBgColor;
         Color tagTextColor;
-        
+
         if (tag == 'Rẻ nhất') {
           tagBgColor = const Color(0xFFDCFCE7); // Light green
           tagTextColor = const Color(0xFF15803D); // Dark green
@@ -915,7 +1322,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: tagBgColor,
                       borderRadius: BorderRadius.circular(20),
@@ -942,18 +1350,23 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                     height: 64,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFFEDD5), width: 1.0),
+                      border: Border.all(
+                          color: const Color(0xFFFFEDD5), width: 1.0),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(11),
-                      child: (rec['imageUrl'] != null && (rec['imageUrl'] as String).isNotEmpty)
+                      child: (rec['imageUrl'] != null &&
+                              (rec['imageUrl'] as String).isNotEmpty)
                           ? Image.network(
                               rec['imageUrl'] as String,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 decoration: const BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                                    colors: [
+                                      Color(0xFFFFF7ED),
+                                      Color(0xFFFFEDD5)
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
@@ -970,7 +1383,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                           : Container(
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                                  colors: [
+                                    Color(0xFFFFF7ED),
+                                    Color(0xFFFFEDD5)
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -1059,7 +1475,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                       child: OutlinedButton(
                         onPressed: () => _openStoreDetail(rec),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
+                          side: const BorderSide(
+                              color: Color(0xFFE2E8F0), width: 1.0),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1102,7 +1519,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                            color:
+                                const Color(0xFFEA580C).withValues(alpha: 0.15),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -1203,7 +1621,7 @@ class _BouncingDotsIndicatorState extends State<_BouncingDotsIndicator>
               final double delay = index * 0.2;
               final double value = (_controller.value - delay) % 1.0;
               final double dy = -5 * (1 - (value - 0.5).abs() * 2);
-              
+
               return Transform.translate(
                 offset: Offset(0, dy.clamp(-5.0, 0.0)),
                 child: Container(
@@ -1219,6 +1637,163 @@ class _BouncingDotsIndicatorState extends State<_BouncingDotsIndicator>
             },
           );
         }),
+      ),
+    );
+  }
+}
+
+class InlineQrPaymentCard extends StatefulWidget {
+  final String orderId;
+  final String qrCode;
+  final double amount;
+  final int initialSecondsRemaining;
+  final VoidCallback onCancel;
+
+  const InlineQrPaymentCard({
+    super.key,
+    required this.orderId,
+    required this.qrCode,
+    required this.amount,
+    this.initialSecondsRemaining = 600,
+    required this.onCancel,
+  });
+
+  @override
+  State<InlineQrPaymentCard> createState() => _InlineQrPaymentCardState();
+}
+
+class _InlineQrPaymentCardState extends State<InlineQrPaymentCard> {
+  late int _secondsRemaining;
+  Timer? _countdownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _secondsRemaining = widget.initialSecondsRemaining;
+    _startCountdown();
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          if (_secondsRemaining > 0) {
+            _secondsRemaining--;
+          } else {
+            _countdownTimer?.cancel();
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qrImageUrl =
+        'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${Uri.encodeComponent(widget.qrCode)}';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12, left: 4, right: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFECE2), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD84315).withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.qr_code_2_rounded, color: Color(0xFFEA580C), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Quét mã QR để thanh toán',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Color(0xFFFFF4F0), height: 1),
+          const SizedBox(height: 12),
+          Text(
+            FormatUtils.formatCurrency(widget.amount),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Hiệu lực QR: ${FormatUtils.formatCountdown(_secondsRemaining)}',
+            style: TextStyle(
+              fontSize: 11,
+              color: _secondsRemaining < 60
+                  ? AppColors.error
+                  : AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade200, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: CachedNetworkImage(
+              imageUrl: qrImageUrl,
+              width: 180,
+              height: 180,
+              placeholder: (context, url) => SizedBox(
+                width: 180,
+                height: 180,
+                child: Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.primary, strokeWidth: 2),
+                ),
+              ),
+              errorWidget: (context, url, error) => SizedBox(
+                width: 180,
+                height: 180,
+                child: const Icon(Icons.error_outline_rounded,
+                    color: AppColors.error, size: 40),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: widget.onCancel,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error),
+              minimumSize: const Size(double.infinity, 38),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Hủy thanh toán',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
