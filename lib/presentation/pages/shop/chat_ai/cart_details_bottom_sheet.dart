@@ -15,10 +15,12 @@ import '../../../../core/utils/format_utils.dart';
 /// Footer hiển thị tổng tiền + nút "Xác nhận".
 class CartDetailsBottomSheet extends ConsumerWidget {
   final ScrollController scrollController;
+  final VoidCallback? onConfirm;
 
   const CartDetailsBottomSheet({
     super.key,
     required this.scrollController,
+    this.onConfirm,
   });
 
   @override
@@ -156,7 +158,10 @@ class CartDetailsBottomSheet extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(16)),
                     padding: EdgeInsets.zero,
                   ),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onConfirm?.call();
+                  },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

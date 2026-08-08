@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:dio/dio.dart';
+import '../../../core/constants/api_constants.dart';
 
 class ChatAgentPage extends StatefulWidget {
   final String orderId;
@@ -17,7 +18,7 @@ class ChatAgentPage extends StatefulWidget {
 class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserver {
   late HubConnection _hubConnection;
   final List<Map<String, dynamic>> _messages = [];
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:5100'));
+  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConstants.serverUrl));
   String? _selectedPickupTime;
   List<String> _availablePickupTimes = [];
 
@@ -44,7 +45,7 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
 
   Future<void> _initSignalR() async {
     _hubConnection = HubConnectionBuilder()
-        .withUrl("http://10.0.2.2:5100/hubs/chat-agent")
+        .withUrl(ApiConstants.chatAgentHubUrl)
         .withAutomaticReconnect()
         .build();
 

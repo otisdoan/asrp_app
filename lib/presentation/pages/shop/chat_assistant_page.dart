@@ -264,7 +264,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
             expand: false,
             builder: (_, controller) {
               return CartDetailsBottomSheet(
-                  scrollController: controller);
+                scrollController: controller,
+                onConfirm: _sendDirectAction,
+              );
             },
           ),
         );
@@ -299,12 +301,20 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     setState(() => _isTyping = true);
     _scrollToBottom();
 
-    // Resolve branch ID
-    final branchesAsync = ref.read(branchesFutureProvider);
-    String branchId = '00000000-0000-0000-0000-000000000000';
-    branchesAsync.whenData((list) {
-      if (list.isNotEmpty) branchId = list.first.id;
-    });
+    // Resolve branch ID: Nếu trong giỏ hàng đã chọn món -> khóa branchId theo chi nhánh đó
+    final cart = ref.read(chatCartProvider);
+    String branchId = '';
+    if (cart.isNotEmpty && cart.first.branchId.isNotEmpty) {
+      branchId = cart.first.branchId;
+    } else {
+      final branchesAsync = ref.read(branchesFutureProvider);
+      branchesAsync.whenData((list) {
+        if (list.isNotEmpty) branchId = list.first.id;
+      });
+    }
+    if (branchId.isEmpty) {
+      branchId = '00000000-0000-0000-0000-000000000000';
+    }
 
     // Build chat history context (exclude last user message)
     final currentMessages = ref.read(chatHistoryProvider);
@@ -681,8 +691,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       return;
     }
 
-    final hubUrl =
-        ApiConstants.baseUrl.replaceAll('/api', '/hubs/chat-agent');
+    final hubUrl = ApiConstants.chatAgentHubUrl;
     debugPrint('[SignalR] Connecting to $hubUrl');
 
     _hubConnection = HubConnectionBuilder()
@@ -1012,6 +1021,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                                     msg['secondsRemaining'] ??
                                         600,
                                 onCancel: () {
+                                  _pollingTimer?.cancel();
+                                  _hubConnection?.stop();
                                   ref
                                       .read(chatHistoryProvider
                                           .notifier)
@@ -1021,7 +1032,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                                           msg['orderId']) {
                                         return {
                                           ...m,
-                                          'qrCode': null
+                                          'qrCode': null,
+                                          'orderId': null,
+                                          'amount': null,
                                         };
                                       }
                                       return m;
