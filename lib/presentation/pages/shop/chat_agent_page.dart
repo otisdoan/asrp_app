@@ -5,20 +5,20 @@ import 'package:signalr_netcore/signalr_client.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/dio_client.dart';
 
 class ChatAgentPage extends StatefulWidget {
   final String orderId;
   
-  const ChatAgentPage({Key? key, required this.orderId}) : super(key: key);
+  const ChatAgentPage({super.key, required this.orderId});
 
   @override
   State<ChatAgentPage> createState() => _ChatAgentPageState();
 }
 
 class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserver {
-  late HubConnection _hubConnection;
+  HubConnection? _hubConnection;
   final List<Map<String, dynamic>> _messages = [];
-  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConstants.serverUrl));
   String? _selectedPickupTime;
   List<String> _availablePickupTimes = [];
 
@@ -40,7 +40,9 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
       final slotTime = now.add(Duration(minutes: 15 + index * 15));
       return slotTime.toIso8601String();
     });
-    _selectedPickupTime = _availablePickupTimes.first;
+    if (_availablePickupTimes.isNotEmpty) {
+      _selectedPickupTime = _availablePickupTimes.first;
+    }
   }
 
   Future<void> _initSignalR() async {
@@ -49,19 +51,20 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
         .withAutomaticReconnect()
         .build();
 
-    _hubConnection.on("ReceiveAgentMessage", _handleIncomingMessage);
+    _hubConnection?.on("ReceiveAgentMessage", _handleIncomingMessage);
 
     try {
-      await _hubConnection.start();
-      await _hubConnection.invoke("JoinOrderTracking", args: [widget.orderId]);
+      await _hubConnection?.start();
+      await _hubConnection?.invoke("JoinOrderTracking", args: [widget.orderId]);
     } catch (e) {
       debugPrint("SignalR Connection Error: $e");
     }
   }
 
   void _handleIncomingMessage(List<Object?>? args) {
-    if (args != null && args.isNotEmpty) {
-      final payload = args[0] as Map<String, dynamic>;
+    if (!mounted) return;
+    if (args != null && args.isNotEmpty && args[0] is Map) {
+      final payload = Map<String, dynamic>.from(args[0] as Map);
       setState(() {
         if (payload['messageType'] == 'ORDER_TRACKING') {
           _messages.removeWhere((m) => m['messageType'] == 'ORDER_TRACKING');
@@ -76,17 +79,21 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
 
   Future<void> _generatePaymentQr() async {
     try {
-      final response = await _dio.post(
-        '/api/ai/chat/payment-qr',
+      final response = await DioClient().dio.post(
+        '/ai/chat/payment-qr',
         data: {
           'orderId': widget.orderId,
           'pickupTime': _selectedPickupTime,
         },
       );
 
-      setState(() {
-        _messages.add(response.data);
-      });
+      if (!mounted) return;
+      if (response.data != null && response.data is Map) {
+        final data = Map<String, dynamic>.from(response.data as Map);
+        setState(() {
+          _messages.add(data);
+        });
+      }
     } catch (e) {
       debugPrint("Generate QR Error: $e");
     }
@@ -95,7 +102,11 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _hubConnection.stop();
+    try {
+      _hubConnection?.stop();
+    } catch (e) {
+      debugPrint("Error stopping SignalR: $e");
+    }
     super.dispose();
   }
 
@@ -107,11 +118,11 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
   }
 
   Future<void> _reconnectAndSyncData() async {
-    if (_hubConnection.state == HubConnectionState.Disconnected) {
+    if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Disconnected) {
       debugPrint("Đang kết nối lại SignalR...");
       try {
-        await _hubConnection.start();
-        await _hubConnection.invoke("JoinOrderTracking", args: [widget.orderId]);
+        await _hubConnection!.start();
+        await _hubConnection!.invoke("JoinOrderTracking", args: [widget.orderId]);
       } catch (e) {
         debugPrint("SignalR Reconnect Error: $e");
       }
@@ -121,12 +132,13 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
 
   Future<void> _fetchLatestOrderStatus() async {
     try {
-      final response = await _dio.get(
-        '/api/orders/${widget.orderId}/status',
+      final response = await DioClient().dio.get(
+        '/orders/${widget.orderId}/status',
         options: Options(headers: {
           'X-Internal-Api-Key': 'dinex-rag-internal-key-8f9a2b'
         }),
       );
+      if (!mounted) return;
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
         setState(() {
@@ -201,6 +213,9 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
   }
 
   Widget _buildQrPaymentCard(Map<String, dynamic> data) {
+    final qrCode = data['qrCode'] as String?;
+    final amount = data['amount'];
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -210,13 +225,20 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
           children: [
             const Text("Quét mã để thanh toán", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
-            QrImageView(
-              data: data['qrCode'], // Chuỗi VietQR từ PayOS
-              version: QrVersions.auto,
-              size: 200.0,
-            ),
+            if (qrCode != null && qrCode.isNotEmpty)
+              QrImageView(
+                data: qrCode,
+                version: QrVersions.auto,
+                size: 200.0,
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text("Mã QR không khả dụng", style: TextStyle(color: Colors.red)),
+              ),
             const SizedBox(height: 12),
-            Text("Số tiền: ${data['amount']} đ", style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 18)),
+            if (amount != null)
+              Text("Số tiền: $amount đ", style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
       ),
@@ -239,7 +261,7 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Thanh toán thành công!", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text("Đã nhận ${data['amount']} đ. Bếp đang chuẩn bị món.", style: TextStyle(color: Colors.green[800], fontSize: 13)),
+                  Text("Đã nhận ${data['amount'] ?? ''} đ. Bếp đang chuẩn bị món.", style: TextStyle(color: Colors.green[800], fontSize: 13)),
                 ],
               ),
             ),
@@ -258,7 +280,7 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      value: _selectedPickupTime ?? _availablePickupTimes.first,
+      initialValue: _selectedPickupTime ?? _availablePickupTimes.first,
       items: _availablePickupTimes.map((time) {
         final localTime = DateTime.parse(time).toLocal();
         final displayTime = '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
@@ -269,21 +291,38 @@ class _ChatAgentPageState extends State<ChatAgentPage> with WidgetsBindingObserv
   }
 
   Widget _buildOrderTrackingTimeline(Map<String, dynamic> data) {
-    final status = data['status'] as String;
+    final status = data['status']?.toString() ?? '';
     
     int currentStep = 0;
     bool isError = false;
 
     switch (status) {
-      case 'PendingConfirmation': currentStep = 0; break;
-      case 'Preparing': currentStep = 1; break;
-      case 'ReadyForPickup': currentStep = 2; break;
-      case 'Completed': currentStep = 3; break;
+      case 'PendingConfirmation':
+      case '0':
+        currentStep = 0;
+        break;
+      case 'Preparing':
+      case '1':
+      case '2':
+        currentStep = 1;
+        break;
+      case 'ReadyForPickup':
+      case '3':
+        currentStep = 2;
+        break;
+      case 'Completed':
+      case '4':
+        currentStep = 3;
+        break;
       case 'Cancelled': 
+      case '5':
         currentStep = 0; 
         isError = true; 
         break;
       case 'PendingInventory':
+        currentStep = 0;
+        break;
+      default:
         currentStep = 0;
         break;
     }

@@ -46,6 +46,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
   HubConnection? _hubConnection;
   Timer? _pollingTimer;
   DateTime? _selectedPickupTime;
+  bool _isNavigatingToSuccess = false;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -401,7 +402,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
   // ── Proceed to Checkout (from Mini Invoice Card) ───────────────────────────
 
   Future<void> _proceedToCheckout(dynamic orderDraft) async {
-    if (orderDraft == null) return;
+    if (orderDraft == null || orderDraft is! Map) return;
+    final Map<String, dynamic> draftMap = Map<String, dynamic>.from(orderDraft);
+
+    _isNavigatingToSuccess = false;
 
     showDialog(
       context: context,
@@ -416,13 +420,13 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       final createOrderResponse = await DioClient().dio.post(
         '/orders/online',
         data: {
-          'branchId': orderDraft['branchId'],
-          'items': orderDraft['items'],
-          'combos': orderDraft['combos'] ?? [],
-          'note': orderDraft['note'] ?? '',
-          'promotionId': orderDraft['promotionId'],
-          if (orderDraft['earliestPickupTime'] != null)
-            'pickupTime': orderDraft['earliestPickupTime'],
+          'branchId': draftMap['branchId'],
+          'items': draftMap['items'] ?? [],
+          'combos': draftMap['combos'] ?? [],
+          'note': draftMap['note'] ?? '',
+          'promotionId': draftMap['promotionId'],
+          if (draftMap['earliestPickupTime'] != null)
+            'pickupTime': draftMap['earliestPickupTime'],
         },
       );
 
@@ -437,10 +441,10 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       );
 
       final paymentData = paymentResponse.data;
-      final checkoutUrl = paymentData['checkoutUrl'] as String;
-      final qrCode = paymentData['qrCode'] as String;
+      final checkoutUrl = paymentData['checkoutUrl'] as String? ?? '';
+      final qrCode = paymentData['qrCode'] as String? ?? '';
       final double amount =
-          (paymentData['amount'] as num).toDouble();
+          (paymentData['amount'] as num?)?.toDouble() ?? 0.0;
 
       if (mounted) Navigator.pop(context);
 
@@ -464,6 +468,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
             }
           ]);
 
+      _initSignalR(orderId);
       _startInlinePaymentPolling(orderId);
     } catch (e) {
       if (mounted) Navigator.pop(context);
@@ -497,6 +502,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
     final cart = ref.read(chatCartProvider);
     if (cart.isEmpty) return;
+
+    _isNavigatingToSuccess = false;
 
     final now = DateTime.now();
     final timeStr =
@@ -620,7 +627,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     _pollingTimer?.cancel();
     _pollingTimer =
         Timer.periodic(const Duration(seconds: 3), (timer) async {
-      if (!mounted) {
+      if (!mounted || _isNavigatingToSuccess) {
         timer.cancel();
         return;
       }
@@ -656,7 +663,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
           isPaid = true;
         }
 
-        if (isPaid) {
+        if (isPaid && !_isNavigatingToSuccess) {
+          _isNavigatingToSuccess = true;
           timer.cancel();
           if (mounted) {
             Navigator.pushReplacement(
@@ -701,11 +709,12 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
     _hubConnection!.on('ReceiveAgentMessage',
         (List<Object?>? args) {
-      if (args != null && args.isNotEmpty) {
-        final payload = args[0] as Map<String, dynamic>;
+      if (!mounted) return;
+      if (args != null && args.isNotEmpty && args[0] is Map) {
+        final payload = Map<String, dynamic>.from(args[0] as Map);
         debugPrint('[SignalR] Received payload: $payload');
         if (payload['messageType'] == 'PAYMENT_SUCCESS') {
-          final data = payload['data'] ?? {};
+          final data = payload['data'] is Map ? Map<String, dynamic>.from(payload['data'] as Map) : <String, dynamic>{};
           final receivedOrderId = data['orderId']?.toString();
           final amount =
               (data['amount'] as num?)?.toDouble() ?? 0.0;
@@ -732,7 +741,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
   void _handlePaymentSuccessSignalR(
       String orderId, double amount) {
-    if (!mounted) return;
+    if (!mounted || _isNavigatingToSuccess) return;
+    _isNavigatingToSuccess = true;
     _pollingTimer?.cancel();
 
     ref.read(chatHistoryProvider.notifier).update((state) {
@@ -1094,11 +1104,11 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
   // ── Typing row ─────────────────────────────────────────────────────────────
 
   Widget _buildTypingRow() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 16.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           AiAvatar(),
           BouncingDotsIndicator(),
         ],

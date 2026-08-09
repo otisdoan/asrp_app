@@ -10,6 +10,9 @@ class ApiConstants {
   // Production URL
   // static const String baseUrl = 'https://api.asrp.io.vn/api';
 
+  static String get serverUrl => baseUrl.replaceAll('/api', '');
+  static String get chatAgentHubUrl => '$serverUrl/hubs/chat-agent';
+
   // Auth
   static const String login = '/auth/app/login';
   static const String register = '/auth/app/register';
