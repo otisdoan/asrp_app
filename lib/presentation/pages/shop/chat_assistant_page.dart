@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/api_constants.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 import '../../../providers/chat_cart_provider.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../providers/chat_history_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../core/network/dio_client.dart';
@@ -302,12 +303,23 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     setState(() => _isTyping = true);
     _scrollToBottom();
 
-    // Resolve branch ID: Nếu trong giỏ hàng đã chọn món -> khóa branchId theo chi nhánh đó
-    final cart = ref.read(chatCartProvider);
+    // Resolve branch ID: Ưu tiên lấy từ chatCartProvider, sau đó kiểm tra cartProvider (giỏ hàng chính)
+    final chatCart = ref.read(chatCartProvider);
+    final mainCart = ref.read(cartProvider);
     String branchId = '';
-    if (cart.isNotEmpty && cart.first.branchId.isNotEmpty) {
-      branchId = cart.first.branchId;
+
+    if (chatCart.isNotEmpty && chatCart.first.branchId.isNotEmpty) {
+      branchId = chatCart.first.branchId;
     } else {
+      for (final bCart in mainCart.carts.values) {
+        if (bCart.items.isNotEmpty && (bCart.branchId?.isNotEmpty ?? false)) {
+          branchId = bCart.branchId!;
+          break;
+        }
+      }
+    }
+
+    if (branchId.isEmpty) {
       final branchesAsync = ref.read(branchesFutureProvider);
       branchesAsync.whenData((list) {
         if (list.isNotEmpty) branchId = list.first.id;
