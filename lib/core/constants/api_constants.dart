@@ -1,11 +1,10 @@
+import 'dart:io';
+
 class ApiConstants {
   ApiConstants._();
 
-  // Local development (iOS Simulator / Web / Host)
-  static const String baseUrl = 'http://localhost:5100/api';
-  
-  // Local development (Android Emulator)
-  // static const String baseUrl = 'http://10.0.2.2:5100/api';
+  // Local development (Use http://127.0.0.1:5100/api via adb reverse tcp:5100 tcp:5100 or emulator)
+  static const String baseUrl = 'http://127.0.0.1:5100/api';
   
   // Production URL
   // static const String baseUrl = 'https://api.asrp.io.vn/api';

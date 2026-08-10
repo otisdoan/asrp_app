@@ -13,6 +13,8 @@ import 'order_review_page.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../core/utils/top_notification.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../../core/utils/qr_utils.dart';
 
 /// OrderDetailPage — Displays detailed progress and order information for a single order.
 /// Follows self-pickup business model (No delivery, customer picks up at store, QR payment).
@@ -119,6 +121,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
               // ─── Status Informative Banner ───────────────────────────────────
               _buildStatusBanner(order, pickupTimeStr),
+              const SizedBox(height: 12),
+
+              // ─── Pickup QR Code Card ──────────────────────────────────────────
+              _buildPickupQrCard(order),
               const SizedBox(height: 12),
 
               if (order.hasNotification) ...[
@@ -411,6 +417,95 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPickupQrCard(MockOrder order) {
+    if (order.status == MockOrderStatus.cancelled ||
+        order.status == MockOrderStatus.completed) {
+      return const SizedBox.shrink();
+    }
+    final qrPayload = QrUtils.generateOrderQrPayload(order.id);
+    final shortOrderCode = order.id.length >= 8
+        ? order.id.substring(0, 8).toUpperCase()
+        : order.id.toUpperCase();
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'MÃ QR LẤY HÀNG TẠI QUÁN',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: QrImageView(
+              data: qrPayload,
+              version: QrVersions.auto,
+              size: 160.0,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: AppColors.primary,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Mã đơn: #$shortOrderCode',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Đưa mã QR này cho thu ngân khi tới quán để nhận món',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

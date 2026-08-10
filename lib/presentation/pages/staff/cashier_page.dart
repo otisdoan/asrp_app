@@ -13,6 +13,8 @@ import '../../../data/models/branch_model.dart';
 import '../../../data/models/topping_selection_model.dart';
 import '../shop/add_to_cart_page.dart';
 import '../../../core/utils/receipt_printer_helper.dart';
+import '../../widgets/staff/staff_qr_scanner_dialog.dart';
+import '../../widgets/staff/order_handover_dialog.dart';
 
 String _parseError(dynamic e) {
   String errorMsg = e.toString().replaceAll('Exception: ', '');
@@ -383,6 +385,31 @@ class _CashierPageState extends ConsumerState<CashierPage>
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    IconButton(
+                      onPressed: () {
+                        StaffQrScannerDialog.show(
+                          context,
+                          onOrderScanned: (orderId) {
+                            OrderHandoverDialog.show(context, orderId);
+                          },
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor:
+                            Colors.white.withValues(alpha: 0.12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.all(8),
+                        minimumSize: const Size(36, 36),
+                      ),
+                      tooltip: 'Quét QR Lấy Hàng',
+                    ),
+                    const SizedBox(width: 8),
                     Stack(
                       clipBehavior: Clip.none,
                       children: [

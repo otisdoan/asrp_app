@@ -67,6 +67,9 @@ class MenuItemModel {
       );
     }
 
+    final bool isSoldOutVal =
+        (json['isSoldOut'] as bool? ?? false) || (json['isAvailable'] == false);
+
     return MenuItemModel(
       id: json['id'] as String?,
       menuItemId: json['menuItemId'] as String?,
@@ -79,7 +82,7 @@ class MenuItemModel {
       rating: (json['rating'] as num?)?.toDouble(),
       soldCount: json['soldCount'] as int? ?? json['sold'] as int?,
       likesCount: json['likesCount'] as int? ?? json['likes'] as int?,
-      isSoldOut: json['isSoldOut'] as bool? ?? false,
+      isSoldOut: isSoldOutVal,
     );
   }
 

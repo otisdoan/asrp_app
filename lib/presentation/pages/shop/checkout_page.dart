@@ -12,6 +12,7 @@ import '../../../data/repositories/order_repository.dart';
 import '../../../providers/order_provider.dart';
 import 'add_to_cart_page.dart';
 import 'qr_payment_page.dart';
+import 'package:dio/dio.dart';
 import '../../../core/utils/top_notification.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
@@ -1293,7 +1294,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Lỗi đặt hàng'),
-          content: Text(e.toString().replaceAll('Exception: ', '')),
+          content: Text(_parseCheckoutError(e)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -1304,6 +1305,40 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ),
       );
     }
+  }
+
+  String _parseCheckoutError(dynamic e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        final msg = data['detail'] ??
+            data['Detail'] ??
+            data['message'] ??
+            data['error'] ??
+            data['title'] ??
+            data['Title'];
+        if (msg != null && msg.toString().isNotEmpty) {
+          return msg.toString();
+        }
+        if (data['errors'] is Map) {
+          final errors = data['errors'] as Map;
+          final errorList = <String>[];
+          errors.forEach((k, v) {
+            if (v is List) {
+              errorList.addAll(v.map((item) => item.toString()));
+            } else {
+              errorList.add(v.toString());
+            }
+          });
+          if (errorList.isNotEmpty) {
+            return errorList.join('\n');
+          }
+        }
+      } else if (data is String && data.isNotEmpty) {
+        return data;
+      }
+    }
+    return e.toString().replaceAll('Exception: ', '');
   }
 
   // ─── Bottom Confirm Button ─────────────────────────────────────────────

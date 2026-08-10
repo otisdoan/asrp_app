@@ -6,6 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/favorite_shops_provider.dart';
 import '../../../providers/branch_provider.dart';
+import '../staff/staff_qr_scanner_dialog.dart';
+import '../staff/order_handover_dialog.dart';
+import 'customer_qr_scanner_dialog.dart';
 
 class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final TextEditingController? searchController;
@@ -37,17 +40,32 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           // 1. Scanner Icon (Left)
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.crop_free, // Square scanner bracket outline icon
-              color: Colors.white,
-              size: 20,
+          GestureDetector(
+            onTap: () {
+              final role = user?.role.toLowerCase() ?? '';
+              if (role == 'staff' || role == 'manager' || role == 'admin') {
+                StaffQrScannerDialog.show(
+                  context,
+                  onOrderScanned: (orderId) {
+                    OrderHandoverDialog.show(context, orderId);
+                  },
+                );
+              } else {
+                CustomerQrScannerDialog.show(context);
+              }
+            },
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.crop_free, // Square scanner bracket outline icon
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(width: 8),

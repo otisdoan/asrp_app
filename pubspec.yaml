@@ -60,6 +60,8 @@ dependencies:
   url_launcher: ^6.3.0
   pdf: ^3.11.1
   printing: ^5.13.2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

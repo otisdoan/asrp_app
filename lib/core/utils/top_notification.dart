@@ -25,6 +25,18 @@ class TopNotification {
 
     overlayState.insert(overlayEntry);
   }
+
+  static void showSuccess(BuildContext context, {required String message}) {
+    show(context, message: message, isError: false);
+  }
+
+  static void showError(BuildContext context, {required String message}) {
+    show(context, message: message, isError: true);
+  }
+
+  static void showInfo(BuildContext context, {required String message}) {
+    show(context, message: message, isError: false);
+  }
 }
 
 class _TopNotificationWidget extends StatefulWidget {

@@ -621,6 +621,37 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     }
   }
 
+  /// Cập nhật trạng thái đơn hàng chung
+  Future<void> updateOrderStatus(String id, MockOrderStatus newStatus) async {
+    if (newStatus == MockOrderStatus.completed) {
+      await completeOrder(id);
+    } else {
+      state = state.map((o) {
+        if (o.id.toLowerCase() == id.toLowerCase()) {
+          return MockOrder(
+            id: o.id,
+            storeName: o.storeName,
+            items: o.items,
+            totalAmount: o.totalAmount,
+            status: newStatus,
+            orderTime: o.orderTime,
+            pickupTime: o.pickupTime,
+            originalMinutes: o.originalMinutes,
+            timeline: o.timeline,
+            payments: o.payments,
+            orderNumber: o.orderNumber,
+            discountPercentage: o.discountPercentage,
+            paymentStatus: newStatus == MockOrderStatus.completed ? 'Paid' : o.paymentStatus,
+            orderType: o.orderType,
+            branchId: o.branchId,
+            pagerNumber: o.pagerNumber,
+          );
+        }
+        return o;
+      }).toList();
+    }
+  }
+
   /// Khách hàng hoặc Thu ngân hủy đơn
   Future<void> cancelOrder(String id, [String? reason]) async {
     try {
