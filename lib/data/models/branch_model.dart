@@ -207,10 +207,11 @@ class BranchDetailModel {
   });
 
   bool get isOpen {
-    if (status?.toLowerCase() == 'closed' || status?.toLowerCase() == 'inactive' || isActive == false) {
+    final normalizedStatus = status?.trim().toLowerCase();
+    if (normalizedStatus == 'closed' || isActive == false) {
       return false;
     }
-    if (status?.toLowerCase() == 'active' || status?.toLowerCase() == 'busy') {
+    if (normalizedStatus == 'active' || normalizedStatus == 'busy') {
       return true;
     }
     if (openingTime != null && closingTime != null && openingTime!.isNotEmpty && closingTime!.isNotEmpty) {
@@ -224,6 +225,9 @@ class BranchDetailModel {
         final closeParts = closingTime!.split(':').map((e) => int.parse(e)).toList();
         final closeMinutes = closeParts[0] * 60 + closeParts[1];
 
+        if (openMinutes == closeMinutes) {
+          return true;
+        }
         if (openMinutes <= closeMinutes) {
           return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
         } else {
@@ -231,7 +235,7 @@ class BranchDetailModel {
         }
       } catch (_) {}
     }
-    return status?.toLowerCase() == 'active' || status == null;
+    return status == null;
   }
 
   factory BranchDetailModel.fromJson(Map<String, dynamic> json) {

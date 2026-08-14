@@ -61,8 +61,6 @@ class StaffManagementPage extends ConsumerStatefulWidget {
 }
 
 class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
-  // Lọc chi nhánh dành cho SuperAdmin: 'Tất cả' | các chi nhánh động
-  String _selectedBranchTab = 'Tất cả';
   List<String> _branchOptions = [];
   Map<String, String> _branchNameToId = {};
   List<BranchListItemModel> _realBranches = [];
@@ -99,33 +97,27 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
     final notifier = ref.read(staffManagementProvider.notifier);
     final user = ref.read(currentUserProvider);
     final registration = ref.read(branchRegistrationProvider);
-    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
-        user?.role.toLowerCase() == 'admin';
-    final isSuperAdmin = isBrandOwner && _realBranches.length > 1;
+    final role = user?.role.toLowerCase();
+    final canManageManagers = role == 'superadmin' || role == 'admin';
 
     try {
-      if (isSuperAdmin) {
-        if (_selectedBranchTab == 'Tất cả') {
-          try {
-            final results = await Future.wait(
-                _realBranches.map((b) => notifier.getStaffListForBranch(b.id)));
-            final combined = results.expand((list) => list).toList();
-            notifier.setStaffList(combined);
-          } catch (e) {
-            print(
-                '[StaffManagementPage] Error fetching staff for all branches: $e');
-          }
-        } else {
-          final bId = _branchNameToId[_selectedBranchTab];
-          if (bId != null) {
-            await notifier.fetchStaffMembers(bId);
-          }
+      if (canManageManagers) {
+        try {
+          final results = await Future.wait(
+              _realBranches.map((b) => notifier.getStaffListForBranch(b.id)));
+          final combined = results.expand((list) => list).toList();
+          notifier.setStaffList(combined);
+        } catch (e) {
+          print(
+              '[StaffManagementPage] Error fetching staff for all branches: $e');
         }
       } else {
-        final bId = user?.branchId ?? registration.approvedFirstBranchId;
+        final bId = role == 'manager'
+            ? user?.branchId
+            : user?.branchId ?? registration.approvedFirstBranchId;
         if (bId != null && bId.isNotEmpty) {
           await notifier.fetchStaffMembers(bId);
-        } else {
+        } else if (role != 'manager') {
           if (_realBranches.isNotEmpty) {
             await notifier.fetchStaffMembers(_realBranches.first.id);
           }
@@ -144,9 +136,9 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final registration = ref.watch(branchRegistrationProvider);
-    final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
-        user?.role.toLowerCase() == 'admin';
-    final isSuperAdmin = isBrandOwner && _realBranches.length > 1;
+    final role = user?.role.toLowerCase();
+    final canManageManagers = role == 'superadmin' || role == 'admin';
+    final canManageStaff = canManageManagers || role == 'manager';
 
     // Chi nhánh của Admin/Manager
     String adminBranch = 'Quận 1';
@@ -205,18 +197,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
 
     // Lọc danh sách nhân viên tương ứng theo quyền
     List<StaffMemberModel> filteredList = [];
-    if (isSuperAdmin) {
-      if (_selectedBranchTab == 'Tất cả') {
-        filteredList = rawStaffList;
-      } else {
-        filteredList = rawStaffList
-            .where((m) => m.branchName == _selectedBranchTab)
-            .toList();
-      }
-    } else {
-      // Admin/Manager chỉ thấy nhân viên chi nhánh của mình (đã lọc ở API cấp backend)
-      filteredList = rawStaffList;
-    }
+    filteredList = rawStaffList;
 
     // Lọc tiếp theo từ khóa tìm kiếm
     if (_searchQuery.isNotEmpty) {
@@ -253,7 +234,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          isSuperAdmin
+          canManageManagers
               ? 'Phân công Quản lý chi nhánh'
               : 'Quản lý nhân sự chi nhánh',
           style: const TextStyle(
@@ -270,10 +251,8 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
         behavior: HitTestBehavior.opaque,
         child: Column(
           children: [
-            if (isSuperAdmin) _buildBranchTabs(),
-
             // ─── Premium Search Bar ─────────────────────────────────────────────
-            _buildSearchBar(isSuperAdmin),
+            _buildSearchBar(),
 
             // ─── Staff List Directory ──────────────────────────────────────────
             Expanded(
@@ -294,7 +273,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
                     itemCount: filteredList.length,
                     itemBuilder: (context, index) {
                       final member = filteredList[index];
-                      return _buildStaffCard(member, isSuperAdmin, adminBranch);
+                      return _buildStaffCard(member, canManageManagers, adminBranch);
                     },
                   );
                 },
@@ -324,7 +303,9 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => _openStaffDialog(null, isSuperAdmin, adminBranch),
+            onTap: canManageStaff
+                ? () => _openStaffDialog(null, canManageManagers, adminBranch)
+                : null,
             borderRadius: BorderRadius.circular(26),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -334,7 +315,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
                   const Icon(Icons.person_add_alt_1_rounded, size: 18, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(
-                    isSuperAdmin ? 'Bổ nhiệm Quản lý chi nhánh' : 'Thêm nhân viên mới',
+                    canManageManagers ? 'Bổ nhiệm Quản lý chi nhánh' : 'Thêm nhân viên mới',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -352,10 +333,10 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
   }
 
   // ─── Premium Search Bar UI ───────────────────────────────────────────────
-  Widget _buildSearchBar(bool isSuperAdmin) {
+  Widget _buildSearchBar() {
     return Padding(
       key: const ValueKey('staff_search_bar_padding'),
-      padding: EdgeInsets.fromLTRB(16, isSuperAdmin ? 10 : 16, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
@@ -402,56 +383,6 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
             contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
         ),
-      ),
-    );
-  }
-
-  // ─── SuperAdmin Lọc Branch Tabs UI ─────────────────────────────────────────
-  Widget _buildBranchTabs() {
-    final List<String> tabs = ['Tất cả', ..._branchOptions];
-    return Container(
-      height: 40,
-      margin: const EdgeInsets.only(top: 16, bottom: 4),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: tabs.length,
-        itemBuilder: (context, index) {
-          final tab = tabs[index];
-          final isSelected = _selectedBranchTab == tab;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ChoiceChip(
-              label: Text(
-                tab,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-              selected: isSelected,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() {
-                    _selectedBranchTab = tab;
-                  });
-                  _fetchStaffList();
-                }
-              },
-              selectedColor: AppColors.primary,
-              backgroundColor: const Color(0xFFF3F4F6),
-              elevation: 0,
-              pressElevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide.none,
-              ),
-              showCheckmark: false,
-            ),
-          );
-        },
       ),
     );
   }
@@ -687,7 +618,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
 
   // ─── Add/Edit Custom Dialog Sheet ──────────────────────────────────────────
   void _openStaffDialog(
-      StaffMemberModel? existing, bool isSuperAdmin, String adminBranch) {
+      StaffMemberModel? existing, bool canManageManagers, String adminBranch) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -700,7 +631,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
           ),
           child: _StaffEditorSheetContent(
             existing: existing,
-            isSuperAdmin: isSuperAdmin,
+            canManageManagers: canManageManagers,
             adminBranch: adminBranch,
             branchOptions: _branchOptions,
             branchNameToId: _branchNameToId,
@@ -755,7 +686,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
                   if (bId != null) {
                     await ref
                         .read(staffManagementProvider.notifier)
-                        .toggleStaffStatus(member.id, false);
+                        .toggleStaffStatus(member.id, false, targetBranchId: bId);
                     await _fetchStaffList();
                   }
                   navigator.pop();
@@ -831,7 +762,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
 
 class _StaffEditorSheetContent extends ConsumerStatefulWidget {
   final StaffMemberModel? existing;
-  final bool isSuperAdmin;
+  final bool canManageManagers;
   final String adminBranch;
   final List<String> branchOptions;
   final Map<String, String> branchNameToId;
@@ -839,7 +770,7 @@ class _StaffEditorSheetContent extends ConsumerStatefulWidget {
 
   const _StaffEditorSheetContent({
     this.existing,
-    required this.isSuperAdmin,
+    required this.canManageManagers,
     required this.adminBranch,
     required this.branchOptions,
     required this.branchNameToId,
@@ -863,6 +794,7 @@ class _StaffEditorSheetContentState
   String? _resolvedUserId;
   bool _isCheckingPhone = false;
   bool _phoneExists = false;
+  bool _phoneLookupFailed = false;
 
   @override
   void initState() {
@@ -873,13 +805,9 @@ class _StaffEditorSheetContentState
         TextEditingController(text: widget.existing?.phone ?? '');
     _passwordController = TextEditingController();
 
-    if (widget.isSuperAdmin) {
-      _selectedRole = 'Manager';
-    } else {
-      _selectedRole = widget.existing?.role ?? 'Staff';
-      if (_selectedRole == 'Admin') {
-        _selectedRole = 'Manager';
-      }
+    _selectedRole = widget.existing?.role ?? 'Staff';
+    if (_selectedRole == 'Admin' || (!widget.canManageManagers && _selectedRole == 'Manager')) {
+      _selectedRole = 'Staff';
     }
 
     final initialBranch = widget.existing?.branchName;
@@ -895,7 +823,7 @@ class _StaffEditorSheetContentState
         _selectedBranch = matched;
       }
     } else {
-      _selectedBranch = widget.isSuperAdmin
+      _selectedBranch = widget.canManageManagers
           ? (widget.branchOptions.isNotEmpty ? widget.branchOptions[0] : widget.adminBranch)
           : widget.adminBranch;
     }
@@ -910,9 +838,10 @@ class _StaffEditorSheetContentState
     if (phone.length == 10) {
       _checkPhone(phone);
     } else {
-      if (_phoneExists || _resolvedUserId != null) {
+      if (_phoneExists || _phoneLookupFailed || _resolvedUserId != null) {
         setState(() {
           _phoneExists = false;
+          _phoneLookupFailed = false;
           _resolvedUserId = null;
         });
       }
@@ -923,6 +852,7 @@ class _StaffEditorSheetContentState
     if (_isCheckingPhone) return;
     setState(() {
       _isCheckingPhone = true;
+      _phoneLookupFailed = false;
     });
 
     try {
@@ -931,6 +861,7 @@ class _StaffEditorSheetContentState
       if (userMap != null) {
         setState(() {
           _phoneExists = true;
+          _phoneLookupFailed = false;
           _resolvedUserId = userMap['id']?.toString();
           final String resolvedName = userMap['fullName']?.toString() ??
               userMap['username']?.toString() ??
@@ -942,10 +873,16 @@ class _StaffEditorSheetContentState
       } else {
         setState(() {
           _phoneExists = false;
+          _phoneLookupFailed = false;
           _resolvedUserId = null;
         });
       }
     } catch (_) {
+      setState(() {
+        _phoneExists = false;
+        _phoneLookupFailed = true;
+        _resolvedUserId = null;
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -997,7 +934,7 @@ class _StaffEditorSheetContentState
                   Text(
                     isEdit
                         ? 'Chỉnh sửa thông tin'
-                        : (widget.isSuperAdmin
+                        : (widget.canManageManagers
                             ? 'Bổ nhiệm nhân sự mới'
                             : 'Thêm nhân viên mới'),
                     style: const TextStyle(
@@ -1142,6 +1079,34 @@ class _StaffEditorSheetContentState
                             ],
                           ),
                         ),
+                      ] else if (_phoneLookupFailed &&
+                          !_isCheckingPhone) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline_rounded,
+                                  color: Colors.red.shade800, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Không thể kiểm tra số điện thoại lúc này. Vui lòng thử lại.',
+                                  style: TextStyle(
+                                      color: Colors.red.shade900,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ] else if (_phoneController.text.trim().length == 10 &&
                           !_isCheckingPhone) ...[
                         const SizedBox(height: 8),
@@ -1240,7 +1205,7 @@ class _StaffEditorSheetContentState
 
 
                     // 3. Branch selection dropdown (only for brand owner, lock to admin branch for standard admin)
-                    if (widget.isSuperAdmin) ...[
+                    if (widget.canManageManagers) ...[
                       const Text(
                         'Chi nhánh làm việc *',
                         style: TextStyle(
@@ -1301,43 +1266,7 @@ class _StaffEditorSheetContentState
                     ],
 
                      // 4. Role choice chips
-                    if (widget.isSuperAdmin) ...[
-                      const Text(
-                        'Vai trò bổ nhiệm *',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        height: 52,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFF97316), width: 1.5),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.admin_panel_settings_rounded, color: Color(0xFFF97316), size: 22),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Quản lý chi nhánh (Manager)',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFC2410C),
-                                ),
-                              ),
-                            ),
-                            Icon(Icons.check_circle_rounded, color: Color(0xFFF97316), size: 20),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
+                    ...[
                       const Text(
                         'Phân vai trò nhân viên *',
                         style: TextStyle(
@@ -1397,7 +1326,9 @@ class _StaffEditorSheetContentState
                           // Card 2: Manager (Thu ngân / Quản lý)
                           Expanded(
                             child: GestureDetector(
-                              onTap: () => setState(() => _selectedRole = 'Manager'),
+                              onTap: widget.canManageManagers
+                                  ? () => setState(() => _selectedRole = 'Manager')
+                                  : null,
                               child: Container(
                                 height: 52,
                                 decoration: BoxDecoration(
