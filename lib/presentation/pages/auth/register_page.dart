@@ -81,6 +81,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       }
     } catch (e) {
       print('[RegisterPage] Pre-check phone error: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _phoneError = 'Không thể kiểm tra số điện thoại lúc này. Vui lòng thử lại.';
+        });
+      }
+      return;
     }
 
     // Real Firebase Phone Auth
