@@ -85,6 +85,17 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
     required String bankOwner,
   }) async {
     try {
+      double? latitude;
+      double? longitude;
+      if (gps.isNotEmpty) {
+        final regex = RegExp(r'(-?\d+(?:\.\d+)?)');
+        final matches = regex.allMatches(gps).map((m) => m.group(0)).whereType<String>().toList();
+        if (matches.length >= 2) {
+          latitude = double.tryParse(matches[0]);
+          longitude = double.tryParse(matches[1]);
+        }
+      }
+
       await _merchantRepository.submitMerchantApplication(
         brandName: brandName,
         category: category,
@@ -95,6 +106,8 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
         branchName: branchName,
         phone: phone,
         address: address,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       state = state.copyWith(
@@ -258,7 +271,7 @@ class BranchRegistrationNotifier extends StateNotifier<BranchRegistrationData> {
       );
     } catch (e) {
       print('[BranchRegistrationNotifier] Error fetching application status: $e');
-      rethrow;
+      state = const BranchRegistrationData();
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -25,6 +26,7 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
   String _statusFilter = 'Tất cả';
 
   bool _wasKeyboardOpen = false;
+  Timer? _branchRealtimeTimer;
 
   @override
   void initState() {
@@ -34,10 +36,25 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
     Future.microtask(() {
       ref.read(inventoryProvider.notifier).fetchInventory();
     });
+    // Periodic realtime polling every 3 seconds for transfer tickets & branch stock
+    _branchRealtimeTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        final user = ref.read(authProvider).user;
+        final branchId = user?.branchId;
+        ref.invalidate(transferTicketsProvider(TransferTicketParams()));
+        if (branchId != null) {
+          ref.invalidate(transferTicketsProvider(TransferTicketParams(branchId: branchId)));
+          ref.invalidate(transferTicketsProvider(TransferTicketParams(branchId: branchId, status: 'Pending')));
+          ref.invalidate(transferTicketsProvider(TransferTicketParams(branchId: branchId, status: 'Dispatched')));
+        }
+        ref.read(inventoryProvider.notifier).fetchInventory();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _branchRealtimeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -878,14 +895,21 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '#${t.ticketCode}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                            Expanded(
+                              child: Text(
+                                t.ticketCode.length > 20
+                                    ? '#${t.ticketCode.substring(0, 18)}...'
+                                    : '#${t.ticketCode}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 3),
@@ -919,10 +943,9 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
                           children: [
                             Expanded(
                               child: Text(
-                                '${t.quantity.toStringAsFixed(1)}${t.unit} ${t.ingredientName}' +
-                                    (t.note != null && t.note!.isNotEmpty
+                                '${t.quantity.toStringAsFixed(1)}${t.unit} ${t.ingredientName}${t.note != null && t.note!.isNotEmpty
                                         ? ' (${t.note})'
-                                        : ''),
+                                        : ''}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textSecondary,

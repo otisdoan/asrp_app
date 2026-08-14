@@ -93,31 +93,20 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
               final store = visibleStores[index];
               final userLocation = ref.watch(userLocationProvider);
 
-              // Calculate dynamic distance if user location is available
-              String displayDistance = store.distance;
-              print(
-                  '[AllStoresSection] Branch: ${store.name}, lat: ${store.latitude}, lng: ${store.longitude}, userLocation: ${userLocation?.latitude}, ${userLocation?.longitude}');
-              if (userLocation != null &&
-                  store.latitude != null &&
-                  store.longitude != null) {
-                final meters = LocationService.distanceTo(
-                  userLocation.latitude,
-                  userLocation.longitude,
-                  store.latitude!,
-                  store.longitude!,
-                );
-                displayDistance = LocationService.formatDistance(meters);
-                print(
-                    '[AllStoresSection] Calculated distance: $displayDistance');
-              } else if (displayDistance.isEmpty) {
-                displayDistance = 'Gần đây';
-              }
+              // Calculate 100% exact branch distance
+              final displayDistance = LocationService.calculateBranchDistance(
+                userLocation: userLocation,
+                branchLat: store.latitude,
+                branchLng: store.longitude,
+                branchAddress: store.address,
+                fallbackDistance: store.distance,
+              );
 
-              // Fallback for empty deliveryTime
-              String displayTime = store.deliveryTime;
-              if (displayTime.isEmpty) {
-                displayTime = '25 phút';
-              }
+              // Dynamic estimated delivery time based on distance
+              final displayTime = LocationService.calculateDeliveryTime(
+                deliveryTime: store.deliveryTime,
+                distanceStr: displayDistance,
+              );
 
               return _AllStoreCard(
                 name: store.name,
@@ -130,6 +119,8 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
                 image: store.imageUrl,
                 icon: Icons.restaurant,
                 branchId: store.id,
+                status: store.status,
+                isActive: store.isActive,
               );
             },
           ),
@@ -191,6 +182,8 @@ class _AllStoreCard extends StatelessWidget {
   final String image;
   final IconData icon;
   final String? branchId;
+  final String? status;
+  final bool? isActive;
 
   const _AllStoreCard({
     required this.name,
@@ -203,6 +196,8 @@ class _AllStoreCard extends StatelessWidget {
     required this.image,
     required this.icon,
     this.branchId,
+    this.status,
+    this.isActive,
   });
 
   @override
@@ -279,15 +274,63 @@ class _AllStoreCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Name
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (status?.toLowerCase() == 'busy')
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7EC),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
+                          ),
+                          child: const Text(
+                            'Quán bận',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.accent),
+                          ),
+                        )
+                      else if (isActive == false || status?.toLowerCase() == 'closed')
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorContainer,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+                          ),
+                          child: const Text(
+                            'Tạm đóng',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.error),
+                          ),
+                        )
+                      else
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE6F4EA),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
+                          ),
+                          child: const Text(
+                            'Đang bán',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.success),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 3),
                   // Category

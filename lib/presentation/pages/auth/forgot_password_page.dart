@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/auth_repository.dart';
 
 /// Forgot Password Page — enter phone → OTP verification → reset password.
-/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
 
@@ -14,6 +15,7 @@ class ForgotPasswordPage extends StatefulWidget {
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _phoneController = TextEditingController();
+  final _authRepository = AuthRepository();
   bool _loading = false;
   String? _error;
 
@@ -33,27 +35,39 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() => _loading = false);
+    try {
+      await _authRepository.forgotPassword(phone);
+      if (!mounted) return;
+      setState(() => _loading = false);
 
-    // Navigate to OTP page
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => _ForgotPasswordOtpPage(phone: phone),
-        transitionsBuilder: (_, animation, __, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+      // Navigate to OTP page
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => _ForgotPasswordOtpPage(phone: phone),
+          transitionsBuilder: (_, animation, __, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (e is DioException) {
+          _error = e.response?.data['message'] ?? 'Gửi mã khôi phục thất bại.';
+        } else {
+          _error = 'Lỗi gửi yêu cầu khôi phục: $e';
+        }
+      });
+    }
   }
 
   @override

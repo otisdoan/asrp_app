@@ -26,14 +26,40 @@ import '../presentation/pages/shop/order_failure_page.dart';
 import '../presentation/pages/shop/payment_success_page.dart';
 import '../core/constants/app_constants.dart';
 
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.isAuthenticated != next.isAuthenticated ||
+          previous?.user?.role != next.user?.role ||
+          previous?.user?.branchId != next.user?.branchId) {
+        notifyListeners();
+      }
+    });
+
+    _ref.listen(myBrandBranchesFutureProvider, (previous, next) {
+      if (previous?.value?.length != next.value?.length) {
+        notifyListeners();
+      }
+    });
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) {
+  return RouterNotifier(ref);
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-  final isLoggedIn = authState.isAuthenticated;
-  final user = authState.user;
+  final notifier = ref.read(routerNotifierProvider);
 
   return GoRouter(
+    refreshListenable: notifier,
     initialLocation: AppConstants.routeHome,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final isLoggedIn = authState.isAuthenticated;
+      final user = authState.user;
       final path = state.uri.path;
 
       // 1. If logged in:
@@ -73,29 +99,23 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (path == AppConstants.routeSuperAdminDashboard) {
             return '/admin/dashboard';
           }
-        } else if (role == 'admin') {
-          final user = ref.read(currentUserProvider);
-          final isBrandOwner = user?.branchId == null;
-          final myBranches = ref.read(myBrandBranchesFutureProvider).value;
-          final hasMultipleBranches = isBrandOwner || (myBranches != null && myBranches.length > 1);
-          if (path == '/admin/dashboard' && hasMultipleBranches) {
-            return AppConstants.routeSuperAdminDashboard;
-          }
-          if (path == AppConstants.routeSuperAdminDashboard && !hasMultipleBranches) {
-            return '/admin/dashboard';
-          }
         }
-        // Admin (Chủ thương hiệu) and SuperAdmin are allowed to access all routes.
       }
 
       // 2. If NOT logged in:
       else {
-        // Guests not allowed in staff, cashier, admin, superadmin, or staff management pages
+        // Guests not allowed in protected management/profile/favorite routes
         if (path == AppConstants.routeStaffHome ||
             path == AppConstants.routeCashier ||
             path == '/admin/dashboard' ||
             path == AppConstants.routeSuperAdminDashboard ||
-            path == AppConstants.routeStaffManagement) {
+            path == AppConstants.routeStaffManagement ||
+            path == AppConstants.routeProfile ||
+            path == AppConstants.routeEditProfile ||
+            path == AppConstants.routeBranchRegistration ||
+            path == AppConstants.routeFavoriteShops ||
+            path == AppConstants.routeStoreSetup ||
+            path == AppConstants.routeMenuBuilder) {
           return AppConstants.routeLogin;
         }
       }

@@ -383,7 +383,9 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
                         borderRadius: BorderRadius.circular(12),
                         child: dish.imageUrl.isNotEmpty
                             ? Image.network(
-                                dish.imageUrl,
+                                dish.imageUrl
+                                    .replaceAll('localhost:5100', '10.0.2.2:5100')
+                                    .replaceAll('127.0.0.1:5100', '10.0.2.2:5100'),
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Icon(Icons.restaurant_menu_rounded,
@@ -785,15 +787,35 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
           ),
           child: _CategorySheetContent(
             category: category,
-            onSave: (name) {
-              if (category != null) {
-                ref
-                    .read(merchantMenuProvider.notifier)
-                    .updateCategory(category.id, name);
-              } else {
-                ref.read(merchantMenuProvider.notifier).addCategory(name);
+            onSave: (name) async {
+              final navigator = Navigator.of(ctx);
+              try {
+                if (category != null) {
+                  await ref
+                      .read(merchantMenuProvider.notifier)
+                      .updateCategory(category.id, name);
+                  TopNotification.show(
+                    context,
+                    message: 'Đã cập nhật danh mục "$name" thành công.',
+                  );
+                } else {
+                  await ref
+                      .read(merchantMenuProvider.notifier)
+                      .addCategory(name);
+                  TopNotification.show(
+                    context,
+                    message: 'Đã thêm danh mục "$name" thành công.',
+                  );
+                }
+                navigator.pop();
+              } catch (e) {
+                navigator.pop();
+                TopNotification.show(
+                  context,
+                  message: 'Không thể lưu danh mục: ${e.toString().replaceAll('Exception: ', '')}',
+                  isError: true,
+                );
               }
-              Navigator.pop(ctx);
             },
           ),
         );
@@ -947,7 +969,7 @@ class _MenuBuilderPageState extends ConsumerState<MenuBuilderPage>
 // ==========================================
 class _CategorySheetContent extends StatefulWidget {
   final MerchantCategory? category;
-  final void Function(String) onSave;
+  final Future<void> Function(String) onSave;
 
   const _CategorySheetContent({
     this.category,
@@ -961,6 +983,7 @@ class _CategorySheetContent extends StatefulWidget {
 class _CategorySheetContentState extends State<_CategorySheetContent> {
   late TextEditingController _controller;
   final _formKey = GlobalKey<FormState>();
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -1107,11 +1130,18 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              widget.onSave(_controller.text.trim());
-                            }
-                          },
+                          onPressed: _isSubmitting
+                              ? null
+                              : () async {
+                                  if (_formKey.currentState!.validate()) {
+                                    setState(() => _isSubmitting = true);
+                                    try {
+                                      await widget.onSave(_controller.text.trim());
+                                    } finally {
+                                      if (mounted) setState(() => _isSubmitting = false);
+                                    }
+                                  }
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -1121,10 +1151,19 @@ class _CategorySheetContentState extends State<_CategorySheetContent> {
                             ),
                             elevation: 0,
                           ),
-                          child: Text(
-                            isEdit ? 'Lưu thay đổi' : 'Thêm mới',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  isEdit ? 'Lưu thay đổi' : 'Thêm mới',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
                         ),
                       ),
                     ],
@@ -1168,12 +1207,14 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
   late TextEditingController _priceController;
   late TextEditingController _discountController;
   late TextEditingController _descController;
+  late TextEditingController _prepTimeController;
 
   // Focus Nodes
   late FocusNode _nameNode;
   late FocusNode _priceNode;
   late FocusNode _discountNode;
   late FocusNode _descNode;
+  late FocusNode _prepTimeNode;
 
   // Selected availability and prefilled mock images
   String _availability = 'available';
@@ -1196,11 +1237,14 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
             ? d.discountPrice!.toInt().toString()
             : '');
     _descController = TextEditingController(text: d?.description ?? '');
+    _prepTimeController = TextEditingController(
+        text: d != null ? d.preparationTimeMinutes.toString() : '15');
 
     _nameNode = FocusNode();
     _priceNode = FocusNode();
     _discountNode = FocusNode();
     _descNode = FocusNode();
+    _prepTimeNode = FocusNode();
 
     _mockFoodImages = [
       'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&q=80', // Pho
@@ -1331,11 +1375,13 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
     _priceController.dispose();
     _discountController.dispose();
     _descController.dispose();
+    _prepTimeController.dispose();
 
     _nameNode.dispose();
     _priceNode.dispose();
     _discountNode.dispose();
     _descNode.dispose();
+    _prepTimeNode.dispose();
     super.dispose();
   }
 
@@ -1395,6 +1441,7 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
 
     final originalPrice = double.tryParse(_priceController.text) ?? 0.0;
     final discountPrice = double.tryParse(_discountController.text);
+    final prepTime = int.tryParse(_prepTimeController.text.trim()) ?? 15;
 
     final finalDish = MerchantDish(
       id: widget.dish?.id ?? 'dish-${DateTime.now().millisecondsSinceEpoch}',
@@ -1405,6 +1452,7 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
       description: _descController.text.trim(),
       imageUrl: _selectedImageUrl,
       availability: _availability,
+      preparationTimeMinutes: prepTime > 0 ? prepTime : 15,
       optionGroups: _optionGroups,
     );
 
@@ -1533,6 +1581,34 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
                       ),
                       const SizedBox(height: 14),
 
+                      // Preparation Time
+                      _buildFieldLabel('Thời gian chế biến (phút) *'),
+                      TextFormField(
+                        controller: _prepTimeController,
+                        focusNode: _prepTimeNode,
+                        style: const TextStyle(fontSize: 14),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Vui lòng nhập thời gian chế biến';
+                          }
+                          final parsed = int.tryParse(value);
+                          if (parsed == null || parsed <= 0) {
+                            return 'Thời gian phải là số nguyên > 0';
+                          }
+                          return null;
+                        },
+                        decoration: _buildInputDec('Ví dụ: 15 (mặc định 15 phút)').copyWith(
+                          prefixIcon: const Icon(Icons.timer_outlined, color: AppColors.primary, size: 20),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Thời gian chế biến ước tính để hệ thống tự động tính giờ nhận/giao món chính xác.',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 14),
+
                       // Description
                       _buildFieldLabel('Mô tả chi tiết'),
                       TextFormField(
@@ -1596,6 +1672,13 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
                             final isSelected = imgUrl == _selectedImageUrl;
                             final isNetworkImage = imgUrl.startsWith('http://') || imgUrl.startsWith('https://');
 
+                            String displayUrl = imgUrl;
+                            if (isNetworkImage && (displayUrl.contains('localhost:5100') || displayUrl.contains('127.0.0.1:5100'))) {
+                              displayUrl = displayUrl
+                                  .replaceAll('localhost:5100', '10.0.2.2:5100')
+                                  .replaceAll('127.0.0.1:5100', '10.0.2.2:5100');
+                            }
+
                             return GestureDetector(
                               onTap: () =>
                                   setState(() => _selectedImageUrl = imgUrl),
@@ -1614,8 +1697,22 @@ class _DishEditorSheetContentState extends ConsumerState<_DishEditorSheetContent
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(7),
                                   child: isNetworkImage
-                                      ? Image.network(imgUrl, fit: BoxFit.cover)
-                                      : Image.file(File(imgUrl), fit: BoxFit.cover),
+                                      ? Image.network(
+                                          displayUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            color: AppColors.bgWarm,
+                                            child: const Icon(Icons.broken_image_rounded, color: AppColors.textTertiary, size: 24),
+                                          ),
+                                        )
+                                      : Image.file(
+                                          File(imgUrl.replaceAll('file://', '')),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            color: AppColors.bgWarm,
+                                            child: const Icon(Icons.broken_image_rounded, color: AppColors.textTertiary, size: 24),
+                                          ),
+                                        ),
                                 ),
                               ),
                             );

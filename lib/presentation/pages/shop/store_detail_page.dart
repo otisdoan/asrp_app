@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../widgets/common/require_login_dialog.dart';
 import '../../../data/models/branch_model.dart';
 import '../../../data/models/menu_item_model.dart';
 import '../../../providers/branch_provider.dart';
@@ -66,6 +69,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
   final GlobalKey _highlightedItemKey = GlobalKey();
   String? _firstMatchingFoodName;
   BranchDetailModel? _lastResolvedDetail;
+  Timer? _statusTimer;
 
   // ── Performance: cached computed values ──
   List<dynamic>? _cachedMenuItems;
@@ -100,6 +104,11 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         });
       });
     }
+
+    // Periodic timer to refresh real-time open/closed status as clock ticks
+    _statusTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   List<dynamic> get _currentMenuItems {
@@ -211,6 +220,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
@@ -313,9 +323,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         body: RefreshIndicator(
           onRefresh: () async {
             if (widget.branchId != null && widget.branchId!.isNotEmpty) {
-              try {
-                await ref.refresh(branchDetailFutureProvider(widget.branchId!).future);
-              } catch (_) {}
+              ref.invalidate(branchDetailFutureProvider(widget.branchId!));
             }
           },
           color: AppColors.primary,
@@ -425,6 +433,20 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
       child: SafeArea(
         child: GestureDetector(
           onTap: () {
+            if (_lastResolvedDetail != null && !_lastResolvedDetail!.isOpen) {
+              TopNotification.show(
+                context,
+                message:
+                    'Quán hiện đang đóng cửa (Giờ mở cửa: ${_lastResolvedDetail?.openingTime ?? '08:00'} - ${_lastResolvedDetail?.closingTime ?? '21:30'}). Vui lòng quay lại trong giờ mở cửa!',
+                isError: true,
+              );
+              return;
+            }
+            final isLoggedIn = ref.read(isAuthenticatedProvider);
+            if (!isLoggedIn) {
+              RequireLoginDialog.show(context, message: 'Vui lòng đăng nhập để xem giỏ hàng và tiến hành đặt món.');
+              return;
+            }
             Navigator.push(context, MaterialPageRoute(
               builder: (_) => CheckoutPage(
                 storeName: widget.storeName,
@@ -747,8 +769,9 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
               right: 12,
               child: Builder(
                 builder: (context) {
-                  final isClosed = detail != null ? (detail.isActive == false) : false;
-                  final isBusy = detail?.status == 'busy';
+                  final statusLower = detail?.status?.toLowerCase();
+                  final isClosed = detail != null ? (detail.isActive == false || statusLower == 'closed' || !detail.isOpen) : false;
+                  final isBusy = statusLower == 'busy';
                   
                   String statusText = 'Đang hoạt động';
                   Color statusColor = AppColors.success;
@@ -798,6 +821,7 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => StoreReviewsPage(
+                        branchId: widget.branchId,
                         storeName: name,
                         category: detail?.category ?? widget.category,
                         rating: detail?.rating ?? widget.rating,
@@ -1193,6 +1217,15 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
     return GestureDetector(
       onTap: () async {
+        if (_lastResolvedDetail != null && !_lastResolvedDetail!.isOpen) {
+          TopNotification.show(
+            context,
+            message:
+                'Quán hiện đang đóng cửa (Giờ mở cửa: ${_lastResolvedDetail?.openingTime ?? '08:00'} - ${_lastResolvedDetail?.closingTime ?? '21:30'}). Vui lòng quay lại trong giờ mở cửa!',
+            isError: true,
+          );
+          return;
+        }
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
             name: name,
@@ -1330,6 +1363,15 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
     return GestureDetector(
       onTap: isSoldOut ? null : () async {
+        if (_lastResolvedDetail != null && !_lastResolvedDetail!.isOpen) {
+          TopNotification.show(
+            context,
+            message:
+                'Quán hiện đang đóng cửa (Giờ mở cửa: ${_lastResolvedDetail?.openingTime ?? '08:00'} - ${_lastResolvedDetail?.closingTime ?? '21:30'}). Vui lòng quay lại trong giờ mở cửa!',
+            isError: true,
+          );
+          return;
+        }
         final result = await Navigator.push(context, MaterialPageRoute(
           builder: (_) => FoodDetailPage(
             name: name,

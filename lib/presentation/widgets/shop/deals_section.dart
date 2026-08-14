@@ -241,30 +241,68 @@ class _DealCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 135,
-                height: 120, // Square image
-                color: AppColors.bgSoft,
-                child: branch.imageUrl.startsWith('http')
-                    ? Image.network(
-                        branch.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(Icons.store,
-                              color: AppColors.textTertiary, size: 28),
-                        ),
-                      )
-                    : Image.asset(
-                        branch.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(Icons.store,
-                              color: AppColors.textTertiary, size: 28),
-                        ),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 135,
+                    height: 120, // Square image
+                    color: AppColors.bgSoft,
+                    child: branch.imageUrl.startsWith('http')
+                        ? Image.network(
+                            branch.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Icon(Icons.store,
+                                  color: AppColors.textTertiary, size: 28),
+                            ),
+                          )
+                        : Image.asset(
+                            branch.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Icon(Icons.store,
+                                  color: AppColors.textTertiary, size: 28),
+                            ),
+                          ),
+                  ),
+                ),
+                if (branch.status?.toLowerCase() == 'busy')
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7EC),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
                       ),
-              ),
+                      child: const Text(
+                        'Quán bận',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.accent),
+                      ),
+                    ),
+                  )
+                else if (branch.isActive == false || branch.status?.toLowerCase() == 'closed')
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorContainer,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+                      ),
+                      child: const Text(
+                        'Tạm đóng',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.error),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 6),
             // Verified Badge + Name

@@ -106,6 +106,37 @@ class ReceiptPrinterHelper {
                   pw.Text(displayCashier, style: const pw.TextStyle(fontSize: 9)),
                 ],
               ),
+              if (order.customerName != null && order.customerName!.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  children: [
+                    pw.SizedBox(
+                      width: 55,
+                      child: pw.Text('Khách hàng:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Expanded(
+                      child: pw.Text(
+                        '${order.customerName} ${order.customerPhone != null && order.customerPhone!.isNotEmpty ? '(${order.customerPhone})' : ''}',
+                        style: const pw.TextStyle(fontSize: 9),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (order.customerAddress != null && order.customerAddress!.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  children: [
+                    pw.SizedBox(
+                      width: 55,
+                      child: pw.Text('Địa chỉ:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Expanded(
+                      child: pw.Text(order.customerAddress!, style: const pw.TextStyle(fontSize: 9)),
+                    ),
+                  ],
+                ),
+              ],
               pw.SizedBox(height: 6),
 
               // 3. Items Grid Table
@@ -461,6 +492,29 @@ class ReceiptPrinterHelper {
                             Text(displayCashier, style: const TextStyle(fontSize: 12, color: Colors.black)),
                           ],
                         ),
+                        if (order.customerName != null && order.customerName!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const SizedBox(width: 70, child: Text('Khách hàng:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black))),
+                              Expanded(
+                                child: Text(
+                                  '${order.customerName} ${order.customerPhone != null && order.customerPhone!.isNotEmpty ? '(${order.customerPhone})' : ''}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (order.customerAddress != null && order.customerAddress!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const SizedBox(width: 70, child: Text('Địa điểm:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black))),
+                              Expanded(child: Text(order.customerAddress!, style: const TextStyle(fontSize: 12, color: Colors.black))),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
 
                         // Table Grid Box

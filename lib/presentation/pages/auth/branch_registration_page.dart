@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/branch_registration_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/utils/top_notification.dart';
 
 
 class BranchRegistrationPage extends ConsumerStatefulWidget {
@@ -92,8 +95,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
     _categoryCtrl = TextEditingController(text: _categories[0]);
     _branchNameCtrl = TextEditingController();
     _addressCtrl = TextEditingController();
-    // Default GPS coordinate mock to make it feel premium
-    _gpsCtrl = TextEditingController(text: '10.7769° N, 106.7009° E');
+    _gpsCtrl = TextEditingController();
     _phoneCtrl = TextEditingController();
     _taxCodeCtrl = TextEditingController();
     _bankNameCtrl = TextEditingController(text: 'Vietcombank');
@@ -110,14 +112,69 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
     _bankAccountFocus = FocusNode();
     _bankOwnerFocus = FocusNode();
 
+    _addressFocus.addListener(() {
+      if (!_addressFocus.hasFocus && _addressCtrl.text.trim().isNotEmpty) {
+        _autoGeocodeAddress(_addressCtrl.text);
+      }
+    });
+
     // Schedule status check and prefill
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkStatusAndPrefill();
     });
   }
 
+  bool _isGeocoding = false;
+  Timer? _geocodeTimer;
+
+  void _onAddressChanged(String value) {
+    _geocodeTimer?.cancel();
+    final clean = value.trim();
+    if (clean.isEmpty) {
+      if (_gpsCtrl.text.isNotEmpty) {
+        setState(() {
+          _gpsCtrl.clear();
+        });
+      }
+      return;
+    }
+    if (clean.length >= 4) {
+      _geocodeTimer = Timer(const Duration(milliseconds: 600), () {
+        if (mounted && _addressCtrl.text.trim().isNotEmpty) {
+          _autoGeocodeAddress(_addressCtrl.text);
+        }
+      });
+    }
+  }
+
+  Future<void> _autoGeocodeAddress(String address) async {
+    if (address.trim().isEmpty) return;
+    setState(() {
+      _isGeocoding = true;
+    });
+    try {
+      final pos = await LocationService.geocodeAddress(address);
+      if (pos != null && mounted) {
+        final formattedGps = '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
+        setState(() {
+          _gpsCtrl.text = formattedGps;
+        });
+        TopNotification.show(context, message: 'Đã tự động xác định tọa độ GPS từ địa chỉ!');
+      }
+    } catch (e) {
+      print('[BranchRegistrationPage] Auto geocoding failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeocoding = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _geocodeTimer?.cancel();
     // Dispose all controllers
     _brandNameCtrl.dispose();
     _categoryCtrl.dispose();
@@ -762,6 +819,12 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             focusNode: _addressFocus,
             prefixIcon: Icons.map_outlined,
             textCapitalization: TextCapitalization.sentences,
+            onChanged: _onAddressChanged,
+            onSubmitted: (val) {
+              if (val.trim().isNotEmpty) {
+                _autoGeocodeAddress(val);
+              }
+            },
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Vui lòng nhập địa chỉ chi nhánh';
@@ -774,10 +837,22 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
           // GPS Coordinates (Coordinates can be mock or custom)
           _buildTextField(
             label: 'Tọa độ GPS (Vĩ độ - Kinh độ) *',
-            hint: 'Tọa độ địa lý để hiển thị bản đồ và tính khoảng cách ship',
+            hint: 'Ví dụ: 13.782145, 109.219412',
             controller: _gpsCtrl,
             focusNode: _gpsFocus,
             prefixIcon: Icons.gps_fixed_outlined,
+            suffixIcon: _isGeocoding
+                ? const UnconstrainedBox(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : null,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Vui lòng điền tọa độ GPS chi nhánh';
@@ -1217,9 +1292,12 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
     required TextEditingController controller,
     required FocusNode focusNode,
     IconData? prefixIcon,
+    Widget? suffixIcon,
     TextInputType keyboardType = TextInputType.text,
     TextCapitalization textCapitalization = TextCapitalization.none,
     String? Function(String?)? validator,
+    void Function(String)? onSubmitted,
+    void Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1239,6 +1317,8 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
           keyboardType: keyboardType,
           textCapitalization: textCapitalization,
           validator: validator,
+          onChanged: onChanged,
+          onFieldSubmitted: onSubmitted,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
@@ -1248,6 +1328,7 @@ class _BranchRegistrationPageState extends ConsumerState<BranchRegistrationPage>
             prefixIcon: prefixIcon != null
                 ? Icon(prefixIcon, color: AppColors.primary, size: 20)
                 : null,
+            suffixIcon: suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.outlineVariant),

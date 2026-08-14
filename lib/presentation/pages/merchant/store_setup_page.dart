@@ -6,7 +6,6 @@ import 'mock_store_detail_page.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/repositories/merchant_repository.dart';
-import '../../../data/models/branch_model.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/branch_registration_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -59,7 +58,6 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
   bool _isLoadingData = true;
   String? _errorMessage;
   String? _branchId;
-  List<BranchListItemModel> _branches = [];
 
   @override
   void initState() {
@@ -107,14 +105,15 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
       final branchRepo = ref.read(branchRepositoryProvider);
       final currentUser = ref.read(currentUserProvider);
       final branches = await branchRepo.getBranches(brandId: currentUser?.brandId);
-      _branches = branches;
 
       if (branches.isEmpty) {
         throw Exception('Không tìm thấy chi nhánh nào để thiết lập. Vui lòng đăng ký chi nhánh trước.');
       }
 
       // 2. Determine selected branch ID
-      if (_branchId == null || _branchId!.isEmpty || !branches.any((b) => b.id == _branchId)) {
+      if (currentUser?.branchId != null && currentUser!.branchId!.isNotEmpty) {
+        _branchId = currentUser.branchId;
+      } else if (_branchId == null || _branchId!.isEmpty || !branches.any((b) => b.id == _branchId)) {
         final registrationData = ref.read(branchRegistrationProvider);
         final firstApprovedId = registrationData.approvedFirstBranchId;
         if (firstApprovedId != null && firstApprovedId.isNotEmpty && branches.any((b) => b.id == firstApprovedId)) {
@@ -149,6 +148,10 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
           final status = data['status']?.toString().toLowerCase();
           if (status == 'active' || status == 'busy' || status == 'closed') {
             _storeStatus = status!;
+          } else if (data['isActive'] == false) {
+            _storeStatus = 'closed';
+          } else {
+            _storeStatus = 'active';
           }
 
           final logo = data['imageUrl']?.toString();
@@ -361,6 +364,14 @@ class _StoreSetupPageState extends ConsumerState<StoreSetupPage> {
       };
 
       await merchantRepo.updateBranchSettings(_branchId!, payload);
+
+      // Invalidate Riverpod branch providers to refresh Home & Store views
+      ref.invalidate(branchesFutureProvider);
+      ref.invalidate(recommendedBranchesProvider);
+      ref.invalidate(myBrandBranchesFutureProvider);
+      if (_branchId != null) {
+        ref.invalidate(branchDetailFutureProvider(_branchId!));
+      }
 
       if (mounted) {
         setState(() {

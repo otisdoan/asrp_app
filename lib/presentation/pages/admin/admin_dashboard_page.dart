@@ -8,6 +8,7 @@ import '../../../data/models/analytics_model.dart';
 import '../../../providers/analytics_provider.dart';
 import '../../../providers/order_provider.dart';
 import '../../../core/utils/format_utils.dart';
+import 'all_transactions_page.dart';
 
 /// Admin Dashboard Page - Mobile layout with premium charts, metrics, and transaction details.
 /// Follows RULE: UI-only widgets, AppColors 100%, high visual aesthetics.
@@ -88,13 +89,33 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     final foodCostPct = summary.revenue > 0 ? (summary.foodCost / summary.revenue * 100).toStringAsFixed(0) : '0';
     final grossMarginPct = summary.revenue > 0 ? (summary.grossMargin / summary.revenue * 100).toStringAsFixed(0) : '0';
 
-    final List<Map<String, dynamic>> updatedOrderSources = apiData.orderSources.map((item) {
+    List<Map<String, dynamic>> updatedOrderSources = apiData.orderSources.map((item) {
       return {
         'source': item.source,
         'percentage': item.percentage,
         'value': FormatUtils.formatCurrency(item.value),
       };
     }).toList();
+
+    if (updatedOrderSources.isEmpty) {
+      updatedOrderSources = [
+        {
+          'source': 'Tại bàn (Kiosk/POS)',
+          'percentage': 0.0,
+          'value': '0đ',
+        },
+        {
+          'source': 'Đặt trực tuyến (App/Web)',
+          'percentage': 0.0,
+          'value': '0đ',
+        },
+        {
+          'source': 'Mang đi / Giao hàng',
+          'percentage': 0.0,
+          'value': '0đ',
+        },
+      ];
+    }
 
     return {
       'netSales': netSalesStr,
@@ -178,7 +199,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     final String wastageValueStr = FormatUtils.formatCurrency(totalWastageVal);
 
     // Map transactionBreakdown to wastageReasons
-    final List<Map<String, dynamic>> updatedWastageReasons = wastageData.transactionBreakdown.map((item) {
+    List<Map<String, dynamic>> updatedWastageReasons = wastageData.transactionBreakdown.map((item) {
       final double itemVal = item.value ?? 0.0;
       final double pct = totalWastageVal > 0 ? (itemVal / totalWastageVal) : 0.0;
       
@@ -188,9 +209,13 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       } else if (item.type == 'Deduction') {
         translatedReason = 'Khấu trừ bếp';
       } else if (item.type == 'Adjustment') {
-        translatedReason = 'Điều chỉnh kho';
+        translatedReason = 'Điều chỉnh kiểm kê';
       } else if (item.type == 'Import') {
         translatedReason = 'Nhập kho';
+      } else if (item.type == 'Restore' || item.type == 'Reconciliation') {
+        translatedReason = 'Hoàn kho / Nhận điều phối';
+      } else if (item.type == 'Expired' || item.type == 'Spoiled') {
+        translatedReason = 'Hết hạn / Hư hỏng';
       }
 
       return {
@@ -199,6 +224,17 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         'value': FormatUtils.formatCurrency(itemVal),
       };
     }).toList();
+
+    if (updatedWastageReasons.isEmpty) {
+      updatedWastageReasons = [
+        {'reason': 'Nhập kho', 'percentage': 0.0, 'value': '0đ'},
+        {'reason': 'Khấu trừ bếp', 'percentage': 0.0, 'value': '0đ'},
+        {'reason': 'Hoàn kho / Nhận điều phối', 'percentage': 0.0, 'value': '0đ'},
+        {'reason': 'Điều chỉnh kiểm kê', 'percentage': 0.0, 'value': '0đ'},
+        {'reason': 'Mất mát hao phí', 'percentage': 0.0, 'value': '0đ'},
+        {'reason': 'Hết hạn / Hư hỏng', 'percentage': 0.0, 'value': '0đ'},
+      ];
+    }
 
     // Map wastageItems to topWastedIngredients
     final List<Map<String, dynamic>> updatedTopWastedIngredients = wastageData.wastageItems.map((item) {
@@ -816,7 +852,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     SalesTrendModel trendData,
     AsyncValue<List<MockOrder>> ordersAsync,
   ) {
-    final List<double> chartData = trendData.items.map((e) => e.revenue / 1000000.0).toList();
+    final List<double> chartData = trendData.items.map((e) => e.revenue.toDouble()).toList();
     final List<String> labels = trendData.items.map((e) => e.label).toList();
 
     return Column(
@@ -850,14 +886,6 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   }
 
   Widget _buildNetSalesOverview(Map<String, dynamic> data) {
-    final String growth = _selectedTimeFilter == 'Hôm nay'
-        ? '+12.4%'
-        : _selectedTimeFilter == 'Tuần này'
-            ? '+14.2%'
-            : _selectedTimeFilter == 'Tháng này'
-                ? '+18.5%'
-                : '+15.4%'; // Default growth for custom range
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -867,11 +895,11 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 16,
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 14,
             offset: const Offset(0, 6),
           ),
         ],
@@ -879,44 +907,18 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Doanh thu ròng thực tế',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white70,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.trending_up, color: Colors.white, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      growth,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const Text(
+            'TỔNG DOANH THU THUẦN',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.white70,
+              letterSpacing: 1.0,
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
-            data['netSales']!,
+            data['netSales'] as String,
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
@@ -927,11 +929,11 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
           const SizedBox(height: 6),
           Text(
             _selectedTimeFilter == 'Hôm nay'
-                ? 'So với cùng kỳ hôm qua (30.1M)'
+                ? 'Báo cáo doanh thu hôm nay'
                 : _selectedTimeFilter == 'Tuần này'
-                    ? 'So với tuần trước (177.3M)'
+                    ? 'Báo cáo doanh thu tuần này'
                     : _selectedTimeFilter == 'Tháng này'
-                        ? 'So với tháng trước (711.2M)'
+                        ? 'Báo cáo doanh thu tháng này'
                         : 'Báo cáo khoảng thời gian tùy chọn',
             style: const TextStyle(
               fontSize: 11,
@@ -996,7 +998,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    '${val.toStringAsFixed(1)}M',
+                    FormatUtils.formatCompactAmount(val),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 8,
@@ -1128,8 +1130,8 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                   chartData.isEmpty || _selectedChartBarIndex >= chartData.length
                       ? 'Không có dữ liệu xu hướng'
                       : _selectedTimeFilter == 'Hôm nay'
-                          ? 'Khoảng thời gian ${labels[_selectedChartBarIndex]} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ'
-                          : 'Ngày ${labels[_selectedChartBarIndex]} đạt ${chartData[_selectedChartBarIndex].toStringAsFixed(1)} triệuđ',
+                          ? 'Khoảng thời gian ${labels[_selectedChartBarIndex]} đạt ${FormatUtils.formatCurrency(chartData[_selectedChartBarIndex])}'
+                          : 'Ngày ${labels[_selectedChartBarIndex]} đạt ${FormatUtils.formatCurrency(chartData[_selectedChartBarIndex])}',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1286,8 +1288,6 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
             final double pct = item['percentage'] as double;
             final String pctText = '${(pct * 100).toStringAsFixed(0)}%';
             Color barColor = AppColors.primary;
-            if (item['method'] == 'Chuyển khoản') barColor = AppColors.secondary;
-            if (item['method'] == 'Ví điện tử') barColor = AppColors.accent;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Column(
@@ -1333,6 +1333,26 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   }
 
   Widget _buildOrderSourceBreakdown(List<dynamic> sourcesList) {
+    final List<dynamic> effectiveSources = sourcesList.isNotEmpty
+        ? sourcesList
+        : [
+            {
+              'source': 'Tại bàn (Kiosk/POS)',
+              'percentage': 0.0,
+              'value': '0đ',
+            },
+            {
+              'source': 'Đặt trực tuyến (App/Web)',
+              'percentage': 0.0,
+              'value': '0đ',
+            },
+            {
+              'source': 'Mang đi / Giao hàng',
+              'percentage': 0.0,
+              'value': '0đ',
+            },
+          ];
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1358,11 +1378,10 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
             ),
           ),
           const SizedBox(height: 12),
-          ...sourcesList.map((item) {
+          ...effectiveSources.map((item) {
             final double pct = item['percentage'] as double;
             final String pctText = '${(pct * 100).toStringAsFixed(0)}%';
             Color barColor = AppColors.primary;
-            if (item['source'] == 'Đặt trực tuyến') barColor = AppColors.tertiary;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Column(
@@ -1488,8 +1507,6 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                   final double pct = item['percentage'] as double;
                   final String pctText = '${(pct * 100).toStringAsFixed(0)}%';
                   Color barColor = AppColors.primary;
-                  if (item['name'] == 'Đồ uống') barColor = AppColors.secondary;
-                  if (item['name'] == 'Món ăn kèm') barColor = AppColors.tertiary;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: Column(
@@ -1903,7 +1920,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            '${val.toStringAsFixed(1)}M',
+                            FormatUtils.formatCompactAmount(val),
                             style: const TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
@@ -2118,8 +2135,6 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                 final double pct = item['percentage'] as double;
                 final String pctText = '${(pct * 100).toStringAsFixed(0)}%';
                 Color barColor = AppColors.primary;
-                if (item['reason'] == 'Hao hụt bếp') barColor = AppColors.secondary;
-                if (item['reason'] == 'Mất mát hao phí') barColor = AppColors.tertiary;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Column(
@@ -2190,38 +2205,53 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...topWastedIngredients.map((item) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.remove_circle_outline_rounded, color: AppColors.error, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            item['name'] as String,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
+              if (topWastedIngredients.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(
+                    child: Text(
+                      'Chưa ghi nhận hao hụt nguyên liệu trong khoảng thời gian này.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
                       ),
-                      Text(
-                        '${item['qty']} (${item['value']})',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                );
-              }),
+                )
+              else
+                ...topWastedIngredients.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.remove_circle_outline_rounded, color: AppColors.error, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              item['name'] as String,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${item['qty']} (${item['value']})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
             ],
           ),
         ),
@@ -2259,8 +2289,11 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
             ),
             TextButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Hiển thị bộ lọc nâng cao tất cả các giao dịch.')),
+                final activeBranchId = _selectedBranchId ?? '';
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => AllTransactionsPage(initialBranchId: activeBranchId),
+                  ),
                 );
               },
               child: const Text(
@@ -2384,7 +2417,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '${(total / 1000).toStringAsFixed(0)}k',
+                            FormatUtils.formatCompactAmount(total),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -2406,7 +2439,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                               const Divider(color: AppColors.divider, height: 1),
                               const SizedBox(height: 12),
                               const Text(
-                                'Chi tiết đơn hàng:',
+                                'Chi tiết món ăn & Topping:',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
@@ -2415,23 +2448,81 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                               ),
                               const SizedBox(height: 8),
                               ...(order.items.map((item) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6.0),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                final hasToppings = item.extras != null && item.extras!.trim().isNotEmpty;
+                                final hasNote = item.note != null && item.note!.trim().isNotEmpty;
+                                final itemTotal = item.price * item.quantity;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        '${item.name} x${item.quantity}',
-                                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '${item.name} x${item.quantity}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            FormatUtils.formatCurrency(itemTotal),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        '${((item.price * item.quantity) / 1000).toStringAsFixed(0)}k',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
+                                      if (hasToppings) ...[
+                                        const SizedBox(height: 4),
+                                        ...item.extras!.split('\n').where((t) => t.trim().isNotEmpty).map((toppingLine) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(left: 6.0, top: 2.0),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.add_circle_outline_rounded, size: 12, color: AppColors.primary),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    toppingLine,
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: AppColors.textSecondary,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                      if (hasNote) ...[
+                                        const SizedBox(height: 4),
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 6.0),
+                                          child: Text(
+                                            'Ghi chú: ${item.note}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontStyle: FontStyle.italic,
+                                              color: AppColors.tertiary,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 );

@@ -118,27 +118,20 @@ class TopStoresSection extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final branch = branches[index];
 
-                // Calculate dynamic distance if user location is available
-                String displayDistance = branch.distance;
-                if (userLocation != null &&
-                    branch.latitude != null &&
-                    branch.longitude != null) {
-                  final meters = LocationService.distanceTo(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    branch.latitude!,
-                    branch.longitude!,
-                  );
-                  displayDistance = LocationService.formatDistance(meters);
-                } else if (displayDistance.isEmpty) {
-                  displayDistance = 'Gần đây';
-                }
+                // Calculate 100% exact branch distance
+                final displayDistance = LocationService.calculateBranchDistance(
+                  userLocation: userLocation,
+                  branchLat: branch.latitude,
+                  branchLng: branch.longitude,
+                  branchAddress: branch.address,
+                  fallbackDistance: branch.distance,
+                );
 
-                // Fallback for empty deliveryTime
-                String displayTime = branch.deliveryTime;
-                if (displayTime.isEmpty) {
-                  displayTime = '25 phút';
-                }
+                // Dynamic estimated delivery time based on distance
+                final displayTime = LocationService.calculateDeliveryTime(
+                  deliveryTime: branch.deliveryTime,
+                  distanceStr: displayDistance,
+                );
 
                 return _StoreCard(
                   name: branch.name,
@@ -151,6 +144,8 @@ class TopStoresSection extends ConsumerWidget {
                   image: branch.imageUrl,
                   adLabel: branch.adLabel ?? '',
                   branchId: branch.id,
+                  status: branch.status,
+                  isActive: branch.isActive,
                 );
               },
             ),
@@ -172,6 +167,8 @@ class _StoreCard extends StatelessWidget {
   final String image;
   final String adLabel;
   final String? branchId;
+  final String? status;
+  final bool? isActive;
 
   const _StoreCard({
     required this.name,
@@ -184,6 +181,8 @@ class _StoreCard extends StatelessWidget {
     required this.image,
     required this.adLabel,
     this.branchId,
+    this.status,
+    this.isActive,
   });
 
   @override
@@ -329,17 +328,51 @@ class _StoreCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                     ],
-                    // Store name
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        height: 1.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // Store name + status badge
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (status?.toLowerCase() == 'busy')
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7EC),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
+                            ),
+                            child: const Text(
+                              'Quán bận',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.accent),
+                            ),
+                          )
+                        else if (isActive == false || status?.toLowerCase() == 'closed')
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorContainer,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+                            ),
+                            child: const Text(
+                              'Tạm đóng',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.error),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     // Bottom info: ad label · time · distance

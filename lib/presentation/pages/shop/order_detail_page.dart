@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
 import '../../../providers/branch_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../data/models/branch_model.dart';
 import '../../../data/repositories/order_repository.dart';
 import 'store_detail_page.dart';
@@ -28,12 +30,23 @@ class OrderDetailPage extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
+  Timer? _refreshTimer;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(orderProvider.notifier).fetchOrderDetail(widget.orderId);
     });
+    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      ref.read(orderProvider.notifier).fetchOrderDetail(widget.orderId);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -121,6 +134,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
               // ─── Status Informative Banner ───────────────────────────────────
               _buildStatusBanner(order, pickupTimeStr),
+              const SizedBox(height: 12),
+
+              // ─── Customer Buyer Info Card ─────────────────────────────────────
+              _buildCustomerInfoCard(order),
               const SizedBox(height: 12),
 
               // ─── Pickup QR Code Card ──────────────────────────────────────────
@@ -423,6 +440,55 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
   }
 
+  Widget _buildCustomerInfoCard(MockOrder order) {
+    final custName = order.customerName ??
+        ref.watch(currentUserProvider)?.displayName ??
+        ref.watch(currentUserProvider)?.fullName ??
+        'Khách hàng';
+    final custPhone = order.customerPhone ??
+        ref.watch(currentUserProvider)?.phone ??
+        'Chưa cập nhật';
+    final custAddress = order.customerAddress ??
+        ref.watch(userAddressNameProvider) ??
+        'TP. Hồ Chí Minh';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.person_pin_circle_rounded,
+                  color: AppColors.primary, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Thông tin người mua & địa điểm',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildMetadataRow('Người đặt món', custName),
+          const SizedBox(height: 8),
+          _buildMetadataRow('Số điện thoại', custPhone),
+          const SizedBox(height: 8),
+          _buildMetadataRow('Địa điểm / Vị trí', custAddress),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPickupQrCard(MockOrder order) {
     if (order.status == MockOrderStatus.cancelled ||
         order.status == MockOrderStatus.completed) {
@@ -703,40 +769,53 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               );
             },
           ),
-          if (order.storeNote != null &&
-              order.storeNote!.trim().isNotEmpty) ...[
-            const Divider(height: 1, color: AppColors.outlineVariant),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.bgWarm.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.sticky_note_2_rounded,
-                        size: 16, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Ghi chú đơn hàng: ${order.storeNote}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
-                        ),
+          Builder(
+            builder: (context) {
+              if (order.storeNote == null || order.storeNote!.trim().isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final noteCleaned = order.storeNote!
+                  .replaceAll(RegExp(r'Người mua:\s*[^|]+\|\s*SĐT:\s*[^|]+\|\s*Địa chỉ:\s*.*', caseSensitive: false), '')
+                  .trim();
+              if (noteCleaned.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                children: [
+                  const Divider(height: 1, color: AppColors.outlineVariant),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgWarm.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.sticky_note_2_rounded,
+                              size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Ghi chú đơn hàng: $noteCleaned',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -904,36 +983,45 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   Widget _buildMetadataRow(String label, String value,
       {bool isCopyable = false, String? copyValue}) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
-        Row(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary),
-            ),
-            if (isCopyable) ...[
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: copyValue ?? value));
-                  TopNotification.show(
-                    context,
-                    message: 'Đã sao chép mã đơn hàng vào bộ nhớ tạm!',
-                  );
-                },
-                child: const Icon(Icons.copy_rounded,
-                    size: 14, color: AppColors.textTertiary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary),
+                ),
               ),
+              if (isCopyable) ...[
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: copyValue ?? value));
+                    TopNotification.show(
+                      context,
+                      message: 'Đã sao chép mã đơn hàng vào bộ nhớ tạm!',
+                    );
+                  },
+                  child: const Icon(Icons.copy_rounded,
+                      size: 14, color: AppColors.textTertiary),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );

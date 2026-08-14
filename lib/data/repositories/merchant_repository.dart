@@ -15,6 +15,8 @@ class MerchantRepository {
     required String branchName,
     required String phone,
     required String address,
+    double? latitude,
+    double? longitude,
   }) async {
     final payload = {
       "brandName": brandName,
@@ -27,6 +29,8 @@ class MerchantRepository {
         "name": branchName,
         "phone": phone,
         "address": address,
+        if (latitude != null) "latitude": latitude,
+        if (longitude != null) "longitude": longitude,
       }
     };
 
@@ -92,8 +96,8 @@ class MerchantRepository {
       print('[MerchantRepository] Error message: ${e.message}');
       print('[MerchantRepository] --- END API GET MY MERCHANT APPLICATION (ERROR) ---');
 
-      if (e.response?.statusCode == 404) {
-        return null; // Không tìm thấy đơn đăng ký nào
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 403 || e.response?.statusCode == 401) {
+        return null; // Không tìm thấy đơn đăng ký nào hoặc không có quyền đối tác
       }
 
       final serverDetail = e.response?.data?['detail'] ?? e.response?.data?['message'];

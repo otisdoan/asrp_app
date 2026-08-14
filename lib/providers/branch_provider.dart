@@ -19,6 +19,7 @@ final branchDetailFutureProvider = FutureProvider.family<BranchDetailModel, Stri
 });
 
 final userLocationProvider = StateProvider<Position?>((ref) => null);
+final userAddressNameProvider = StateProvider<String?>((ref) => null);
 
 final searchAutocompleteProvider = FutureProvider.family<List<String>, String>((ref, query) async {
   final repository = ref.watch(branchRepositoryProvider);

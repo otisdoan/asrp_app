@@ -107,6 +107,7 @@ class MerchantDish {
   final String imageUrl;
   final String description;
   final String availability; // 'available' | 'sold_out_today' | 'disabled'
+  final int preparationTimeMinutes;
   final List<MerchantOptionGroup> optionGroups;
 
   const MerchantDish({
@@ -117,6 +118,7 @@ class MerchantDish {
     this.imageUrl = '',
     this.description = '',
     this.availability = 'available',
+    this.preparationTimeMinutes = 15,
     this.optionGroups = const [],
   });
 
@@ -128,6 +130,7 @@ class MerchantDish {
     String? imageUrl,
     String? description,
     String? availability,
+    int? preparationTimeMinutes,
     List<MerchantOptionGroup>? optionGroups,
   }) {
     return MerchantDish(
@@ -138,6 +141,7 @@ class MerchantDish {
       imageUrl: imageUrl ?? this.imageUrl,
       description: description ?? this.description,
       availability: availability ?? this.availability,
+      preparationTimeMinutes: preparationTimeMinutes ?? this.preparationTimeMinutes,
       optionGroups: optionGroups ?? this.optionGroups,
     );
   }
@@ -200,7 +204,17 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
       // 1. Fetch available branches for current merchant's brand
       final branchRepo = BranchRepository();
       final currentUser = _ref.read(currentUserProvider);
-      final branches = await branchRepo.getBranches(brandId: currentUser?.brandId);
+
+      List<BranchListItemModel> branches = [];
+      try {
+        branches = await branchRepo.getMyBrandBranches();
+      } catch (e) {
+        print('[MerchantMenuNotifier] getMyBrandBranches error: $e');
+      }
+
+      if (branches.isEmpty) {
+        branches = await branchRepo.getBranches(brandId: currentUser?.brandId);
+      }
 
       if (branches.isEmpty) {
         throw Exception('Không tìm thấy chi nhánh nào. Vui lòng đăng ký chi nhánh trước.');
@@ -208,7 +222,9 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
 
       // 2. Select initial branch ID
       String? branchId = state.selectedBranchId;
-      if (branchId == null || branchId.isEmpty || !branches.any((b) => b.id == branchId)) {
+      if (currentUser?.branchId != null && currentUser!.branchId!.isNotEmpty) {
+        branchId = currentUser.branchId;
+      } else if (branchId == null || branchId.isEmpty || !branches.any((b) => b.id == branchId)) {
         final registrationData = _ref.read(branchRegistrationProvider);
         final firstApprovedId = registrationData.approvedFirstBranchId;
         if (firstApprovedId != null && firstApprovedId.isNotEmpty && branches.any((b) => b.id == firstApprovedId)) {
@@ -317,6 +333,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
             imageUrl: (rawItem['imageUrl'] ?? rawItem['ImageUrl'])?.toString() ?? '',
             description: (rawItem['description'] ?? rawItem['Description'])?.toString() ?? '',
             availability: (rawItem['availability'] ?? rawItem['Availability'])?.toString() ?? 'available',
+            preparationTimeMinutes: (rawItem['preparationTimeMinutes'] ?? rawItem['PreparationTimeMinutes'] ?? 15) as int? ?? 15,
             optionGroups: optionGroups,
           ));
         }
@@ -332,7 +349,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
         selectedId = categories.isNotEmpty ? categories.first.id : null;
       }
       
-      state = MerchantMenuState(
+      state = state.copyWith(
         categories: categories,
         categoryDishes: categoryDishes,
         selectedCategoryId: selectedId,
@@ -369,21 +386,13 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
       );
       
       final data = response.data['data'] ?? response.data;
-      final newCat = MerchantCategory(
-        id: data['id'].toString(),
-        name: data['name'].toString(),
-        priority: data['priority'] as int? ?? priority,
-        isActive: data['isActive'] as bool? ?? true,
-      );
-      
-      state = state.copyWith(
-        categories: [...state.categories, newCat],
-        categoryDishes: {
-          ...state.categoryDishes,
-          newCat.id: [],
-        },
-        selectedCategoryId: state.selectedCategoryId ?? newCat.id,
-      );
+      final newCatId = (data['id'] ?? data['Id'])?.toString();
+
+      await fetchMenuBuilderDetails();
+
+      if (newCatId != null && state.categories.any((c) => c.id == newCatId)) {
+        state = state.copyWith(selectedCategoryId: newCatId);
+      }
     } catch (e) {
       print('[MerchantMenuNotifier] Error adding category: $e');
       rethrow;
@@ -403,12 +412,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
         },
       );
       
-      final updatedList = state.categories.map((c) {
-        if (c.id == id) return c.copyWith(name: name);
-        return c;
-      }).toList();
-      
-      state = state.copyWith(categories: updatedList);
+      await fetchMenuBuilderDetails();
     } catch (e) {
       print('[MerchantMenuNotifier] Error updating category: $e');
       rethrow;
@@ -423,19 +427,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
         '/branches/$_branchId/menu-builder/categories/$id',
       );
       
-      final updatedCats = state.categories.where((c) => c.id != id).toList();
-      final updatedDishes = Map<String, List<MerchantDish>>.from(state.categoryDishes)..remove(id);
-      
-      String? newSelected = state.selectedCategoryId;
-      if (newSelected == id) {
-        newSelected = updatedCats.isNotEmpty ? updatedCats.first.id : null;
-      }
-      
-      state = state.copyWith(
-        categories: updatedCats,
-        categoryDishes: updatedDishes,
-        selectedCategoryId: newSelected,
-      );
+      await fetchMenuBuilderDetails();
     } catch (e) {
       print('[MerchantMenuNotifier] Error deleting category: $e');
       rethrow;
@@ -473,6 +465,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
         '/branches/$_branchId/menu-builder/categories/reorder',
         data: payload,
       );
+      await fetchMenuBuilderDetails();
     } catch (e) {
       print('[MerchantMenuNotifier] Error reordering categories: $e');
       await fetchMenuBuilderDetails();
@@ -594,6 +587,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
           'imageUrl': dish.imageUrl,
           'description': dish.description,
           'availability': dish.availability,
+          'preparationTimeMinutes': dish.preparationTimeMinutes,
           'categoryId': categoryId,
         },
       );
@@ -624,6 +618,7 @@ class MerchantMenuNotifier extends StateNotifier<MerchantMenuState> {
           'imageUrl': dish.imageUrl,
           'description': dish.description,
           'availability': dish.availability,
+          'preparationTimeMinutes': dish.preparationTimeMinutes,
           'categoryId': categoryId,
         },
       );

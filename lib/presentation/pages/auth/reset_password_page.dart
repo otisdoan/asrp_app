@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../data/repositories/auth_repository.dart';
 
 /// Reset Password Page — clean, professional design.
-/// User enters new password after receiving reset code.
-/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
 class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+  final String? phone;
+  final String? token;
+  const ResetPasswordPage({super.key, this.phone, this.token});
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
@@ -16,6 +18,7 @@ class ResetPasswordPage extends StatefulWidget {
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _authRepository = AuthRepository();
   bool _passwordVisible = false;
   bool _confirmVisible = false;
   bool _loading = false;
@@ -51,12 +54,30 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      setState(() {
-        _loading = false;
-        _success = true;
-      });
+    try {
+      await _authRepository.resetPassword(
+        phone: widget.phone ?? '',
+        token: widget.token ?? '',
+        newPassword: pw,
+        confirmPassword: _confirmController.text,
+      );
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _success = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          if (e is DioException) {
+            _error = e.response?.data['message'] ?? 'Đặt lại mật khẩu thất bại.';
+          } else {
+            _error = 'Lỗi đặt lại mật khẩu: $e';
+          }
+        });
+      }
     }
   }
 

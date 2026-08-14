@@ -381,7 +381,7 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
       try {
         final menuResponse = await _dioClient.dio.get('/branches/$branchId/menu-builder');
         final rawMenu = menuResponse.data;
-        print('[InventoryNotifier] rawMenu type: ${rawMenu.runtimeType}, keys: ${rawMenu is Map ? (rawMenu as Map).keys.toList() : "N/A"}');
+        print('[InventoryNotifier] rawMenu type: ${rawMenu.runtimeType}, keys: ${rawMenu is Map ? rawMenu.keys.toList() : "N/A"}');
         
         final List<dynamic> menuGroups = rawMenu is List 
             ? rawMenu 
@@ -479,9 +479,10 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
         transactions: transactionsList,
         isInitialized: true,
       );
-      if (branchId != null) {
+      if (branchId.isNotEmpty) {
         _ref.invalidate(branchInventoriesProvider(branchId));
       }
+      _ref.invalidate(brandDashboardFutureProvider);
     } catch (e) {
       print('[InventoryNotifier] Error loading inventory data: $e');
       state = state.copyWith(isInitialized: true);
@@ -502,7 +503,8 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
         final ingredientId = item['ingredientId'] as String;
         final quantity = item['quantity'] as double;
 
-        final ing = state.ingredients.firstWhere((e) => e.id == ingredientId);
+        final ing = state.ingredients.where((e) => e.id == ingredientId).firstOrNull;
+        final minStockLevel = ing?.minStockLevel ?? 10.0;
 
         await _dioClient.dio.post(
           '/inventory/import',
@@ -510,7 +512,7 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
             'branchId': branchId,
             'ingredientId': ingredientId,
             'quantity': quantity,
-            'minStockLevel': ing.minStockLevel,
+            'minStockLevel': minStockLevel,
           },
         );
       }
@@ -531,8 +533,9 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
         final actualStock = audit['actualStock'] as double;
         final reason = audit['reason'] as String;
 
-        final ing = state.ingredients.firstWhere((e) => e.id == ingredientId);
-        final diff = actualStock - ing.currentStock;
+        final ing = state.ingredients.where((e) => e.id == ingredientId).firstOrNull;
+        final currentStock = ing?.currentStock ?? 0.0;
+        final diff = actualStock - currentStock;
 
         if (diff != 0) {
           await _dioClient.dio.post(
@@ -586,11 +589,11 @@ class InventoryNotifier extends StateNotifier<InventoryState> {
       }
 
       for (var newItem in items) {
-        final ing = state.ingredients.firstWhere((e) => e.id == newItem.ingredientId, orElse: () => state.ingredients.first);
+        final ing = state.ingredients.where((e) => e.id == newItem.ingredientId).firstOrNull;
         double quantityToSend = newItem.quantityNeeded;
-        if (ing.unit == 'kg' && newItem.unit == 'gram') {
+        if (ing != null && ing.unit == 'kg' && newItem.unit == 'gram') {
           quantityToSend = newItem.quantityNeeded / 1000.0;
-        } else if ((ing.unit == 'litre' || ing.unit == 'lít') && newItem.unit == 'ml') {
+        } else if (ing != null && (ing.unit == 'litre' || ing.unit == 'lít') && newItem.unit == 'ml') {
           quantityToSend = newItem.quantityNeeded / 1000.0;
         }
 

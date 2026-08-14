@@ -13,179 +13,247 @@ import 'customer_qr_scanner_dialog.dart';
 class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final TextEditingController? searchController;
   final ValueChanged<String>? onSearchChanged;
+  final VoidCallback? onChangeLocationTap;
 
   const ShopAppBar({
     super.key,
     this.searchController,
     this.onSearchChanged,
+    this.onChangeLocationTap,
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(60);
+  Size get preferredSize => const Size.fromHeight(92);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoggedIn = ref.watch(isAuthenticatedProvider);
     final user = ref.watch(currentUserProvider);
     final favoriteCount = ref.watch(favoriteShopsProvider).length;
+    final userLocation = ref.watch(userLocationProvider);
+    final userAddress = ref.watch(userAddressNameProvider);
+
     final initials = user != null && user.displayName.isNotEmpty
         ? user.displayName.trim().substring(0, 1).toUpperCase()
         : 'U';
 
+    String locationText = 'Nhập địa chỉ giao hàng của bạn...';
+    bool hasAddress = false;
+    if (userAddress != null && userAddress.isNotEmpty) {
+      locationText = userAddress;
+      hasAddress = true;
+    } else if (userLocation != null) {
+      locationText = 'Đang tra cứu địa chỉ thực tế...';
+    }
+
     return AppBar(
-      backgroundColor: AppColors.primary, // Brand Primary Color (Cam đỏ trầm)
+      backgroundColor: AppColors.primary,
       elevation: 0,
       automaticallyImplyLeading: false,
       titleSpacing: 8,
-      title: Row(
+      toolbarHeight: 92,
+      title: Column(
         children: [
-          // 1. Scanner Icon (Left)
+          // 0. Location Selector Bar (Top)
           GestureDetector(
-            onTap: () {
-              final role = user?.role.toLowerCase() ?? '';
-              if (role == 'staff' || role == 'manager' || role == 'admin') {
-                StaffQrScannerDialog.show(
-                  context,
-                  onOrderScanned: (orderId) {
-                    OrderHandoverDialog.show(context, orderId);
-                  },
-                );
-              } else {
-                CustomerQrScannerDialog.show(context);
-              }
-            },
+            onTap: onChangeLocationTap,
             child: Container(
-              width: 38,
-              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.crop_free, // Square scanner bracket outline icon
-                color: Colors.white,
-                size: 20,
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_rounded, color: Colors.white, size: 14),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Vị trí:',
+                    style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      locationText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      hasAddress ? 'Đổi địa chỉ' : 'Nhập địa chỉ',
+                      style: const TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(height: 6),
 
-          // 2. Search Bar (Center)
-          Expanded(
-            child: Container(
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+          // Main Header Row
+          Row(
+            children: [
+              // 1. Scanner Icon (Left)
+              GestureDetector(
+                onTap: () {
+                  final role = user?.role.toLowerCase() ?? '';
+                  if (role == 'staff' || role == 'manager' || role == 'admin') {
+                    StaffQrScannerDialog.show(
+                      context,
+                      onOrderScanned: (orderId) {
+                        OrderHandoverDialog.show(context, orderId);
+                      },
+                    );
+                  } else {
+                    CustomerQrScannerDialog.show(context);
+                  }
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.crop_free,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: GestureDetector(
-                onTap: () => context.push('/search'),
-                child: Row(
+              const SizedBox(width: 8),
+
+              // 2. Search Bar (Center)
+              Expanded(
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: GestureDetector(
+                    onTap: () => context.push('/search'),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.search,
+                          color: Colors.grey[600],
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        const Expanded(
+                          child: _AnimatedSearchPlaceholder(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 3. Red Heart Favorite Shops Button
+              GestureDetector(
+                onTap: () => context.push(AppConstants.routeFavoriteShops),
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Icon(
-                      Icons.search,
-                      color: Colors.grey[600],
-                      size: 18,
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFE24B4A), Color(0xFFFF2A55)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 17,
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 6),
-                    const Expanded(
-                      child: _AnimatedSearchPlaceholder(),
-                    ),
+                    if (favoriteCount > 0)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 15,
+                            minHeight: 15,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$favoriteCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
+              const SizedBox(width: 8),
 
-          // 3. Red Heart Favorite Shops Button
-          GestureDetector(
-            onTap: () => context.push(AppConstants.routeFavoriteShops),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
+              // 4. Profile Avatar (Far Right)
+              GestureDetector(
+                onTap: () => context.push(
+                  isLoggedIn ? AppConstants.routeProfile : AppConstants.routeLogin,
+                ),
+                child: Container(
                   width: 34,
                   height: 34,
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFE24B4A), Color(0xFFFF2A55)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppColors.secondary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                  child: ClipOval(
+                    child: isLoggedIn
+                        ? Center(
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                   ),
                 ),
-                if (favoriteCount > 0)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$favoriteCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // 4. Profile Avatar (Far Right)
-          GestureDetector(
-            onTap: () => context.push(
-              isLoggedIn ? AppConstants.routeProfile : AppConstants.routeLogin,
-            ),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: AppColors.secondary, // Brand secondary color
-                shape: BoxShape.circle,
               ),
-              child: ClipOval(
-                child: isLoggedIn
-                    ? Center(
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-              ),
-            ),
+            ],
           ),
         ],
       ),

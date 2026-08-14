@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/branch_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/topping_selection_model.dart';
@@ -46,13 +47,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _isFirstLoad = true;
   bool _useDxCoins = false;
   int _previewDiscount = 0;
-  int? _previewSubtotal;
-  int? _previewTotal;
   final OrderRepository _orderRepository = OrderRepository();
 
   bool _isExpanded = false;
 
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  late TextEditingController _addressController;
+
   int get _serviceFee => 0;
+
+  double _parseDistanceKm(String distanceStr) {
+    if (distanceStr.isEmpty) return 0.0;
+    final lower = distanceStr.toLowerCase().trim();
+    if (lower.contains('km')) {
+      final numStr = lower.replaceAll('km', '').trim();
+      return double.tryParse(numStr) ?? 0.0;
+    } else if (lower.contains('m')) {
+      final numStr = lower.replaceAll('m', '').trim();
+      final meters = double.tryParse(numStr) ?? 0.0;
+      return meters / 1000.0;
+    }
+    return double.tryParse(lower) ?? 0.0;
+  }
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
@@ -72,7 +89,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   BranchCart _getBranchCart(CartState cart) {
     final targetBranchId = widget.branchId ?? cart.branchId ?? 'default_branch';
-    return cart.carts[targetBranchId] ?? (cart.carts.isNotEmpty ? cart.carts.values.first : const BranchCart());
+    return cart.carts[targetBranchId] ??
+        (cart.carts.isNotEmpty ? cart.carts.values.first : const BranchCart());
   }
 
   Map<String, dynamic> _buildOrderPayload(CartState cart,
@@ -88,13 +106,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final branchCart = _getBranchCart(cart);
 
+    final custName = _nameController.text.trim();
+    final custPhone = _phoneController.text.trim();
+    final custAddress = _addressController.text.trim();
+
+    String combinedNote =
+        "Người mua: $custName | SĐT: $custPhone | Địa chỉ: $custAddress";
+    if (branchCart.note != null && branchCart.note!.isNotEmpty) {
+      combinedNote += " | Ghi chú: ${branchCart.note}";
+    }
+
     return {
-      "branchId": widget.branchId ??
-          branchCart.branchId,
+      "branchId": widget.branchId ?? branchCart.branchId,
       "pickupTime": selectedTime,
-      "items": branchCart.items
-          .where((item) => isUuid(item.menuItemId))
-          .map((item) {
+      "customerName": custName,
+      "customerPhone": custPhone,
+      "customerAddress": custAddress,
+      "items":
+          branchCart.items.where((item) => isUuid(item.menuItemId)).map((item) {
         String? sizeId;
         if (item.sizeId != null && isUuid(item.sizeId)) {
           sizeId = item.sizeId;
@@ -123,7 +152,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         };
       }).toList(),
       "combos": [],
-      "note": branchCart.note,
+      "note": combinedNote,
       "promotionId": null
     };
   }
@@ -151,9 +180,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             _selectedPickupTime = _availablePickupTimes.first;
           }
           _previewDiscount = (response['discountAmount'] as num?)?.toInt() ?? 0;
-          _previewSubtotal = (response['subtotal'] as num?)?.toInt();
-          _previewTotal = (response['finalAmount'] as num?)?.toInt() ??
-              (response['totalAmount'] as num?)?.toInt();
           _isLoading = false;
           _isFirstLoad = false;
         });
@@ -176,9 +202,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   void initState() {
     super.initState();
+    final user = ref.read(currentUserProvider);
+    final userAddress = ref.read(userAddressNameProvider);
+
+    _nameController = TextEditingController(
+        text: user?.fullName ?? user?.displayName ?? 'Khách hàng');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
+    _addressController =
+        TextEditingController(text: userAddress ?? 'TP. Hồ Chí Minh');
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchOrderPreview();
     });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    super.dispose();
   }
 
   @override
@@ -222,8 +265,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final userPoints = user?.points ?? 0;
     final maxUsableDx = min(userPoints, subtotal);
     final dxDiscount = _useDxCoins ? maxUsableDx : 0;
-    final total =
-        (subtotal - _previewDiscount - dxDiscount + _serviceFee).clamp(0, 99999999);
+    final total = (subtotal - _previewDiscount - dxDiscount + _serviceFee)
+        .clamp(0, 99999999);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -232,11 +275,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           // ─── App Bar ───────────────────────────────────────────
           _buildAppBar(context),
 
+          // ─── Warning Banner (> 10 km) ──────────────────────────
+          SliverToBoxAdapter(child: _buildDistanceWarningBanner()),
+
           // ─── Order Summary ─────────────────────────────────────
           SliverToBoxAdapter(child: _buildOrderSummary(branchCart.items)),
 
           // ─── Pickup Time ───────────────────────────────────────
           SliverToBoxAdapter(child: _buildPickupTime()),
+
+          // ─── Customer Info Section ─────────────────────────────
+          SliverToBoxAdapter(child: _buildCustomerInfoSection()),
 
           // ─── Payment Method ────────────────────────────────────
           SliverToBoxAdapter(child: _buildPaymentMethod()),
@@ -245,7 +294,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           SliverToBoxAdapter(child: _buildDxRedemptionCard(user, subtotal)),
 
           // ─── Price Breakdown ───────────────────────────────────
-          SliverToBoxAdapter(child: _buildPriceBreakdown(subtotal, total, dxDiscount)),
+          SliverToBoxAdapter(
+              child: _buildPriceBreakdown(subtotal, total, dxDiscount)),
 
           // ─── Terms ─────────────────────────────────────────────
           SliverToBoxAdapter(child: _buildTerms()),
@@ -256,6 +306,56 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       // ─── Bottom Confirm Button ─────────────────────────────────
       bottomNavigationBar: _buildBottomBar(cart, total),
+    );
+  }
+
+  // ─── Warning Banner (> 10 km) ──────────────────────────────────────────
+  Widget _buildDistanceWarningBanner() {
+    final distanceKm = _parseDistanceKm(widget.distance);
+    if (distanceKm <= 10.0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFFCA5A5), width: 1.5),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFDC2626), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CẢNH BÁO KHOẢNG CÁCH XA',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF991B1B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Chi nhánh này cách vị trí của bạn ${widget.distance}. Việc tự đến nhận món hoặc di chuyển có thể mất nhiều thời gian hơn dự kiến!',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7F1D1D),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -851,8 +951,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         finalDT = maxDateTime;
                       }
                       setState(() {
-                        _selectedPickupTime =
-                            _dateTimeToIsoUtcString(finalDT);
+                        _selectedPickupTime = _dateTimeToIsoUtcString(finalDT);
                       });
                     },
                   ),
@@ -929,6 +1028,215 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  void _showEditCustomerInfoDialog() {
+    final nameEditController = TextEditingController(text: _nameController.text);
+    final phoneEditController = TextEditingController(text: _phoneController.text);
+    final addressEditController = TextEditingController(text: _addressController.text);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Sửa thông tin người nhận',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Họ và tên người mua',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: nameEditController,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text('Số điện thoại liên hệ',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: phoneEditController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text('Địa điểm / Địa chỉ nhận món',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: addressEditController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _nameController.text = nameEditController.text.trim();
+                _phoneController.text = phoneEditController.text.trim();
+                _addressController.text = addressEditController.text.trim();
+              });
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Lưu thay đổi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Customer Info Section ──────────────────────────────────────────────
+  Widget _buildCustomerInfoSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Thông tin người đặt',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              GestureDetector(
+                onTap: _showEditCustomerInfoDialog,
+                child: const Text(
+                  'Sửa',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+              children: [
+                const TextSpan(
+                  text: 'Họ và tên: ',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500),
+                ),
+                TextSpan(
+                  text: _nameController.text.isNotEmpty
+                      ? _nameController.text
+                      : 'Khách hàng',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+              children: [
+                const TextSpan(
+                  text: 'Số điện thoại: ',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500),
+                ),
+                TextSpan(
+                  text: _phoneController.text.isNotEmpty
+                      ? _phoneController.text
+                      : 'Chưa cập nhật',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+              children: [
+                const TextSpan(
+                  text: 'Địa điểm: ',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500),
+                ),
+                TextSpan(
+                  text: _addressController.text.isNotEmpty
+                      ? _addressController.text
+                      : 'TP. Hồ Chí Minh',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: AppColors.outlineVariant),
+        ],
+      ),
+    );
+  }
+
   // ─── Payment Method ────────────────────────────────────────────────────
   Widget _buildPaymentMethod() {
     return Padding(
@@ -945,6 +1253,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           ),
           const SizedBox(height: 14),
+
           // QR Payment method (only option)
           Container(
             width: double.infinity,
@@ -1042,7 +1351,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 color: Color(0xFFF59E0B),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.stars_rounded, color: Colors.white, size: 20),
+              child: const Icon(Icons.stars_rounded,
+                  color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1073,7 +1383,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
             Switch(
               value: _useDxCoins,
-              activeColor: const Color(0xFFD97706),
+              activeThumbColor: const Color(0xFFD97706),
               onChanged: (val) {
                 setState(() {
                   _useDxCoins = val;
@@ -1217,6 +1527,176 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   // ─── Bottom Confirm Button ─────────────────────────────────────────────
   Future<void> _handleConfirmCheckout(CartState cart, int total) async {
+    // 1. Confirm address & customer info dialog
+    final addressConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.location_on_rounded, color: AppColors.primary, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Xác nhận địa điểm đặt đơn',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Vui lòng kiểm tra lại thông tin người đặt và địa điểm nhận món trước khi tiến hành thanh toán:',
+              style: TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.bgWarm,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+                      children: [
+                        const TextSpan(
+                          text: 'Họ và tên: ',
+                          style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500),
+                        ),
+                        TextSpan(
+                          text: _nameController.text.isNotEmpty
+                              ? _nameController.text
+                              : 'Khách hàng',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+                      children: [
+                        const TextSpan(
+                          text: 'Số điện thoại: ',
+                          style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500),
+                        ),
+                        TextSpan(
+                          text: _phoneController.text.isNotEmpty
+                              ? _phoneController.text
+                              : 'Chưa cập nhật',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+                      children: [
+                        const TextSpan(
+                          text: 'Địa điểm: ',
+                          style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500),
+                        ),
+                        TextSpan(
+                          text: _addressController.text.isNotEmpty
+                              ? _addressController.text
+                              : 'TP. Hồ Chí Minh',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy / Kiểm tra lại',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Xác nhận & Đặt hàng'),
+          ),
+        ],
+      ),
+    );
+    if (addressConfirmed != true) return;
+
+    // 2. Distance warning dialog (> 10km)
+    final distanceKm = _parseDistanceKm(widget.distance);
+    if (distanceKm > 10.0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 26),
+              SizedBox(width: 8),
+              Text(
+                'Khoảng cách quá xa!',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(
+            'Chi nhánh này cách vị trí của bạn ${widget.distance} (trên 10 km).\n\nBạn có chắc chắn muốn tiếp tục đặt hàng không?',
+            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy bỏ',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Tiếp tục đặt đơn'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -1262,7 +1742,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
 
       // 4. Clear cart after ordering successfully
-      final targetBranchId = widget.branchId ?? _getBranchCart(cart).branchId ?? 'default_branch';
+      final targetBranchId =
+          widget.branchId ?? _getBranchCart(cart).branchId ?? 'default_branch';
       ref.read(cartProvider.notifier).clearBranchCart(targetBranchId);
 
       // Refresh orders list to include the newly placed order

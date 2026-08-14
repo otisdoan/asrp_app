@@ -249,7 +249,7 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
-                    value: selectedUnit,
+                    initialValue: selectedUnit,
                     decoration: InputDecoration(
                       labelText: 'Đơn vị',
                       labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
@@ -449,7 +449,7 @@ class _StockImportPageState extends ConsumerState<StockImportPage> {
                                           value: sup,
                                           child: Text(sup),
                                         );
-                                      }).toList(),
+                                      }),
                                       const DropdownMenuItem<String>(
                                         value: '__ADD_NEW__',
                                         child: Row(

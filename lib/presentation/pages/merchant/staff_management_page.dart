@@ -101,7 +101,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
     final registration = ref.read(branchRegistrationProvider);
     final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
         user?.role.toLowerCase() == 'admin';
-    final isSuperAdmin = isBrandOwner;
+    final isSuperAdmin = isBrandOwner && _realBranches.length > 1;
 
     try {
       if (isSuperAdmin) {
@@ -146,7 +146,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
     final registration = ref.watch(branchRegistrationProvider);
     final isBrandOwner = user?.role.toLowerCase() == 'superadmin' ||
         user?.role.toLowerCase() == 'admin';
-    final isSuperAdmin = isBrandOwner;
+    final isSuperAdmin = isBrandOwner && _realBranches.length > 1;
 
     // Chi nhánh của Admin/Manager
     String adminBranch = 'Quận 1';
@@ -230,7 +230,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
           
           String normalizedPhone = cleanPhone;
           if (normalizedPhone.startsWith('84')) {
-            normalizedPhone = '0' + normalizedPhone.substring(2);
+            normalizedPhone = '0${normalizedPhone.substring(2)}';
           }
           final matchNormalized = normalizedPhone.contains(cleanQuery);
           
@@ -315,7 +315,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
           borderRadius: BorderRadius.circular(26),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
+              color: AppColors.primary.withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -364,7 +364,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
           border: Border.all(color: const Color(0xFFF0F1F3)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -510,7 +510,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
         border: Border.all(color: const Color(0xFFF0F1F3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.015),
+            color: Colors.black.withValues(alpha: 0.015),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -529,7 +529,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: avatarGradient.colors.last.withOpacity(0.2),
+                    color: avatarGradient.colors.last.withValues(alpha: 0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 3),
                   ),
@@ -859,7 +859,6 @@ class _StaffEditorSheetContentState
   late TextEditingController _passwordController;
   late String _selectedRole;
   late String _selectedBranch;
-  bool _passwordVisible = false;
 
   String? _resolvedUserId;
   bool _isCheckingPhone = false;

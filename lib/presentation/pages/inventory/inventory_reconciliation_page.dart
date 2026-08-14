@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/inventory_provider.dart';
+import '../../../providers/analytics_provider.dart';
 import '../../../core/utils/top_notification.dart';
 
 class InventoryReconciliationPage extends ConsumerStatefulWidget {
@@ -71,6 +73,7 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
 
     try {
       await ref.read(inventoryProvider.notifier).reconcileStock(auditsPayload);
+      ref.invalidate(inventoryWastageProvider);
       if (mounted) {
         TopNotification.show(context, message: 'Đã thực hiện cân đối tồn kho thành công');
         Navigator.pop(context);
@@ -100,6 +103,11 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
   Widget build(BuildContext context) {
     final state = ref.watch(inventoryProvider);
     _initializeAudits(state.ingredients);
+
+    final currentUser = ref.watch(authProvider).user;
+    final auditorName = (currentUser?.fullName != null && currentUser!.fullName!.trim().isNotEmpty)
+        ? currentUser.fullName!.trim()
+        : (currentUser?.username.isNotEmpty == true ? currentUser!.username : 'Nhân viên kiểm kho');
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -140,13 +148,13 @@ class _InventoryReconciliationPageState extends ConsumerState<InventoryReconcili
                   ),
                 ],
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.person_outline, color: AppColors.textSecondary, size: 20),
-                  SizedBox(width: 10),
+                  const Icon(Icons.person_outline, color: AppColors.textSecondary, size: 20),
+                  const SizedBox(width: 10),
                   Text(
-                    'Người kiểm kê: Nguyễn Văn A',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    'Người kiểm kê: $auditorName',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
                 ],
               ),

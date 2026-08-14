@@ -27,6 +27,24 @@ class FormatUtils {
     return '${formatStars(rating.round())} (${rating.toStringAsFixed(1)})';
   }
 
+  /// Format compact amount with dynamic units (đ, k, M, B):
+  /// 450 → "450đ" | 46000 → "46k" | 1500000 → "1.5M" | 1200000000 → "1.2B"
+  static String formatCompactAmount(num amount) {
+    final absAmount = amount.abs();
+    if (absAmount >= 1000000000) {
+      final b = amount / 1000000000.0;
+      return '${b.toStringAsFixed(b % 1 == 0 ? 0 : 1)}B';
+    } else if (absAmount >= 1000000) {
+      final m = amount / 1000000.0;
+      return '${m.toStringAsFixed(m % 1 == 0 ? 0 : 1)}M';
+    } else if (absAmount >= 1000) {
+      final k = amount / 1000.0;
+      return '${k.toStringAsFixed(k % 1 == 0 ? 0 : 1)}k';
+    } else {
+      return '${amount.toInt()}đ';
+    }
+  }
+
   /// Format count: 1240 → "1,240"
   static String formatCount(int count) {
     return _currencyFormat.format(count);

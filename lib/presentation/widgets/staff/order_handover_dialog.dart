@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/top_notification.dart';
 import '../../../providers/order_provider.dart';
-import '../../../providers/branch_provider.dart';
 import '../../../providers/auth_provider.dart';
 
 /// OrderHandoverDialog — Modal for staff/cashier to process order handover & payment upon scanning QR code.
@@ -188,7 +187,63 @@ class _OrderHandoverDialogState extends ConsumerState<OrderHandoverDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
+
+              // ─── Customer Buyer Info ───────────────────────────────────────
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.person_pin_circle_rounded, size: 16, color: Color(0xFF1D4ED8)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Người mua: ${order.customerName ?? 'Khách đặt hàng'}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                        ),
+                      ],
+                    ),
+                    if (order.customerPhone != null && order.customerPhone!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_rounded, size: 14, color: Color(0xFF3B82F6)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'SĐT: ${order.customerPhone}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E3A8A)),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (order.customerAddress != null && order.customerAddress!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF3B82F6)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Địa điểm: ${order.customerAddress}',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF1E3A8A)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
 
               // ─── Order Items List Scroll ───────────────────────────────────
               Expanded(
@@ -398,7 +453,7 @@ class _OrderHandoverDialogState extends ConsumerState<OrderHandoverDialog> {
                               Navigator.pop(context);
                               TopNotification.showSuccess(
                                 context,
-                                message: 'Đã hoàn tất giao đơn #${shortCode} cho khách hàng thành công!',
+                                message: 'Đã hoàn tất giao đơn #$shortCode cho khách hàng thành công!',
                               );
                             }
                           } catch (e) {

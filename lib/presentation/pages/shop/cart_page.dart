@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../widgets/common/require_login_dialog.dart';
 import 'checkout_page.dart';
 
 /// Cart Page — shows list of stores with cart items.
@@ -140,6 +142,11 @@ class _CartPageState extends ConsumerState<CartPage> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _isManaging ? null : () {
+        final isLoggedIn = ref.read(isAuthenticatedProvider);
+        if (!isLoggedIn) {
+          RequireLoginDialog.show(context, message: 'Vui lòng đăng nhập để tiến hành đặt món và thanh toán.');
+          return;
+        }
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => CheckoutPage(
             storeName: branchCart.storeName ?? 'Cửa hàng',

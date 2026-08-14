@@ -6,6 +6,7 @@ import '../data/models/auth_response_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../core/network/dio_client.dart';
 import '../core/constants/app_constants.dart';
+import '../core/services/notification_service.dart';
 
 // ===== Auth State =====
 class AuthState {
@@ -61,6 +62,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         // Tải thông tin mới nhất từ Server (bao gồm Xu DX và Cấp Hạng)
         refreshProfile();
+
+        // Đăng ký FCM Device Token cho thiết bị
+        AppNotificationService.instance.registerDeviceToken();
       }
     } catch (_) {
       logout();
@@ -88,6 +92,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       accessToken: response.accessToken,
       isAuthenticated: true,
     );
+
+    // Đăng ký FCM Device Token cho thiết bị
+    AppNotificationService.instance.registerDeviceToken();
   }
 
   /// Cập nhật thông tin chi tiết của user hiện tại
@@ -144,8 +151,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Đăng xuất - Xóa sạch mọi phiên lưu trữ và credentials
   Future<void> logout() async {
+    try {
+      await AppNotificationService.instance.unregisterDeviceToken();
+      final refreshToken =
+          await _secureStorage.read(key: AppConstants.storageKeyRefreshToken);
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await AuthRepository().logout(refreshToken);
+      }
+    } catch (e) {
+      print('[AuthNotifier] logout backend call error: $e');
+    }
     await DioClient().clearAuth();
     await _secureStorage.delete(key: AppConstants.storageKeyAccessToken);
+    await _secureStorage.delete(key: AppConstants.storageKeyRefreshToken);
     await _secureStorage.delete(key: AppConstants.storageKeyUser);
     state = const AuthState();
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/top_notification.dart';
 
 /// CustomerQrScannerDialog — Allows customers to scan Table QR for Dine-in or Voucher QR codes.

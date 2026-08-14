@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import '../providers/connectivity_provider.dart';
 import '../presentation/pages/error/no_internet_page.dart';
+import '../core/services/notification_service.dart';
 import 'router.dart';
 
 class App extends ConsumerWidget {
@@ -12,6 +13,8 @@ class App extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final isOnline = ref.watch(connectivityProvider);
+
+    AppNotificationService.instance.setRouter(router);
 
     return MaterialApp.router(
       title: 'DineX',

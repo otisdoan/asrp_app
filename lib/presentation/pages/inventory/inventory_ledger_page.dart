@@ -200,17 +200,6 @@ class _InventoryLedgerPageState extends ConsumerState<InventoryLedgerPage> {
                         style: TextStyle(color: typeColor, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    Text(
-                      tx.reference,
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
-                    ),
-                    if (tx.reason.isNotEmpty && tx.reason != 'Bán hàng' && tx.reason != 'Nhập hàng') ...[
-                      const Text('•', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                      Text(
-                        tx.reason,
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-                      ),
-                    ],
                   ],
                 ),
               ],

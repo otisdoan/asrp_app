@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import 'store_detail_page.dart';
 import '../../../providers/shop_provider.dart';
@@ -344,7 +345,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     ],
                   ),
                 ),
-              )).toList(),
+              )),
             ],
           ),
         );
@@ -868,6 +869,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildStoreResultCard(BranchSearchResultModel store) {
+    final userLocation = ref.watch(userLocationProvider);
+    final displayDistance = LocationService.calculateBranchDistance(
+      userLocation: userLocation,
+      branchLat: store.latitude,
+      branchLng: store.longitude,
+      branchAddress: store.address,
+      fallbackDistance: store.distance,
+    );
+
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       child: Row(
@@ -959,7 +969,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                           ),
                           _buildInfoDivider(),
-                          Text(store.distance, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          Text(displayDistance, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           _buildInfoDivider(),
                           Text(store.deliveryTime, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],

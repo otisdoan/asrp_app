@@ -8,42 +8,42 @@ class BranchRepository {
   final DioClient _dioClient = DioClient();
 
   /// Lấy danh sách chi nhánh từ Backend (GET /api/branches).
-  Future<List<BranchListItemModel>> getBranches({String? brandId}) async {
-    final token = _dioClient.accessToken;
-    print('[BranchRepository] --- START GET BRANCHES ---');
-    print('[BranchRepository] Access Token: ${token != null ? (token.length > 25 ? "${token.substring(0, 15)}... (len: ${token.length})" : token) : "NULL"}');
-    
-    final Map<String, dynamic> queryParams = {};
-    if (brandId != null && brandId.isNotEmpty) {
-      queryParams['brandId'] = brandId;
-    }
-
-    final response = await _dioClient.dio.get(
-      ApiConstants.branches,
-      queryParameters: queryParams,
-    );
-    print('[BranchRepository] Response status code: ${response.statusCode}');
-    print('[BranchRepository] Response data: ${response.data}');
-    print('[BranchRepository] --- END GET BRANCHES ---');
-
-    final rawData = response.data;
-    List<dynamic> list = [];
-    
-    if (rawData is List) {
-      list = rawData;
-    } else if (rawData is Map<String, dynamic>) {
-      if (rawData['data'] is List) {
-        list = rawData['data'] as List;
-      } else if (rawData['branches'] is List) {
-        list = rawData['branches'] as List;
-      } else if (rawData['items'] is List) {
-        list = rawData['items'] as List;
+  Future<List<BranchListItemModel>> getBranches({String? brandId, int pageSize = 100}) async {
+    try {
+      final Map<String, dynamic> queryParams = {
+        'pageSize': pageSize,
+      };
+      if (brandId != null && brandId.isNotEmpty) {
+        queryParams['brandId'] = brandId;
       }
+
+      final response = await _dioClient.dio.get(
+        ApiConstants.branches,
+        queryParameters: queryParams,
+      );
+
+      final rawData = response.data;
+      List<dynamic> list = [];
+      
+      if (rawData is List) {
+        list = rawData;
+      } else if (rawData is Map<String, dynamic>) {
+        if (rawData['data'] is List) {
+          list = rawData['data'] as List;
+        } else if (rawData['branches'] is List) {
+          list = rawData['branches'] as List;
+        } else if (rawData['items'] is List) {
+          list = rawData['items'] as List;
+        }
+      }
+      
+      return list
+          .map((item) => BranchListItemModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('[BranchRepository] Error getting branches: $e');
+      return [];
     }
-    
-    return list
-        .map((item) => BranchListItemModel.fromJson(item as Map<String, dynamic>))
-        .toList();
   }
 
   /// Lấy danh sách chi nhánh thuộc Thương hiệu của Admin hiện tại (GET /api/brands/me/branches).
@@ -66,7 +66,7 @@ class BranchRepository {
           .toList();
     } catch (e) {
       print('[BranchRepository] Error getting my brand branches: $e');
-      rethrow;
+      return [];
     }
   }
 

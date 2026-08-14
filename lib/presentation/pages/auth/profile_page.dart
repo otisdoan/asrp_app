@@ -77,14 +77,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final isLoggedIn = ref.watch(isAuthenticatedProvider);
     final registration = ref.watch(branchRegistrationProvider);
     final myBranchesAsync = ref.watch(myBrandBranchesFutureProvider);
-    final isBrandOwner =
-        (user?.role.toLowerCase() == 'admin' && user?.branchId == null) ||
-            (user?.role.toLowerCase() == 'superadmin');
-    final branchCount = myBranchesAsync.value?.length ??
-        (registration.registeredBranches.isNotEmpty
+    final branches = myBranchesAsync.value ?? [];
+    final int branchCount = branches.isNotEmpty
+        ? branches.length
+        : (registration.registeredBranches.isNotEmpty
             ? registration.registeredBranches.length
-            : (isBrandOwner ? 2 : 1));
+            : 1);
 
+    final bool isBrandAdmin = user != null &&
+        (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'superadmin');
+
+    final bool isChainReport = isBrandAdmin &&
+        (branchCount > 1 ||
+         user.role.toLowerCase() == 'superadmin' ||
+         registration.registeredBranches.length > 1);
+
+    final String dashboardTitle = isChainReport ? 'Báo cáo chuỗi' : 'Báo cáo doanh thu';
+    final String dashboardSubtitle = isChainReport
+        ? 'Xem doanh thu tổng hợp, so sánh chi nhánh & tồn kho chuỗi'
+        : 'Xem doanh thu và thống kê hoạt động chi nhánh';
     // Fallback if not logged in (though app bar filters, we add extra guard)
     if (!isLoggedIn || user == null) {
       return Scaffold(
@@ -348,23 +359,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         if (user.role.toLowerCase() == 'superadmin' ||
                             user.role.toLowerCase() == 'admin' ||
                             user.role.toLowerCase() == 'manager') ...[
-                          if (isBrandOwner || branchCount > 1)
-                            _buildMenuItem(
-                              icon: Icons.dashboard_customize_outlined,
-                              title: 'Báo cáo chuỗi',
-                              subtitle:
-                                  'Xem doanh thu tổng hợp, so sánh chi nhánh & tồn kho chuỗi',
-                              onTap: () => context
-                                  .push(AppConstants.routeSuperAdminDashboard),
-                            )
-                          else
-                            _buildMenuItem(
-                              icon: Icons.analytics_outlined,
-                              title: 'Báo cáo doanh thu',
-                              subtitle:
-                                  'Xem doanh thu và thống kê hoạt động chi nhánh',
-                              onTap: () => context.push('/admin/dashboard'),
+                          _buildMenuItem(
+                            icon: Icons.dashboard_customize_outlined,
+                            title: dashboardTitle,
+                            subtitle: dashboardSubtitle,
+                            onTap: () => context.push(
+                              isChainReport
+                                  ? AppConstants.routeSuperAdminDashboard
+                                  : '/admin/dashboard',
                             ),
+                          ),
                           _buildMenuItem(
                             icon: Icons.people_outline_rounded,
                             title: 'Quản lý nhân viên chi nhánh',
@@ -1377,7 +1381,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         );
                       }
 
-                      final branches = snapshot.data!;
+                      List<BranchListItemModel> branches = snapshot.data!;
+                      if (user.branchId != null && user.branchId!.isNotEmpty) {
+                        final userBranch = branches.where((b) => b.id == user.branchId).toList();
+                        if (userBranch.isNotEmpty) {
+                          branches = userBranch;
+                        }
+                      }
                       return ListView.separated(
                         shrinkWrap: true,
                         physics: const BouncingScrollPhysics(),

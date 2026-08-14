@@ -48,10 +48,10 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
         final priceVal =
             int.tryParse(item.price.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
         items.add(_MenuItem(
-          id: item.menuItemId ?? item.id ?? '',
+          id: item.menuItemId ?? (item.id ?? ''),
           name: item.name,
           price: priceVal,
-          imageUrl: item.imageUrl ?? '',
+          imageUrl: item.imageUrl,
           category: section.name,
         ));
       }

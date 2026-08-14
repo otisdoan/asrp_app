@@ -20,6 +20,7 @@ class BranchListItemModel {
   final String? address;
   final String? phone;
   final bool? isActive;
+  final String? status;
 
   const BranchListItemModel({
     required this.id,
@@ -41,6 +42,7 @@ class BranchListItemModel {
     this.address,
     this.phone,
     this.isActive,
+    this.status,
   });
 
   factory BranchListItemModel.fromJson(Map<String, dynamic> json) {
@@ -96,6 +98,7 @@ class BranchListItemModel {
       address: json['address'] as String?,
       phone: json['phone'] as String?,
       isActive: json['isActive'] is bool ? json['isActive'] as bool? : (json['isActive'] == null || json['isActive']?.toString() == 'true'),
+      status: json['status'] as String?,
     );
   }
 
@@ -120,6 +123,7 @@ class BranchListItemModel {
       if (address != null) 'address': address,
       if (phone != null) 'phone': phone,
       if (isActive != null) 'isActive': isActive,
+      if (status != null) 'status': status,
     };
   }
 }
@@ -201,6 +205,34 @@ class BranchDetailModel {
     this.promos,
     this.menu,
   });
+
+  bool get isOpen {
+    if (status?.toLowerCase() == 'closed' || status?.toLowerCase() == 'inactive' || isActive == false) {
+      return false;
+    }
+    if (status?.toLowerCase() == 'active' || status?.toLowerCase() == 'busy') {
+      return true;
+    }
+    if (openingTime != null && closingTime != null && openingTime!.isNotEmpty && closingTime!.isNotEmpty) {
+      try {
+        final now = DateTime.now();
+        final nowMinutes = now.hour * 60 + now.minute;
+
+        final openParts = openingTime!.split(':').map((e) => int.parse(e)).toList();
+        final openMinutes = openParts[0] * 60 + openParts[1];
+
+        final closeParts = closingTime!.split(':').map((e) => int.parse(e)).toList();
+        final closeMinutes = closeParts[0] * 60 + closeParts[1];
+
+        if (openMinutes <= closeMinutes) {
+          return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
+        } else {
+          return nowMinutes >= openMinutes || nowMinutes <= closeMinutes;
+        }
+      } catch (_) {}
+    }
+    return status?.toLowerCase() == 'active' || status == null;
+  }
 
   factory BranchDetailModel.fromJson(Map<String, dynamic> json) {
     final List<dynamic>? rawMenu = json['menu'] as List<dynamic>?;

@@ -34,6 +34,9 @@ class BranchSearchResultModel {
   final String distance;
   final String deliveryTime;
   final String discount;
+  final double? latitude;
+  final double? longitude;
+  final String? address;
   final List<BranchSearchFoodItemModel> foods;
 
   const BranchSearchResultModel({
@@ -44,6 +47,9 @@ class BranchSearchResultModel {
     required this.distance,
     required this.deliveryTime,
     required this.discount,
+    this.latitude,
+    this.longitude,
+    this.address,
     required this.foods,
   });
 
@@ -61,6 +67,9 @@ class BranchSearchResultModel {
       distance: json['distance'] as String? ?? '',
       deliveryTime: json['deliveryTime'] as String? ?? '',
       discount: json['discount'] as String? ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      address: json['address'] as String?,
       foods: parsedFoods,
     );
   }
@@ -74,6 +83,9 @@ class BranchSearchResultModel {
       'distance': distance,
       'deliveryTime': deliveryTime,
       'discount': discount,
+      'latitude': latitude,
+      'longitude': longitude,
+      'address': address,
       'foods': foods.map((e) => e.toJson()).toList(),
     };
   }

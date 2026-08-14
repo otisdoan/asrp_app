@@ -220,6 +220,9 @@ class MockOrder {
   final String orderType;
   final String branchId;
   final String? pagerNumber;
+  final String? customerName;
+  final String? customerPhone;
+  final String? customerAddress;
 
   MockOrder({
     required this.id,
@@ -241,6 +244,9 @@ class MockOrder {
     this.orderType = 'Online',
     this.branchId = '',
     this.pagerNumber,
+    this.customerName,
+    this.customerPhone,
+    this.customerAddress,
   });
 
   bool get isPaid => paymentStatus == 'Paid' || paymentStatus == '1' || payments.any((p) => p.status == 'Đã thanh toán');
@@ -266,6 +272,9 @@ class MockOrder {
     String? orderType,
     String? branchId,
     String? pagerNumber,
+    String? customerName,
+    String? customerPhone,
+    String? customerAddress,
   }) {
     return MockOrder(
       id: id ?? this.id,
@@ -287,6 +296,9 @@ class MockOrder {
       orderType: orderType ?? this.orderType,
       branchId: branchId ?? this.branchId,
       pagerNumber: pagerNumber ?? this.pagerNumber,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
+      customerAddress: customerAddress ?? this.customerAddress,
     );
   }
 
@@ -355,8 +367,10 @@ class MockOrder {
       }
     }
 
+    final prepMinsFromJson = (json['estimatedPreparationMinutes'] as num?)?.toInt() ??
+        (json['preparationMinutes'] as num?)?.toInt();
     final diff = pickupTime.difference(orderTime).inMinutes;
-    final originalMins = diff > 0 ? diff : 15;
+    final originalMins = prepMinsFromJson ?? (diff > 0 && diff <= 180 ? diff : 15);
 
     final branchId = json['branchId']?.toString() ?? '';
     final branchName = branchNames[branchId] ?? 'Cửa hàng DineX';
@@ -381,6 +395,44 @@ class MockOrder {
       discountPct = ((discountAmount / subtotal) * 100).round();
     }
 
+    String? parsedCustName = json['customerName']?.toString() ??
+        json['customerFullName']?.toString() ??
+        json['userName']?.toString() ??
+        json['userFullName']?.toString() ??
+        json['customer']?['fullName']?.toString() ??
+        json['customer']?['name']?.toString() ??
+        json['user']?['fullName']?.toString();
+
+    String? parsedCustPhone = json['customerPhone']?.toString() ??
+        json['customerPhoneNumber']?.toString() ??
+        json['phone']?.toString() ??
+        json['userPhone']?.toString() ??
+        json['customer']?['phoneNumber']?.toString() ??
+        json['user']?['phoneNumber']?.toString();
+
+    String? parsedCustAddress = json['customerAddress']?.toString() ??
+        json['deliveryAddress']?.toString() ??
+        json['address']?.toString() ??
+        json['shippingAddress']?.toString() ??
+        json['customer']?['address']?.toString() ??
+        json['user']?['address']?.toString();
+
+    final noteText = (json['note'] ?? json['storeNote'])?.toString() ?? '';
+    if (noteText.isNotEmpty) {
+      if (parsedCustName == null || parsedCustName.isEmpty) {
+        final m = RegExp(r'Người mua:\s*([^|]+)').firstMatch(noteText);
+        if (m != null) parsedCustName = m.group(1)?.trim();
+      }
+      if (parsedCustPhone == null || parsedCustPhone.isEmpty) {
+        final m = RegExp(r'SĐT:\s*([^|]+)').firstMatch(noteText);
+        if (m != null) parsedCustPhone = m.group(1)?.trim();
+      }
+      if (parsedCustAddress == null || parsedCustAddress.isEmpty) {
+        final m = RegExp(r'(?:Địa chỉ|Địa điểm):\s*([^|]+)').firstMatch(noteText);
+        if (m != null) parsedCustAddress = m.group(1)?.trim();
+      }
+    }
+
     return MockOrder(
       id: json['id']?.toString() ?? '',
       storeName: branchName,
@@ -401,6 +453,9 @@ class MockOrder {
       orderType: json['orderType']?.toString() ?? 'Online',
       branchId: branchId,
       pagerNumber: json['pagerNumber']?.toString(),
+      customerName: parsedCustName,
+      customerPhone: parsedCustPhone,
+      customerAddress: parsedCustAddress,
     );
   }
 }
@@ -573,17 +628,21 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
   }
 
   /// Thu ngân xin thêm phút (sử dụng API propose-pickup-time)
-  Future<void> requestExtraMinutes(String id, int extraMins) async {
+  Future<void> requestExtraMinutes(String id, int extraMins, {String? reason}) async {
     try {
       final orderIndex = state.indexWhere((o) => o.id == id);
       if (orderIndex == -1) return;
       final order = state[orderIndex];
       final newPickupTime = order.pickupTime.add(Duration(minutes: extraMins));
       
+      final reasonText = (reason != null && reason.trim().isNotEmpty)
+          ? reason.trim()
+          : 'Quán xin thêm $extraMins phút chuẩn bị do quá tải.';
+
       final updatedOrderJson = await _orderRepository.proposePickupTime(
         id,
         newPickupTime.toUtc().toIso8601String(),
-        'Quán xin thêm $extraMins phút chuẩn bị do quá tải.',
+        reasonText,
       );
       
       await _ensureBranchNamesLoaded();
@@ -736,16 +795,36 @@ final branchOrdersProvider = FutureProvider.family<List<MockOrder>, String>((ref
     print('[branchOrdersProvider] Error loading branch names: $e');
   }
 
-  final rawOrders = await orderRepository.getManagementOrders(branchId: branchId);
-  return rawOrders
-      .map((item) {
-        try {
-          return MockOrder.fromJson(item as Map<String, dynamic>, branchNames);
-        } catch (e) {
-          return null;
-        }
-      })
-      .whereType<MockOrder>()
-      .toList()
-    ..sort((a, b) => b.orderTime.compareTo(a.orderTime));
+  try {
+    final rawOrders = await orderRepository.getManagementOrders(branchId: branchId);
+    return rawOrders
+        .map((item) {
+          try {
+            return MockOrder.fromJson(item as Map<String, dynamic>, branchNames);
+          } catch (e) {
+            return null;
+          }
+        })
+        .whereType<MockOrder>()
+        .toList()
+      ..sort((a, b) => b.orderTime.compareTo(a.orderTime));
+  } catch (e) {
+    print('[branchOrdersProvider] getManagementOrders failed ($e), attempting getMyOrders fallback');
+    try {
+      final rawOrders = await orderRepository.getMyOrders();
+      return rawOrders
+          .map((item) {
+            try {
+              return MockOrder.fromJson(item as Map<String, dynamic>, branchNames);
+            } catch (e) {
+              return null;
+            }
+          })
+          .whereType<MockOrder>()
+          .toList()
+        ..sort((a, b) => b.orderTime.compareTo(a.orderTime));
+    } catch (_) {
+      return [];
+    }
+  }
 });

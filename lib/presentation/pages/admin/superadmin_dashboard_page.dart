@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,10 +29,32 @@ class _SuperAdminDashboardPageState
   DateTimeRange? _selectedDateRange;
   int _selectedChartBarIndex = 0; // Selected branch in comparison chart
 
-  int get _customRangeDays {
-    if (_selectedDateRange == null) return 7;
-    return _selectedDateRange!.duration.inDays + 1;
+  Timer? _realtimeTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Realtime polling every 3 seconds to keep chain dashboard inventory & transfer tickets synced automatically
+    _realtimeTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        ref.invalidate(brandDashboardFutureProvider(_currentDateRange));
+        ref.invalidate(transferTicketsProvider(TransferTicketParams()));
+        final apiData = _currentApiData;
+        if (apiData != null) {
+          for (var b in apiData.branches) {
+            ref.invalidate(branchInventoriesProvider(b.branchId));
+          }
+        }
+      }
+    });
   }
+
+  @override
+  void dispose() {
+    _realtimeTimer?.cancel();
+    super.dispose();
+  }
+
 
   BrandDashboardResponseModel? _currentApiData;
 
@@ -86,48 +109,15 @@ class _SuperAdminDashboardPageState
     return 10.0; // 10kg default
   }
 
-  Map<String, double> _getMockBranchRevenues() {
-    if (_selectedTimeFilter == 'Tùy chọn') {
-      final double factor = _customRangeDays.toDouble();
-      return {
-        'Quận 1': 42.5 * factor,
-        'Quận 3': 38.2 * factor,
-        'Phú Nhuận': 27.5 * factor,
-      };
-    }
-
-    switch (_selectedTimeFilter) {
-      case 'Tuần này':
-        return {
-          'Quận 1': 285.4,
-          'Quận 3': 242.8,
-          'Phú Nhuận': 184.2,
-        };
-      case 'Tháng này':
-        return {
-          'Quận 1': 1145.2,
-          'Quận 3': 958.6,
-          'Phú Nhuận': 728.4,
-        };
-      case 'Hôm nay':
-      default:
-        return {
-          'Quận 1': 42.5,
-          'Quận 3': 38.2,
-          'Phú Nhuận': 27.5,
-        };
-    }
-  }
-
-  // Mock branch revenue datasets based on Time Filter or live API data
+  // Live branch revenue dataset from API data
   Map<String, double> get _branchRevenues {
     final apiData = _currentApiData;
     if (apiData == null || apiData.branches.isEmpty) {
-      return _getMockBranchRevenues();
+      return {};
     }
     final Map<String, double> revenues = {};
     for (var branch in apiData.branches) {
-      revenues[branch.branchName] = branch.revenue / 1000000.0;
+      revenues[branch.branchName] = branch.revenue;
     }
     return revenues;
   }
@@ -732,7 +722,7 @@ class _SuperAdminDashboardPageState
         child: Column(
           children: [
             // 1. Sleek Gradient Header Section (Fixed at top)
-            _buildHeader(displayName, initialChar),
+            _buildHeader(displayName, initialChar, user?.role),
 
             // 2. Scrollable Body
             Expanded(
@@ -821,7 +811,7 @@ class _SuperAdminDashboardPageState
   }
 
   // ─── Header UI ─────────────────────────────────────────────────────────
-  Widget _buildHeader(String displayName, String initialChar) {
+  Widget _buildHeader(String displayName, String initialChar, String? role) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -887,9 +877,11 @@ class _SuperAdminDashboardPageState
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'DineX System · Tổng quản trị',
-                      style: TextStyle(
+                    Text(
+                      role?.toLowerCase() == 'superadmin'
+                          ? 'DineX System · Tổng quản trị'
+                          : 'DineX System · Chủ thương hiệu',
+                      style: const TextStyle(
                         fontSize: 12,
                         color: Colors.white70,
                         fontWeight: FontWeight.w400,
@@ -1018,24 +1010,8 @@ class _SuperAdminDashboardPageState
 
   // ─── Elegant Gradient Net Sales Card ───────────────────────────────────
   Widget _buildNetSalesOverview() {
-    final revenueText =
-        '${(_currentFilteredRevenue * 1000000).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}đ';
-
-    final String growth = _selectedTimeFilter == 'Hôm nay'
-        ? '+18.5%'
-        : _selectedTimeFilter == 'Tuần này'
-            ? '+15.2%'
-            : _selectedTimeFilter == 'Tháng này'
-                ? '+19.8%'
-                : '+16.5%';
-
-    final String compareText = _selectedTimeFilter == 'Hôm nay'
-        ? 'So với cùng kỳ hôm qua (92.4M)'
-        : _selectedTimeFilter == 'Tuần này'
-            ? 'So với tuần trước (612.0M)'
-            : _selectedTimeFilter == 'Tháng này'
-                ? 'So với tháng trước (2.56B)'
-                : 'Dữ liệu tổng hợp theo khoảng ngày';
+    final revenueText = FormatUtils.formatCurrency(_currentFilteredRevenue);
+    final String compareText = 'Doanh thu tổng hợp theo: $_selectedTimeFilter';
 
     return Container(
       width: double.infinity,
@@ -1058,10 +1034,10 @@ class _SuperAdminDashboardPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Tổng doanh thu chuỗi',
                 style: TextStyle(
                   fontSize: 13,
@@ -1069,30 +1045,7 @@ class _SuperAdminDashboardPageState
                   color: Colors.white70,
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.trending_up,
-                        color: Colors.white, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      growth,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              Icon(Icons.storefront_rounded, color: Colors.white, size: 20),
             ],
           ),
           const SizedBox(height: 10),
@@ -1302,7 +1255,7 @@ class _SuperAdminDashboardPageState
                     color: AppColors.textPrimary),
               ),
               Text(
-                'Tổng chuỗi: ${_totalRevenue.toStringAsFixed(1)}M',
+                'Tổng chuỗi: ${FormatUtils.formatCurrency(_totalRevenue)}',
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -1339,7 +1292,7 @@ class _SuperAdminDashboardPageState
                                 color: AppColors.textPrimary,
                                 borderRadius: BorderRadius.circular(4)),
                             child: Text(
-                              '${entry.value.toStringAsFixed(1)}M',
+                              FormatUtils.formatCompactAmount(entry.value),
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 8,
@@ -1406,7 +1359,7 @@ class _SuperAdminDashboardPageState
                 Expanded(
                   child: Text(
                     list.isNotEmpty && _selectedChartBarIndex < list.length
-                        ? 'Chi nhánh ${list[_selectedChartBarIndex].key} dẫn đầu doanh thu với ${list[_selectedChartBarIndex].value.toStringAsFixed(1)} triệu VNĐ.'
+                        ? 'Chi nhánh ${list[_selectedChartBarIndex].key} dẫn đầu doanh thu với ${FormatUtils.formatCurrency(list[_selectedChartBarIndex].value)}.'
                         : 'Không có dữ liệu so sánh doanh thu chi nhánh.',
                     style: const TextStyle(
                         fontSize: 11,
@@ -1555,7 +1508,8 @@ class _SuperAdminDashboardPageState
                         );
                         
                         final double qty = item.currentStock;
-                        final isLow = qty <= threshold;
+                        final double minLevel = item.minStockLevel > 0 ? item.minStockLevel : threshold;
+                        final isLow = qty < minLevel;
 
                         final sameNameBranches = branches.where((b) => b.branchName == branch.branchName).toList();
                         String branchDisplayName = branch.branchName;
@@ -2107,6 +2061,8 @@ class _SuperAdminDashboardPageState
             final cashValStr = FormatUtils.formatCurrency(branch.paymentBreakdown.cash);
             final payOsValStr = FormatUtils.formatCurrency(branch.paymentBreakdown.payOS);
 
+            final int displayOrders = branch.paidOrders > 0 ? branch.paidOrders : branch.completedOrders;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
@@ -2164,7 +2120,7 @@ class _SuperAdminDashboardPageState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildBranchMetricItem('Số đơn', '${branch.completedOrders} đơn'),
+                      _buildBranchMetricItem('Số đơn', '$displayOrders đơn'),
                       _buildBranchMetricItem('TB/Đơn', avgOrderValStr),
                       _buildBranchMetricItem('Tiền mặt', cashValStr),
                       _buildBranchMetricItem('PayOS', payOsValStr),
@@ -2443,13 +2399,14 @@ class _SuperAdminDashboardPageState
                       if (index > 0) const Divider(color: AppColors.divider, height: 20),
                       _buildLogisticsItem(
                         ticket: ticket,
-                        code: '#${ticket.ticketCode}',
+                        code: ticket.ticketCode.length > 20
+                            ? '#${ticket.ticketCode.substring(0, 18)}...'
+                            : '#${ticket.ticketCode}',
                         route: '$srcName ➔ $dstName',
                         status: statusText,
                         statusColor: statusColor,
                         time: timeText,
-                        itemCount: '${ticket.quantity.toStringAsFixed(1)}${ticket.unit} ${ticket.ingredientName}' +
-                            (ticket.note != null && ticket.note!.isNotEmpty ? ' (${ticket.note})' : ''),
+                        itemCount: '${ticket.quantity.toStringAsFixed(1)}${ticket.unit} ${ticket.ingredientName}${ticket.note != null && ticket.note!.isNotEmpty ? ' (${ticket.note})' : ''}',
                         branches: branches,
                       ),
                     ],
@@ -2490,14 +2447,19 @@ class _SuperAdminDashboardPageState
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              code,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+            Expanded(
+              child: Text(
+                code,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(

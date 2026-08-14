@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/auth_repository.dart';
 
 /// Change Password Page — 3 fields: old password, new password, confirm new password.
-/// Follows RULE: UI-only widgets, AppColors 100%, responsive.
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
 
@@ -14,6 +15,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _authRepository = AuthRepository();
   bool _oldVisible = false;
   bool _newVisible = false;
   bool _confirmVisible = false;
@@ -22,6 +24,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   String? _oldError;
   String? _newError;
   String? _confirmError;
+  String? _apiError;
 
   @override
   void dispose() {
@@ -58,13 +61,33 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _changePassword() async {
     _validate();
     if (_oldError != null || _newError != null || _confirmError != null) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      setState(() {
-        _loading = false;
-        _success = true;
-      });
+    setState(() {
+      _loading = true;
+      _apiError = null;
+    });
+    try {
+      await _authRepository.changePassword(
+        currentPassword: _oldPasswordController.text,
+        newPassword: _newPasswordController.text,
+        confirmPassword: _confirmPasswordController.text,
+      );
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _success = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          if (e is DioException) {
+            _apiError = e.response?.data['message'] ?? 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu cũ.';
+          } else {
+            _apiError = 'Đã có lỗi xảy ra. Vui lòng thử lại sau.';
+          }
+        });
+      }
     }
   }
 
@@ -232,6 +255,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             ),
           ),
         ),
+        if (_apiError != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _apiError!,
+            style: const TextStyle(fontSize: 13, color: AppColors.error),
+          ),
+        ],
         const SizedBox(height: 28),
         // Change button
         SizedBox(

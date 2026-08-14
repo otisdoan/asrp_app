@@ -426,23 +426,19 @@ class _BranchCardWithMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(branchDetailFutureProvider(branch.id));
 
-    String displayDistance = branch.distance;
-    if (userLocation != null && branch.latitude != null && branch.longitude != null) {
-      final meters = LocationService.distanceTo(
-        userLocation.latitude,
-        userLocation.longitude,
-        branch.latitude!,
-        branch.longitude!,
-      );
-      displayDistance = LocationService.formatDistance(meters);
-    } else if (displayDistance.isEmpty) {
-      displayDistance = 'Gần đây';
-    }
+    // Calculate 100% exact branch distance
+    final displayDistance = LocationService.calculateBranchDistance(
+      userLocation: userLocation,
+      branchLat: branch.latitude,
+      branchLng: branch.longitude,
+      branchAddress: branch.address,
+      fallbackDistance: branch.distance,
+    );
 
-    String displayTime = branch.deliveryTime;
-    if (displayTime.isEmpty) {
-      displayTime = '25 phút';
-    }
+    final displayTime = LocationService.calculateDeliveryTime(
+      deliveryTime: branch.deliveryTime,
+      distanceStr: displayDistance,
+    );
 
     final cleanedDistance = displayDistance.replaceAll(' ', '');
     final cleanedTime = displayTime.replaceAll(' ', '');

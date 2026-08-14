@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -59,6 +61,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
   bool _showTableMap = false;
   String? _selectedTableForNewOrder;
   DateTime? _selectedHistoryDate;
+  Timer? _refreshTimer;
 
   // Takeaway order
   final List<_OrderItem> _takeawayItems = [];
@@ -123,10 +126,19 @@ class _CashierPageState extends ConsumerState<CashierPage>
         });
       }
     });
+
+    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      final user = ref.read(currentUserProvider);
+      if (user?.branchId != null && user!.branchId!.isNotEmpty) {
+        ref.read(orderProvider.notifier).fetchBranchOrders(branchId: user.branchId);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -367,9 +379,9 @@ class _CashierPageState extends ConsumerState<CashierPage>
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(
+                        const Text(
                           'DineX Cashier · Thu ngân',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             color: Colors.white70,
                             fontWeight: FontWeight.w400,
@@ -1028,41 +1040,6 @@ class _CashierPageState extends ConsumerState<CashierPage>
       );
     }
 
-    Widget buildSectionHeader(String title, int count) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF64748B),
-                letterSpacing: 0.6,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF475569),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     Widget buildEmptyState(String text) {
       return Container(
         height: MediaQuery.of(context).size.height * 0.45,
@@ -1641,7 +1618,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
                           Text(
                             order.extraMinutes > 0
                                 ? 'Đã thêm +${order.extraMinutes}p'
-                                : '${order.originalMinutes}p chuẩn bị',
+                                : '${(order.originalMinutes > 180 || order.originalMinutes <= 0) ? 15 : order.originalMinutes}p chuẩn bị',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -1653,14 +1630,19 @@ class _CashierPageState extends ConsumerState<CashierPage>
                         ],
                       ),
 
-                      // Customer Note container
+                      // Customer Note container (filtering auto customer info)
                       if (order.storeNote != null &&
                           order.storeNote!.isNotEmpty) ...[
-                        const SizedBox(height: 10),
                         Builder(
                           builder: (context) {
-                            final isCreatorInfo = order.storeNote!.contains('Yêu cầu bởi:') || order.storeNote!.contains('Tạo bởi:');
+                            final noteCleaned = order.storeNote!
+                                .replaceAll(RegExp(r'Người mua:\s*[^|]+\|\s*SĐT:\s*[^|]+\|\s*Địa chỉ:\s*.*', caseSensitive: false), '')
+                                .trim();
+                            if (noteCleaned.isEmpty) return const SizedBox.shrink();
+
+                            final isCreatorInfo = noteCleaned.contains('Yêu cầu bởi:') || noteCleaned.contains('Tạo bởi:');
                             return Container(
+                              margin: const EdgeInsets.only(top: 10),
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: isCreatorInfo ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
@@ -1684,7 +1666,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
                                   ],
                                   Expanded(
                                     child: Text(
-                                      order.storeNote!,
+                                      noteCleaned,
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: isCreatorInfo ? FontWeight.w600 : FontWeight.w500,
@@ -1702,6 +1684,73 @@ class _CashierPageState extends ConsumerState<CashierPage>
                       const SizedBox(height: 12),
                       const Divider(height: 1, color: Color(0xFFF1F3F5)),
                       const SizedBox(height: 12),
+
+                      // Customer Buyer Info Card on Cashier side
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFBFDBFE), width: 1.0),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.person_pin_circle_rounded, size: 16, color: Color(0xFF1D4ED8)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Khách hàng: ${order.customerName ?? 'Khách đặt qua App'}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E40AF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (order.customerPhone != null && order.customerPhone!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.phone_rounded, size: 14, color: Color(0xFF3B82F6)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'SĐT: ${order.customerPhone}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E3A8A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if (order.customerAddress != null && order.customerAddress!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF3B82F6)),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Vị trí/Địa chỉ: ${order.customerAddress}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF1E3A8A),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
 
                       // Items Section Title
                       const Text(
@@ -2369,8 +2418,8 @@ class _CashierPageState extends ConsumerState<CashierPage>
 
   // ─── Request Extra Minutes Bottom Sheet ────────────────────────────────
   void _showRequestMinutesBottomSheet(MockOrder order) {
+    final minutesController = TextEditingController(text: '10');
     final reasonController = TextEditingController();
-    int selectedMinutes = 0;
     String? selectedReason;
     final reasons = [
       'Quán đông khách',
@@ -2385,6 +2434,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final currentMins = int.tryParse(minutesController.text.trim()) ?? 0;
             return Container(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -2454,81 +2504,61 @@ class _CashierPageState extends ConsumerState<CashierPage>
                     ),
                     const SizedBox(height: 20),
 
-                    // Minutes selection
+                    // Minutes input field
                     const Text(
-                      'Chọn số phút cần thêm:',
+                      'Nhập số phút cần xin thêm:',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [5, 10, 15, 20].map((mins) {
-                        final isSelected = selectedMinutes == mins;
-                        return Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(right: mins != 20 ? 8 : 0),
-                            child: GestureDetector(
-                              onTap: () =>
-                                  setModalState(() => selectedMinutes = mins),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : const Color(0xFFF9FAFB),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : const Color(0xFFE5E7EB),
-                                    width: isSelected ? 1.5 : 1.0,
-                                  ),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: AppColors.primary
-                                                .withValues(alpha: 0.2),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      '+$mins',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'phút',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: isSelected
-                                            ? Colors.white70
-                                            : AppColors.textTertiary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: minutesController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Nhập số phút (Ví dụ: 10, 15, 30...)',
+                        hintStyle: const TextStyle(
+                            fontSize: 13, color: AppColors.textPlaceholder),
+                        suffixIcon: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Text(
+                            'phút',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
                             ),
                           ),
-                        );
-                      }).toList(),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF9FAFB),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                              color: Colors.orange.shade600, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 14),
+                      ),
                     ),
                     const SizedBox(height: 20),
 
@@ -2653,11 +2683,13 @@ class _CashierPageState extends ConsumerState<CashierPage>
                             height: 48,
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                if (selectedMinutes == 0) {
+                                final mins =
+                                    int.tryParse(minutesController.text.trim()) ?? 0;
+                                if (mins <= 0) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: const Text(
-                                          'Vui lòng chọn số phút cần thêm!'),
+                                          'Vui lòng nhập số phút cần thêm lớn hơn 0!'),
                                       backgroundColor: Colors.orange.shade800,
                                       behavior: SnackBarBehavior.floating,
                                     ),
@@ -2666,15 +2698,17 @@ class _CashierPageState extends ConsumerState<CashierPage>
                                 }
                                 Navigator.pop(ctx);
 
-                                // Call API — requestExtraMinutes handles pickup time calculation internally
                                 ref
                                     .read(orderProvider.notifier)
                                     .requestExtraMinutes(
-                                        order.id, selectedMinutes);
+                                      order.id,
+                                      mins,
+                                      reason: reasonController.text.trim(),
+                                    );
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                        'Đã xin thêm $selectedMinutes phút! Khách hàng đã được thông báo.'),
+                                        'Đã xin thêm $mins phút! Khách hàng đã được thông báo.'),
                                     backgroundColor: Colors.orange.shade800,
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -2682,8 +2716,8 @@ class _CashierPageState extends ConsumerState<CashierPage>
                               },
                               icon: const Icon(Icons.send_rounded, size: 18),
                               label: Text(
-                                selectedMinutes > 0
-                                    ? 'Gửi yêu cầu +$selectedMinutes phút'
+                                currentMins > 0
+                                    ? 'Gửi yêu cầu +$currentMins phút'
                                     : 'Gửi yêu cầu',
                                 style: const TextStyle(
                                     fontSize: 14, fontWeight: FontWeight.w700),
@@ -4633,6 +4667,5 @@ class _PendingOrder {
       {required this.id,
       required this.table,
       required this.items,
-      required this.time,
-      this.isNew = false});
+      required this.time}) : isNew = false;
 }

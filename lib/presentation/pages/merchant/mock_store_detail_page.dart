@@ -50,10 +50,6 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
   bool _isSearchActive = false;
   bool _isFav = false;
 
-  late List<String> _categories;
-  late List<List<dynamic>> _menuItems;
-  late List<dynamic> _popularItems;
-
   List<dynamic>? _cachedMenuItems;
   List<String>? _cachedCategories;
   List<dynamic>? _cachedPopularItems;
@@ -70,7 +66,7 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
         return _cachedMenuItems!;
       }
     }
-    return _menuItems;
+    return [];
   }
 
   List<String> get _currentCategories {
@@ -84,7 +80,7 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
         return _cachedCategories!;
       }
     }
-    return _categories;
+    return [];
   }
 
   List<dynamic> get _currentPopularItems {
@@ -103,7 +99,7 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
         return _cachedPopularItems!;
       }
     }
-    return _popularItems;
+    return [];
   }
 
   void _invalidateMenuCache() {
@@ -119,157 +115,7 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
     _scrollController.addListener(_onScroll);
     _searchController = TextEditingController();
 
-    _setupMockData();
-    _sectionKeys = List.generate(_categories.length, (_) => GlobalKey());
-  }
-
-  void _setupMockData() {
-    final cat = widget.category.trim();
-
-    if (cat.contains('Phở') || cat.contains('Bún')) {
-      _categories = ['Món phổ biến', 'Phở bò', 'Phở gà & Bún', 'Đồ uống'];
-      _popularItems = [
-        {'name': 'Combo phở bò chín + quẩy + nước', 'price': '65.000đ', 'sold': '120+', 'icon': Icons.ramen_dining},
-        {'name': 'Phở bò tái nạm đặc biệt', 'price': '55.000đ', 'sold': '350+', 'icon': Icons.ramen_dining},
-      ];
-      _menuItems = [
-        // Món phổ biến
-        [
-          {'name': 'Combo phở bò chín + quẩy + nước', 'price': '65.000đ', 'sold': '120+', 'likes': 25, 'icon': Icons.ramen_dining},
-          {'name': 'Phở bò tái nạm đặc biệt', 'price': '55.000đ', 'sold': '350+', 'likes': 98, 'icon': Icons.ramen_dining},
-        ],
-        // Phở bò
-        [
-          {'name': 'Phở bò chín', 'price': '45.000đ', 'sold': '500+', 'likes': 110, 'icon': Icons.ramen_dining},
-          {'name': 'Phở bò tái gàu', 'price': '50.000đ', 'sold': '400+', 'likes': 80, 'icon': Icons.ramen_dining},
-          {'name': 'Phở nạm gân bò', 'price': '52.000đ', 'sold': '210+', 'likes': 45, 'icon': Icons.ramen_dining},
-        ],
-        // Phở gà & Bún
-        [
-          {'name': 'Phở gà ta xé phay', 'price': '45.000đ', 'sold': '300+', 'likes': 65, 'icon': Icons.ramen_dining},
-          {'name': 'Bún sườn mọc dọc mùng', 'price': '40.000đ', 'sold': '150+', 'likes': 30, 'icon': Icons.soup_kitchen},
-        ],
-        // Đồ uống
-        [
-          {'name': 'Trà đá Hà Nội', 'price': '5.000đ', 'sold': '999+', 'likes': 230, 'icon': Icons.local_drink},
-          {'name': 'Nước cam tươi nguyên chất', 'price': '20.000đ', 'sold': '180+', 'likes': 40, 'icon': Icons.local_drink},
-        ],
-      ];
-    } else if (cat.contains('Cơm')) {
-      _categories = ['Món phổ biến', 'Cơm tấm', 'Cơm gà', 'Đồ ăn kèm'];
-      _popularItems = [
-        {'name': 'Cơm tấm sườn bì chả đặc biệt', 'price': '55.000đ', 'sold': '800+', 'icon': Icons.rice_bowl},
-        {'name': 'Cơm đùi gà xối mỡ giòn rụm', 'price': '48.000đ', 'sold': '620+', 'icon': Icons.rice_bowl},
-      ];
-      _menuItems = [
-        // Món phổ biến
-        [
-          {'name': 'Cơm tấm sườn bì chả đặc biệt', 'price': '55.000đ', 'sold': '800+', 'likes': 150, 'icon': Icons.rice_bowl},
-          {'name': 'Cơm đùi gà xối mỡ giòn rụm', 'price': '48.000đ', 'sold': '620+', 'likes': 120, 'icon': Icons.rice_bowl},
-        ],
-        // Cơm tấm
-        [
-          {'name': 'Cơm sườn cốt lết truyền thống', 'price': '45.000đ', 'sold': '450+', 'likes': 68, 'icon': Icons.rice_bowl},
-          {'name': 'Cơm tấm sườn ốp la', 'price': '48.000đ', 'sold': '300+', 'likes': 42, 'icon': Icons.rice_bowl},
-        ],
-        // Cơm gà
-        [
-          {'name': 'Cơm cánh gà chiên nước mắm', 'price': '48.000đ', 'sold': '250+', 'likes': 56, 'icon': Icons.rice_bowl},
-          {'name': 'Cơm gà xé phay Hội An', 'price': '45.000đ', 'sold': '180+', 'likes': 38, 'icon': Icons.rice_bowl},
-        ],
-        // Đồ ăn kèm
-        [
-          {'name': 'Canh khổ qua dồn thịt', 'price': '15.000đ', 'sold': '220+', 'likes': 34, 'icon': Icons.soup_kitchen},
-          {'name': 'Trứng ốp la lòng đào thêm', 'price': '6.000đ', 'sold': '700+', 'likes': 80, 'icon': Icons.egg},
-        ],
-      ];
-    } else if (cat.contains('Vặt')) {
-      _categories = ['Món phổ biến', 'Ăn vặt hot', 'Bánh tráng', 'Trà sữa'];
-      _popularItems = [
-        {'name': 'Mẹt ăn vặt thập cẩm siêu to', 'price': '79.000đ', 'sold': '280+', 'icon': Icons.fastfood},
-        {'name': 'Khoai tây chiên lắc phô mai', 'price': '35.000đ', 'sold': '420+', 'icon': Icons.fastfood},
-      ];
-      _menuItems = [
-        // Món phổ biến
-        [
-          {'name': 'Mẹt ăn vặt thập cẩm siêu to', 'price': '79.000đ', 'sold': '280+', 'likes': 85, 'icon': Icons.fastfood},
-          {'name': 'Khoai tây chiên lắc phô mai', 'price': '35.000đ', 'sold': '420+', 'likes': 70, 'icon': Icons.fastfood},
-        ],
-        // Ăn vặt hot
-        [
-          {'name': 'Nem chua rán Hà Nội (10 chiếc)', 'price': '30.000đ', 'sold': '990+', 'likes': 195, 'icon': Icons.fastfood},
-          {'name': 'Phô mai que kéo sợi (5 chiếc)', 'price': '35.000đ', 'sold': '600+', 'likes': 110, 'icon': Icons.fastfood},
-        ],
-        // Bánh tráng
-        [
-          {'name': 'Bánh tráng trộn khô bò Tây Ninh', 'price': '25.000đ', 'sold': '850+', 'likes': 130, 'icon': Icons.fastfood},
-          {'name': 'Bánh tráng cuộn sốt bơ trứng cút', 'price': '25.000đ', 'sold': '400+', 'likes': 72, 'icon': Icons.fastfood},
-        ],
-        // Trà sữa
-        [
-          {'name': 'Trà sữa trân châu hoàng kim', 'price': '30.000đ', 'sold': '750+', 'likes': 160, 'icon': Icons.local_drink},
-          {'name': 'Trà sữa Matcha đậu đỏ', 'price': '35.000đ', 'sold': '210+', 'likes': 45, 'icon': Icons.local_drink},
-        ],
-      ];
-    } else if (cat.contains('Uống')) {
-      _categories = ['Món phổ biến', 'Cà phê', 'Trà trái cây', 'Đá xay'];
-      _popularItems = [
-        {'name': 'Cà phê sữa đá Sài Gòn truyền thống', 'price': '25.000đ', 'sold': '999+', 'icon': Icons.coffee},
-        {'name': 'Trà đào cam sả thanh lọc', 'price': '39.000đ', 'sold': '480+', 'icon': Icons.local_drink},
-      ];
-      _menuItems = [
-        // Món phổ biến
-        [
-          {'name': 'Cà phê sữa đá Sài Gòn truyền thống', 'price': '25.000đ', 'sold': '999+', 'likes': 320, 'icon': Icons.coffee},
-          {'name': 'Trà đào cam sả thanh lọc', 'price': '39.000đ', 'sold': '480+', 'likes': 120, 'icon': Icons.local_drink},
-        ],
-        // Cà phê
-        [
-          {'name': 'Cà phê đen đá đậm vị', 'price': '20.000đ', 'sold': '650+', 'likes': 95, 'icon': Icons.coffee},
-          {'name': 'Bạc xỉu thơm ngậy cốt dừa', 'price': '30.000đ', 'sold': '500+', 'likes': 110, 'icon': Icons.coffee},
-          {'name': 'Cà phê muối béo ngậy', 'price': '30.000đ', 'sold': '420+', 'likes': 89, 'icon': Icons.coffee},
-        ],
-        // Trà trái cây
-        [
-          {'name': 'Trà dâu tằm Đà Lạt ngọt mát', 'price': '35.000đ', 'sold': '300+', 'likes': 65, 'icon': Icons.local_drink},
-          {'name': 'Trà vải lài hoa hồng', 'price': '39.000đ', 'sold': '220+', 'likes': 50, 'icon': Icons.local_drink},
-        ],
-        // Đá xay
-        [
-          {'name': 'Matcha đá xay kem mặn', 'price': '45.000đ', 'sold': '180+', 'likes': 42, 'icon': Icons.coffee},
-          {'name': 'Sô-cô-la bánh quy đá xay', 'price': '45.000đ', 'sold': '210+', 'likes': 55, 'icon': Icons.coffee},
-        ],
-      ];
-    } else {
-      _categories = ['Món phổ biến', 'Bánh mì mặn', 'Bánh mì ngọt', 'Nước uống'];
-      _popularItems = [
-        {'name': 'Bánh mì đặc biệt đầy đủ topping', 'price': '30.000đ', 'sold': '750+', 'icon': Icons.breakfast_dining},
-        {'name': 'Bánh mì heo quay giòn bì siêu ngon', 'price': '32.000đ', 'sold': '450+', 'icon': Icons.breakfast_dining},
-      ];
-      _menuItems = [
-        // Món phổ biến
-        [
-          {'name': 'Bánh mì đặc biệt đầy đủ topping', 'price': '30.000đ', 'sold': '750+', 'likes': 180, 'icon': Icons.breakfast_dining},
-          {'name': 'Bánh mì heo quay giòn bì siêu ngon', 'price': '32.000đ', 'sold': '450+', 'likes': 110, 'icon': Icons.breakfast_dining},
-        ],
-        // Bánh mì mặn
-        [
-          {'name': 'Bánh mì chả lụa pate bơ', 'price': '20.000đ', 'sold': '500+', 'likes': 45, 'icon': Icons.breakfast_dining},
-          {'name': 'Bánh mì xíu mại trứng muối', 'price': '28.000đ', 'sold': '350+', 'likes': 62, 'icon': Icons.breakfast_dining},
-          {'name': 'Bánh mì gà xé cay ngũ vị', 'price': '22.000đ', 'sold': '280+', 'likes': 38, 'icon': Icons.breakfast_dining},
-        ],
-        // Bánh mì ngọt
-        [
-          {'name': 'Bánh mì bơ tỏi phô mai Hàn Quốc', 'price': '25.000đ', 'sold': '200+', 'likes': 50, 'icon': Icons.breakfast_dining},
-          {'name': 'Bánh mì mứt dâu tây', 'price': '15.000đ', 'sold': '120+', 'likes': 15, 'icon': Icons.breakfast_dining},
-        ],
-        // Nước uống
-        [
-          {'name': 'Sữa đậu nành nguyên chất thơm mát', 'price': '10.000đ', 'sold': '850+', 'likes': 120, 'icon': Icons.local_drink},
-          {'name': 'Nước sâm bí đao lá dứa', 'price': '12.000đ', 'sold': '390+', 'likes': 64, 'icon': Icons.local_drink},
-        ],
-      ];
-    }
+    _sectionKeys = [];
   }
 
   @override
@@ -1079,9 +925,47 @@ class _MockStoreDetailPageState extends ConsumerState<MockStoreDetailPage> {
   // ─── Build grouped list of menu items (100% exact copy of customer-facing page) ───
   List<Widget> _buildAllMenuSections() {
     final List<Widget> slivers = [];
-
     final categories = _currentCategories;
     final menuItems = _currentMenuItems;
+
+    if (categories.isEmpty || menuItems.isEmpty) {
+      return [
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.restaurant_menu_rounded,
+                  size: 64,
+                  color: AppColors.textTertiary,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Cửa hàng chưa có thực đơn',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Vui lòng thêm danh mục và món ăn trong mục "Thiết lập Thực đơn" để xem trước giao diện cửa hàng.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
 
     for (int i = 0; i < categories.length; i++) {
       final category = categories[i];
@@ -1244,13 +1128,14 @@ class _MockCategoryTabsDelegate extends SliverPersistentHeaderDelegate {
   });
 
   @override
-  double get minExtent => 48;
+  double get minExtent => categories.isEmpty ? 0 : 48;
 
   @override
-  double get maxExtent => 48;
+  double get maxExtent => categories.isEmpty ? 0 : 48;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    if (categories.isEmpty) return const SizedBox.shrink();
     return ValueListenableBuilder<int>(
       valueListenable: selectedIndexNotifier,
       builder: (context, selectedIndex, _) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -27,6 +28,7 @@ class OrderStatusPage extends ConsumerStatefulWidget {
 class _OrderStatusPageState extends ConsumerState<OrderStatusPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Timer? _refreshTimer;
 
   static const _tabs = [
     'Tất cả',
@@ -50,10 +52,15 @@ class _OrderStatusPageState extends ConsumerState<OrderStatusPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(orderProvider.notifier).fetchMyOrders();
     });
+    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      ref.read(orderProvider.notifier).fetchMyOrders();
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -168,34 +175,6 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
   final ScrollController _scrollController = ScrollController();
   int _displayCount = 10;
   bool _isLoadingMore = false;
-
-  // Mock suggested stores
-  static const _suggestedStores = [
-    {
-      'name': 'Hiên Coffee - 32 Hồ Văn Huê',
-      'rating': 4.7,
-      'distance': '0.3km',
-      'time': '15 phút',
-      'badge': 'Mã giảm 11%',
-      'icon': Icons.coffee,
-    },
-    {
-      'name': 'Trạm Cà Phê - 77 Nguyễn Diêu',
-      'rating': 5.0,
-      'distance': '0.3km',
-      'time': '22 phút',
-      'badge': 'Mã giảm 11%',
-      'icon': Icons.local_cafe,
-    },
-    {
-      'name': 'Cơm Tấm Sài Gòn - A Vũ',
-      'rating': 4.8,
-      'distance': '1.2km',
-      'time': '30 phút',
-      'badge': 'Mã giảm 15%',
-      'icon': Icons.rice_bowl,
-    },
-  ];
 
   @override
   void initState() {
@@ -470,6 +449,31 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
               ),
               const SizedBox(height: 8),
 
+              // Customer Info chip
+              if (order.customerName != null || order.customerPhone != null || order.customerAddress != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_pin_circle_rounded, size: 14, color: Color(0xFF475569)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Khách: ${order.customerName ?? 'Khách lẻ'} ${order.customerPhone != null && order.customerPhone!.isNotEmpty ? '(${order.customerPhone})' : ''} ${order.customerAddress != null && order.customerAddress!.isNotEmpty ? '· ${order.customerAddress}' : ''}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
               // 2. ETA Shipping Bar
               Builder(
                 builder: (context) {
@@ -656,41 +660,50 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                 );
               }),
 
-              if (order.storeNote != null &&
-                  order.storeNote!.trim().isNotEmpty) ...[
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgWarm.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color:
-                              AppColors.outlineVariant.withValues(alpha: 0.5)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.sticky_note_2_rounded,
-                            size: 16, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Ghi chú đơn hàng: ${order.storeNote}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
+              Builder(
+                builder: (context) {
+                  if (order.storeNote == null || order.storeNote!.trim().isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  final noteCleaned = order.storeNote!
+                      .replaceAll(RegExp(r'Người mua:\s*[^|]+\|\s*SĐT:\s*[^|]+\|\s*Địa chỉ:\s*.*', caseSensitive: false), '')
+                      .trim();
+                  if (noteCleaned.isEmpty) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgWarm.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color:
+                                AppColors.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.sticky_note_2_rounded,
+                              size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Ghi chú đơn hàng: $noteCleaned',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
 
               const Divider(height: 1, color: AppColors.outlineVariant),
               const SizedBox(height: 10),

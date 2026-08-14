@@ -14,6 +14,8 @@ import '../../../providers/shop_provider.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../providers/order_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../widgets/common/require_login_dialog.dart';
 import 'cart_page.dart';
 import 'payment_page.dart';
 import 'orders_page.dart';
@@ -21,6 +23,7 @@ import 'store_detail_page.dart';
 import 'chat_assistant_page.dart';
 import '../../../core/services/location_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:geolocator/geolocator.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -43,154 +46,297 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _handleLocation() async {
     const storage = FlutterSecureStorage();
-    final locationAsked = await storage.read(key: 'location_asked');
+    final savedAddress = await storage.read(key: 'user_address_text');
+    final savedLat = await storage.read(key: 'user_lat');
+    final savedLng = await storage.read(key: 'user_lng');
 
+    if (savedLat != null && savedLng != null) {
+      final lat = double.tryParse(savedLat);
+      final lng = double.tryParse(savedLng);
+      if (lat != null && lng != null && LocationService.isWithinVietnam(lat, lng)) {
+        final pos = Position(
+          latitude: lat,
+          longitude: lng,
+          timestamp: DateTime.now(),
+          accuracy: 10,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        );
+        ref.read(userLocationProvider.notifier).state = pos;
+        if (savedAddress != null && savedAddress.isNotEmpty) {
+          ref.read(userAddressNameProvider.notifier).state = savedAddress;
+        } else {
+          LocationService.reverseGeocode(lat, lng).then((addr) {
+            if (addr != null && mounted) {
+              ref.read(userAddressNameProvider.notifier).state = addr;
+            }
+          });
+        }
+        return;
+      }
+    }
+
+    final locationAsked = await storage.read(key: 'location_asked');
     if (locationAsked == 'true') {
-      // Already asked before → auto get location silently
       try {
         final position = await LocationService.getCurrentPosition();
         if (position != null) {
-          print('[Location] Auto: ${position.latitude}, ${position.longitude}');
           ref.read(userLocationProvider.notifier).state = position;
+          final realAddress = await LocationService.reverseGeocode(position.latitude, position.longitude);
+          if (realAddress != null && mounted) {
+            ref.read(userAddressNameProvider.notifier).state = realAddress;
+          }
         }
       } catch (_) {}
     } else {
-      // First time → show popup
-      _showLocationPermissionDialog();
+      _showLocationSelectionDialog();
     }
   }
 
-  void _showLocationPermissionDialog() {
+  void _showLocationSelectionDialog() {
+    final addressCtrl = TextEditingController(text: ref.read(userAddressNameProvider) ?? '');
+    bool isGeocoding = false;
+    String? geocodedResultText;
+
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Location icon with gradient background
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary.withValues(alpha: 0.15),
-                      AppColors.secondary.withValues(alpha: 0.1),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Nhập địa chỉ giao hàng',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Ưu tiên nhập địa chỉ thực tế để xác định GPS chuẩn 100%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
-                  shape: BoxShape.circle,
-                ),
-                child: Container(
-                  margin: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.primary, AppColors.secondary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                  const SizedBox(height: 20),
+
+                  // Option 1: Primary Manual Address Entry
+                  const Text(
+                    'Địa chỉ cụ thể của bạn *',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: addressCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'VD: 123 Nguyễn Huệ, Phường Bến Nghé, Quận 1...',
+                      hintStyle: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                      prefixIcon: const Icon(Icons.edit_location_alt_outlined, color: AppColors.primary, size: 20),
+                      suffixIcon: addressCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18, color: AppColors.textTertiary),
+                              onPressed: () {
+                                addressCtrl.clear();
+                                setDialogState(() {});
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: const Color(0xFFF9FAFB),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.outlineVariant),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
                     ),
-                    shape: BoxShape.circle,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                    onChanged: (_) => setDialogState(() {}),
                   ),
-                  child: const Icon(Icons.location_on_rounded,
-                      size: 22, color: AppColors.onPrimary),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Title
-              const Text(
-                'Truy cập vị trí',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Description
-              const Text(
-                'Cho phép ứng dụng truy cập vị trí để tìm cửa hàng gần bạn và tính khoảng cách giao hàng.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Allow button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    // Save flag
-                    const storage = FlutterSecureStorage();
-                    await storage.write(key: 'location_asked', value: 'true');
-                    print('[Location] Đang lấy vị trí...');
-                    try {
-                      final position =
-                          await LocationService.getCurrentPosition();
-                      if (position != null) {
-                        print(
-                            '[Location] ✅ Tọa độ: ${position.latitude}, ${position.longitude}');
-                        ref.read(userLocationProvider.notifier).state = position;
-                      } else {
-                        print('[Location] ⚠️ Không lấy được vị trí');
-                      }
-                    } catch (e) {
-                      print('[Location] ❌ Lỗi: $e');
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Cho phép',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Deny button
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    // Save flag even if denied
-                    const storage = FlutterSecureStorage();
-                    await storage.write(key: 'location_asked', value: 'true');
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    'Để sau',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                  const SizedBox(height: 10),
+
+                  if (geocodedResultText != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.successContainer,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              geocodedResultText!,
+                              style: const TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isGeocoding
+                          ? null
+                          : () async {
+                              final address = addressCtrl.text.trim();
+                              if (address.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Vui lòng nhập địa chỉ cụ thể của bạn')),
+                                );
+                                return;
+                              }
+                              setDialogState(() {
+                                isGeocoding = true;
+                              });
+
+                              final pos = await LocationService.geocodeAddress(address);
+                              setDialogState(() {
+                                isGeocoding = false;
+                              });
+
+                              if (pos != null) {
+                                ref.read(userLocationProvider.notifier).state = pos;
+                                ref.read(userAddressNameProvider.notifier).state = address;
+
+                                const storage = FlutterSecureStorage();
+                                await storage.write(key: 'location_asked', value: 'true');
+                                await storage.write(key: 'user_address_text', value: address);
+                                await storage.write(key: 'user_lat', value: pos.latitude.toString());
+                                await storage.write(key: 'user_lng', value: pos.longitude.toString());
+
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Đã cập nhật địa chỉ giao hàng: $address'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                              } else {
+                                setDialogState(() {
+                                  geocodedResultText = 'Không tự động tra được tọa độ cho chuỗi nhập này. Hệ thống sẽ áp dụng vị trí trung tâm địa bàn.';
+                                });
+                              }
+                            },
+                      icon: isGeocoding
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check_circle_rounded, size: 18),
+                      label: Text(
+                        isGeocoding ? 'Đang tra cứu tọa độ GPS...' : 'Xác nhận địa chỉ này',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 16),
+                  const Divider(color: AppColors.divider, height: 1),
+                  const SizedBox(height: 12),
+
+                  // Option 2: Automatic Reverse-Geocoded GPS Device Location
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            setDialogState(() {
+                              isGeocoding = true;
+                            });
+                            const storage = FlutterSecureStorage();
+                            await storage.write(key: 'location_asked', value: 'true');
+                            try {
+                              final pos = await LocationService.getCurrentPosition();
+                              if (pos != null) {
+                                ref.read(userLocationProvider.notifier).state = pos;
+                                final realAddress = await LocationService.reverseGeocode(pos.latitude, pos.longitude);
+                                final displayAddr = realAddress ?? 'Quận 1, TP. Hồ Chí Minh';
+                                ref.read(userAddressNameProvider.notifier).state = displayAddr;
+
+                                await storage.write(key: 'user_address_text', value: displayAddr);
+                                await storage.write(key: 'user_lat', value: pos.latitude.toString());
+                                await storage.write(key: 'user_lng', value: pos.longitude.toString());
+                              }
+                            } catch (_) {} finally {
+                              if (mounted) {
+                                setDialogState(() {
+                                  isGeocoding = false;
+                                });
+                                Navigator.pop(ctx);
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.my_location_rounded, size: 16, color: AppColors.textSecondary),
+                          label: const Text(
+                            'Tự động định vị vị trí hiện tại',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.outlineVariant),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -205,6 +351,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _onRefresh() async {
     ref.invalidate(categoriesFutureProvider);
     ref.invalidate(branchesFutureProvider);
+    ref.invalidate(recommendedBranchesProvider);
+    ref.invalidate(myBrandBranchesFutureProvider);
     try {
       await Future.wait([
         ref.read(categoriesFutureProvider.future),
@@ -264,6 +412,21 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return InkWell(
       onTap: () {
+        if (index > 0) {
+          final isLoggedIn = ref.read(isAuthenticatedProvider);
+          if (!isLoggedIn) {
+            RequireLoginDialog.show(
+              context,
+              message: index == 1
+                  ? 'Vui lòng đăng nhập để sử dụng tính năng thanh toán & quản lý ví tiền.'
+                  : (index == 2
+                      ? 'Vui lòng đăng nhập để theo dõi và quản lý lịch sử đơn hàng của bạn.'
+                      : 'Vui lòng đăng nhập để trò chuyện cùng Trợ lý AI DineX.'),
+            );
+            return;
+          }
+        }
+
         if (index == 3) {
           Navigator.push(
             context,
@@ -415,15 +578,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ref.read(searchQueryProvider.notifier).state = query;
                   ref.read(menuCurrentPageProvider.notifier).state = 1;
                 },
+                onChangeLocationTap: _showLocationSelectionDialog,
               )
             : null,
         body: _buildBody(cart),
         floatingActionButton: _currentTabIndex == 0
             ? FloatingActionButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CartPage()),
-                ),
+                onPressed: () {
+                  final isLoggedIn = ref.read(isAuthenticatedProvider);
+                  if (!isLoggedIn) {
+                    RequireLoginDialog.show(
+                      context,
+                      message: 'Vui lòng đăng nhập để xem và quản lý giỏ hàng của bạn.',
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartPage()),
+                  );
+                },
                 backgroundColor: Colors.white,
                 elevation: 4,
                 shape: const CircleBorder(),
@@ -442,7 +616,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         width: 8,
                         height: 8,
                         decoration: const BoxDecoration(
-                          color: AppColors.error, // Red badge dot
+                          color: AppColors.error,
                           shape: BoxShape.circle,
                         ),
                       ),

@@ -47,28 +47,53 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     try {
       final user = ref.read(currentUserProvider);
       if (user != null) {
-        final finalPhone = _phoneController.text.trim();
-
-        final updatedUser = UserModel(
-          id: user.id,
-          username: user.username,
-          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-          phone: finalPhone.isEmpty ? null : finalPhone,
+        final repository = ref.read(authRepositoryProvider);
+        final freshUser = await repository.updateProfile(
           fullName: _nameController.text.trim(),
-          avatar: user.avatar,
+          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
           gender: _selectedGender,
-          birthday: user.birthday,
-          role: user.role,
-          isActive: user.isActive,
-          points: user.points,
-          tier: user.tier,
-          address: user.address,
-          createdAt: user.createdAt,
-          updatedAt: DateTime.now().toIso8601String(),
         );
 
-        // Update secure storage and Riverpod state
-        await ref.read(authProvider.notifier).setUser(updatedUser);
+        if (freshUser != null) {
+          final updatedUser = UserModel(
+            id: freshUser.id.isNotEmpty ? freshUser.id : user.id,
+            username: freshUser.username.isNotEmpty ? freshUser.username : user.username,
+            email: freshUser.email ?? user.email,
+            phone: freshUser.phone ?? user.phone,
+            fullName: freshUser.fullName ?? _nameController.text.trim(),
+            avatar: freshUser.avatar ?? user.avatar,
+            gender: freshUser.gender ?? _selectedGender,
+            birthday: freshUser.birthday ?? user.birthday,
+            role: user.role,
+            isActive: freshUser.isActive,
+            points: freshUser.points,
+            tier: freshUser.tier,
+            address: freshUser.address ?? user.address,
+            createdAt: user.createdAt,
+            updatedAt: DateTime.now().toIso8601String(),
+          );
+          await ref.read(authProvider.notifier).setUser(updatedUser);
+        } else {
+          // Fallback to local state update if backend returns partial data
+          final updatedUser = UserModel(
+            id: user.id,
+            username: user.username,
+            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+            phone: user.phone,
+            fullName: _nameController.text.trim(),
+            avatar: user.avatar,
+            gender: _selectedGender,
+            birthday: user.birthday,
+            role: user.role,
+            isActive: user.isActive,
+            points: user.points,
+            tier: user.tier,
+            address: user.address,
+            createdAt: user.createdAt,
+            updatedAt: DateTime.now().toIso8601String(),
+          );
+          await ref.read(authProvider.notifier).setUser(updatedUser);
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
