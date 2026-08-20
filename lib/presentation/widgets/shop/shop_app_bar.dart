@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -305,8 +306,11 @@ class _AnimatedSearchPlaceholderState extends ConsumerState<_AnimatedSearchPlace
     _startCycling();
   }
 
+  Timer? _cyclingTimer;
+
   void _startCycling() {
-    Future.delayed(const Duration(seconds: 3), () {
+    _cyclingTimer?.cancel();
+    _cyclingTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
       _controller.reverse().then((_) {
         if (!mounted) return;
@@ -328,6 +332,7 @@ class _AnimatedSearchPlaceholderState extends ConsumerState<_AnimatedSearchPlace
 
   @override
   void dispose() {
+    _cyclingTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

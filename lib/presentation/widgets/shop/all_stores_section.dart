@@ -79,6 +79,7 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
       BuildContext context, List<BranchListItemModel> branches) {
     final visibleStores = branches.take(_displayCount).toList();
     final hasMore = _displayCount < branches.length;
+    final userLocation = ref.watch(userLocationProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +92,6 @@ class _AllStoresSectionState extends ConsumerState<AllStoresSection> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final store = visibleStores[index];
-              final userLocation = ref.watch(userLocationProvider);
 
               // Calculate 100% exact branch distance
               final displayDistance = LocationService.calculateBranchDistance(

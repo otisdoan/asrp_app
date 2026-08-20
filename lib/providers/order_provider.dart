@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../data/repositories/order_repository.dart';
 import '../data/repositories/branch_repository.dart';
 import '../core/network/dio_client.dart';
+import 'branch_provider.dart';
 
 class MockOrderItem {
   final String? id; // Order Item ID
@@ -603,6 +604,8 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       await _ensureBranchNamesLoaded();
       final order = MockOrder.fromJson(orderJson, _branchNames);
       state = [order, ...state];
+      // ⚡ Invalidate personalized dishes cache so AI recommendations refresh immediately post-purchase
+      _ref.invalidate(personalizedDishesProvider);
       return order;
     } catch (e) {
       print('[OrderListNotifier] createKioskOrder error: $e');
@@ -674,6 +677,8 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
       state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      // ⚡ Invalidate personalized dishes cache so AI recommendations refresh immediately post-completion
+      _ref.invalidate(personalizedDishesProvider);
     } catch (e) {
       print('[OrderListNotifier] completeOrder error: $e');
       rethrow;

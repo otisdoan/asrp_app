@@ -1,11 +1,14 @@
+import com.android.build.api.dsl.ApplicationExtension
+
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.example.fe_asrp_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -37,10 +40,9 @@ android {
 
     packaging {
         jniLibs {
-            doNotStrip("**/*.so")
+            keepDebugSymbols.add("**/*.so")
         }
     }
-
 }
 
 kotlin {

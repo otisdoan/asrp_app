@@ -15,6 +15,7 @@ import 'add_to_cart_page.dart';
 import 'qr_payment_page.dart';
 import 'package:dio/dio.dart';
 import '../../../core/utils/top_notification.dart';
+import '../../widgets/common/order_error_dialog.dart';
 
 /// Checkout Page — order summary, pickup time, QR payment.
 /// Business: No delivery. Customer orders online, picks up at store.
@@ -130,8 +131,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         } else {
           final sizeTopping = item.selectedToppings.firstWhere(
             (t) => t.name.startsWith('Size ') && isUuid(t.toppingId),
-            orElse: () =>
-                const ToppingSelectionModel(toppingId: '', name: '', price: 0),
+            orElse: () => const ToppingSelectionModel(toppingId: '', name: '', price: 0),
           );
           if (sizeTopping.toppingId.isNotEmpty) {
             sizeId = sizeTopping.toppingId;
@@ -166,17 +166,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     try {
       final cart = ref.read(cartProvider);
-      final payload =
-          _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
+      final payload = _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
       print('[Checkout] Payload sent to preview: $payload');
       final response = await _orderRepository.previewOrder(payload);
       print('[Checkout] Response from preview: $response');
 
       if (mounted) {
         setState(() {
-          _availablePickupTimes =
-              List<String>.from(response['availablePickupTimes'] ?? []);
-          if (_availablePickupTimes.isNotEmpty && _selectedPickupTime == null) {
+          _availablePickupTimes = List<String>.from(response['availablePickupTimes'] ?? ['12:00', '12:15', '12:30', '12:45', '13:00']);
+          if (_availablePickupTimes.isEmpty) {
+            _availablePickupTimes = ['12:00', '12:15', '12:30', '12:45', '13:00'];
+          }
+          if (_selectedPickupTime == null && _availablePickupTimes.isNotEmpty) {
             _selectedPickupTime = _availablePickupTimes.first;
           }
           _previewDiscount = (response['discountAmount'] as num?)?.toInt() ?? 0;
@@ -185,16 +186,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         });
       }
     } catch (e) {
+      print('[Checkout] Error in preview: $e');
       if (mounted) {
         setState(() {
+          _availablePickupTimes = ['12:00', '12:15', '12:30', '12:45', '13:00'];
+          if (_selectedPickupTime == null) {
+            _selectedPickupTime = _availablePickupTimes.first;
+          }
+          _previewDiscount = 0;
           _isLoading = false;
           _isFirstLoad = false;
         });
-        TopNotification.show(
-          context,
-          message: 'Không thể tính toán giá đơn hàng: $e',
-          isError: true,
-        );
+        _showOrderErrorDialog(e);
       }
     }
   }
@@ -1768,24 +1771,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       setState(() {
         _isLoading = false;
       });
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Lỗi đặt hàng'),
-          content: Text(_parseCheckoutError(e)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child:
-                  const Text('OK', style: TextStyle(color: AppColors.primary)),
-            ),
-          ],
-        ),
-      );
+      _showOrderErrorDialog(e);
     }
+  }
+
+  void _showOrderErrorDialog(dynamic error) {
+    OrderErrorDialog.show(
+      context,
+      ref,
+      error,
+      branchId: widget.branchId,
+    );
   }
 
   String _parseCheckoutError(dynamic e) {

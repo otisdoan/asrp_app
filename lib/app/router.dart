@@ -24,6 +24,7 @@ import '../presentation/pages/merchant/staff_management_page.dart';
 import '../presentation/pages/shop/section_detail_page.dart';
 import '../presentation/pages/shop/order_failure_page.dart';
 import '../presentation/pages/shop/payment_success_page.dart';
+import '../presentation/pages/shop/chat_assistant_page.dart';
 import '../core/constants/app_constants.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -211,6 +212,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppConstants.routeStaffManagement,
         builder: (context, state) => const StaffManagementPage(),
+      ),
+      GoRoute(
+        path: '/chat-assistant',
+        builder: (context, state) => const ChatAssistantPage(),
       ),
       GoRoute(
         path: '/payment-success',

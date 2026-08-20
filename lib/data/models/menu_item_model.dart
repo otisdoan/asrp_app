@@ -37,6 +37,8 @@ class MenuItemModel {
   final int? soldCount;
   final int? likesCount;
   final bool isSoldOut;
+  final bool isAvailable;
+  final bool hasRecipes;
 
   const MenuItemModel({
     this.id,
@@ -51,6 +53,8 @@ class MenuItemModel {
     this.soldCount,
     this.likesCount,
     this.isSoldOut = false,
+    this.isAvailable = true,
+    this.hasRecipes = true,
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
@@ -67,8 +71,18 @@ class MenuItemModel {
       );
     }
 
+    final bool isAvailableVal = json['isAvailable'] as bool? ?? true;
+    bool hasRecipesVal = true;
+    if (json['hasRecipes'] is bool) {
+      hasRecipesVal = json['hasRecipes'] as bool;
+    } else if (json['recipes'] is List) {
+      hasRecipesVal = (json['recipes'] as List).isNotEmpty;
+    } else if (json['recipeCount'] is num) {
+      hasRecipesVal = (json['recipeCount'] as num) > 0;
+    }
+
     final bool isSoldOutVal =
-        (json['isSoldOut'] as bool? ?? false) || (json['isAvailable'] == false);
+        (json['isSoldOut'] as bool? ?? false) || !isAvailableVal || !hasRecipesVal;
 
     return MenuItemModel(
       id: json['id'] as String?,
@@ -83,6 +97,8 @@ class MenuItemModel {
       soldCount: json['soldCount'] as int? ?? json['sold'] as int?,
       likesCount: json['likesCount'] as int? ?? json['likes'] as int?,
       isSoldOut: isSoldOutVal,
+      isAvailable: isAvailableVal,
+      hasRecipes: hasRecipesVal,
     );
   }
 

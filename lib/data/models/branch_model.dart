@@ -208,7 +208,7 @@ class BranchDetailModel {
 
   bool get isOpen {
     final normalizedStatus = status?.trim().toLowerCase();
-    if (normalizedStatus == 'closed' || isActive == false) {
+    if (normalizedStatus == 'closed' || normalizedStatus == 'inactive' || isActive == false) {
       return false;
     }
     if (normalizedStatus == 'active' || normalizedStatus == 'busy') {
@@ -235,7 +235,7 @@ class BranchDetailModel {
         }
       } catch (_) {}
     }
-    return status == null;
+    return normalizedStatus == 'active' || status == null;
   }
 
   factory BranchDetailModel.fromJson(Map<String, dynamic> json) {
