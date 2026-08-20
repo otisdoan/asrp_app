@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/location_service.dart';
 import '../../../data/models/branch_model.dart';
 import '../../../providers/branch_provider.dart';
 import '../../pages/shop/store_detail_page.dart';
@@ -23,7 +24,7 @@ class DealsSection extends ConsumerWidget {
         if (branches.isEmpty) {
           return const SizedBox.shrink();
         }
-        return _buildContent(context, branches);
+        return _buildContent(context, ref, branches);
       },
       loading: () => _buildLoadingState(),
       error: (err, stack) {
@@ -79,7 +80,9 @@ class DealsSection extends ConsumerWidget {
   }
 
   Widget _buildContent(
-      BuildContext context, List<BranchListItemModel> branches) {
+      BuildContext context, WidgetRef ref, List<BranchListItemModel> branches) {
+    final userLocation = ref.watch(userLocationProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -162,6 +165,20 @@ class DealsSection extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final branch = branches[index];
 
+                final displayDistance = LocationService.calculateBranchDistance(
+                  userLocation: userLocation,
+                  branchLat: branch.latitude,
+                  branchLng: branch.longitude,
+                  branchAddress: branch.address,
+                  branchName: branch.name,
+                  fallbackDistance: branch.distance,
+                );
+
+                final displayTime = LocationService.calculateDeliveryTime(
+                  deliveryTime: branch.deliveryTime,
+                  distanceStr: displayDistance,
+                );
+
                 // Dynamic promo label formatting
                 String promoTag = 'Mã giảm 10%';
                 if (branch.discount != null && branch.discount!.isNotEmpty) {
@@ -190,6 +207,8 @@ class DealsSection extends ConsumerWidget {
                 return _DealCard(
                   branch: branch,
                   promoTag: promoTag,
+                  distance: displayDistance,
+                  deliveryTime: displayTime,
                   onItemTap: onItemTap,
                 );
               },
@@ -204,11 +223,15 @@ class DealsSection extends ConsumerWidget {
 class _DealCard extends StatelessWidget {
   final BranchListItemModel branch;
   final String promoTag;
+  final String distance;
+  final String deliveryTime;
   final Function(String) onItemTap;
 
   const _DealCard({
     required this.branch,
     required this.promoTag,
+    required this.distance,
+    required this.deliveryTime,
     required this.onItemTap,
   });
 
@@ -224,10 +247,8 @@ class _DealCard extends StatelessWidget {
               category: 'Đồ ăn · Đồ uống',
               rating: branch.rating,
               reviews: branch.reviewsCount ?? 120,
-              deliveryTime: branch.deliveryTime.isNotEmpty
-                  ? branch.deliveryTime
-                  : '25 phút',
-              distance: branch.distance.isNotEmpty ? branch.distance : '1.5 km',
+              deliveryTime: deliveryTime,
+              distance: distance,
               icon: Icons.store,
               branchId: branch.id,
               imageUrl: branch.imageUrl,

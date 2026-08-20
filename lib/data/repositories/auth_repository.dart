@@ -20,7 +20,7 @@ class AuthRepository {
       return false;
     } catch (e) {
       print('[AuthRepository] checkPhoneExists error: $e');
-      return false;
+      rethrow;
     }
   }
 

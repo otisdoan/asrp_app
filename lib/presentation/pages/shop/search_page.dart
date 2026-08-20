@@ -9,6 +9,7 @@ import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
 import '../../../data/models/branch_search_model.dart';
 import '../../../providers/branch_provider.dart';
+import '../../widgets/common/you_may_also_like_section.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
@@ -403,102 +404,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildRecommendedSection() {
-    final recommendedAsync = ref.watch(recommendedBranchesProvider);
-    return recommendedAsync.when(
-      data: (stores) {
-        if (stores.isEmpty) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Được đề xuất',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 12),
-              GridView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.65,
-                ),
-                itemCount: stores.length,
-                itemBuilder: (_, index) {
-                  final store = stores[index];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => StoreDetailPage(
-                          branchId: store.id,
-                          storeName: store.name,
-                          category: store.category ?? 'Đồ ăn · Đồ uống',
-                          rating: store.rating,
-                          reviews: store.reviewsCount ?? 150,
-                          deliveryTime: store.deliveryTime,
-                          distance: store.distance,
-                          icon: Icons.store,
-                          imageUrl: store.imageUrl,
-                        ),
-                      ));
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              image: DecorationImage(
-                                image: _getBranchImageProvider(store.imageUrl),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          store.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.2),
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Text(
-                              store.distance,
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                            const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                            const Icon(Icons.star, size: 12, color: Color(0xFFFFC107)),
-                            const SizedBox(width: 2),
-                            Text(
-                              store.rating.toString(),
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
+    return const YouMayAlsoLikeSection(
+      subtitle: 'Gợi ý món ăn tối ưu theo khẩu vị & lịch sử của bạn',
+      margin: EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 16),
     );
   }
 

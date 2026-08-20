@@ -1,11 +1,20 @@
 class ApiConstants {
   ApiConstants._();
 
-  // Local development (Use http://127.0.0.1:5100/api via adb reverse tcp:5100 tcp:5100 or emulator)
-  static const String baseUrl = 'http://127.0.0.1:5100/api';
-  
-  // Production URL
+  // Base URL (Switch between Local and Production)
+  // Android Emulator default loopback: http://10.0.2.2:5100/api
+  // iOS Simulator / Web: http://localhost:5100/api
+  // Physical Device: http://<YOUR_LOCAL_IP>:5100/api (e.g. 10.12.26.38)
+  static const String baseUrl = 'http://10.0.2.2:5100/api';
+  // Production URL:
   // static const String baseUrl = 'https://api.asrp.io.vn/api';
+
+  // Domain URL without /api prefix (used for SignalR Hubs)
+  static String get domainUrl => baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+
+  // SignalR Hubs
+  static String get chatAgentHubUrl => '$domainUrl/hubs/chat-agent';
+  static String get notificationHubUrl => '$domainUrl/hubs/notifications';
 
   // Auth
   static const String login = '/auth/app/login';

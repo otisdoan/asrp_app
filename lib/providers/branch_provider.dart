@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../data/models/branch_model.dart';
 import '../data/models/branch_search_model.dart';
+import '../data/models/menu_item_model.dart';
 import '../data/repositories/branch_repository.dart';
+import 'auth_provider.dart';
 
 final branchRepositoryProvider = Provider<BranchRepository>((ref) {
   return BranchRepository();
@@ -31,13 +34,51 @@ final quickSuggestionsProvider = FutureProvider<List<String>>((ref) async {
   return repository.getQuickSearchSuggestions();
 });
 
+double parseDistanceInKm(String? distStr) {
+  if (distStr == null) return 999999.0;
+  final str = distStr.toLowerCase().trim();
+  if (str.isEmpty || str == 'n/a') return 999999.0;
+  if (str.endsWith('km')) {
+    final val = double.tryParse(str.replaceAll('km', '').trim());
+    return val ?? 999999.0;
+  }
+  if (str.endsWith('m')) {
+    final val = double.tryParse(str.replaceAll('m', '').trim());
+    return val != null ? val / 1000.0 : 999999.0;
+  }
+  final val = double.tryParse(str);
+  return val ?? 999999.0;
+}
+
 final recommendedBranchesProvider = FutureProvider<List<BranchListItemModel>>((ref) async {
   final repository = ref.watch(branchRepositoryProvider);
   final location = ref.watch(userLocationProvider);
-  return repository.getRecommendedBranches(
+  final list = await repository.getRecommendedBranches(
     latitude: location?.latitude,
     longitude: location?.longitude,
   );
+  if (location != null) {
+    final validList = list.where((b) {
+      final distStr = b.distance.trim().toLowerCase();
+      return distStr.isNotEmpty &&
+             distStr != 'n/a' &&
+             distStr != '0 km' &&
+             distStr != '0.0 km';
+    }).toList();
+
+    validList.sort((a, b) =>
+        parseDistanceInKm(a.distance).compareTo(parseDistanceInKm(b.distance)));
+
+    return validList;
+  }
+  return list;
+});
+
+final personalizedDishesProvider = FutureProvider<List<MenuItemModel>>((ref) async {
+  final repository = ref.watch(branchRepositoryProvider);
+  final currentUser = ref.watch(currentUserProvider);
+  final userId = currentUser?.id;
+  return repository.getPersonalizedRecommendedDishes(userId: userId, limit: 9);
 });
 
 class SearchQueryParams {
@@ -78,7 +119,7 @@ class SearchQueryParams {
 final searchResultsProvider = FutureProvider.family<List<BranchSearchResultModel>, SearchQueryParams>((ref, params) async {
   final repository = ref.watch(branchRepositoryProvider);
   final location = ref.watch(userLocationProvider);
-  return repository.getSearchResults(
+  final results = await repository.getSearchResults(
     query: params.query,
     sortBy: params.sortBy,
     latitude: location?.latitude,
@@ -87,6 +128,10 @@ final searchResultsProvider = FutureProvider.family<List<BranchSearchResultModel
     hasPromo: params.hasPromo,
     maxPrice: params.maxPrice,
   );
+  if (location != null) {
+    return results.where((b) => b.distance != null && b.distance.trim().isNotEmpty && b.distance != 'N/A' && b.distance != '0 km' && b.distance != '0.0 km').toList();
+  }
+  return results;
 });
 
 class SearchHistoryNotifier extends StateNotifier<AsyncValue<List<String>>> {

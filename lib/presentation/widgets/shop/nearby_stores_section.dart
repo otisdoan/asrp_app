@@ -121,6 +121,7 @@ class NearbyStoresSection extends ConsumerWidget {
                   branchLat: branch.latitude,
                   branchLng: branch.longitude,
                   branchAddress: branch.address,
+                  branchName: branch.name,
                   fallbackDistance: branch.distance,
                 );
 

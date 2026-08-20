@@ -41,6 +41,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleLocation();
+      // Pre-fetch personalized dishes in background for 0ms transition to Search/Orders page
+      ref.read(personalizedDishesProvider.future);
     });
   }
 

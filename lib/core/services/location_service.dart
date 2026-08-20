@@ -94,25 +94,84 @@ class LocationService {
     required double? branchLng,
     String? branchAddress,
     String? fallbackDistance,
+    String? branchName,
   }) {
     // 1. Resolve user position (defaulting to HCMC center)
     final userPos = userLocation ?? defaultVietnamPosition();
 
-    // 2. Resolve branch coordinates
-    double bLat = branchLat ?? 0.0;
-    double bLng = branchLng ?? 0.0;
-
-    if (!isWithinVietnam(bLat, bLng)) {
-      // Deterministic coordinate offset around user's current position based on address string hash
-      final hash = (branchAddress ?? 'DineX Store').hashCode.abs();
-      final offsetLat = ((hash % 80) - 40) / 2000.0; // +/- 0.02 deg (~ 1.5 - 3km)
-      final offsetLng = (((hash ~/ 80) % 80) - 40) / 2000.0;
-      bLat = userPos.latitude + offsetLat;
-      bLng = userPos.longitude + offsetLng;
+    // 2. If branch has valid GPS coordinates in database, calculate EXACT real Haversine distance!
+    if (branchLat != null && branchLng != null && isWithinVietnam(branchLat, branchLng)) {
+      final meters = distanceTo(userPos.latitude, userPos.longitude, branchLat, branchLng);
+      return formatDistance(meters);
     }
 
-    final meters = distanceTo(userPos.latitude, userPos.longitude, bLat, bLng);
+    // 3. Resolve known city coordinates from address/name if DB coordinates are missing/null
+    final textToSearch = '${branchName ?? ''} ${branchAddress ?? ''}'.toLowerCase();
+    double resolvedLat = 10.776889; // Default HCMC
+    double resolvedLng = 106.700806;
+
+    if (textToSearch.contains('quy nhơn') || textToSearch.contains('quy nhon') || textToSearch.contains('bình định')) {
+      resolvedLat = 13.7549672;
+      resolvedLng = 109.1767596;
+    } else if (textToSearch.contains('hà nội') || textToSearch.contains('ha noi')) {
+      resolvedLat = 21.028511;
+      resolvedLng = 105.804817;
+    } else if (textToSearch.contains('đà nẵng') || textToSearch.contains('da nang')) {
+      resolvedLat = 16.054407;
+      resolvedLng = 108.202167;
+    } else if (textToSearch.contains('nha trang')) {
+      resolvedLat = 12.238791;
+      resolvedLng = 109.196749;
+    } else if (textToSearch.contains('cần thơ') || textToSearch.contains('can tho')) {
+      resolvedLat = 10.045162;
+      resolvedLng = 105.746857;
+    } else if (textToSearch.contains('hồ chí minh') || textToSearch.contains('ho chi minh') || textToSearch.contains('hcm') || textToSearch.contains('sài gòn')) {
+      resolvedLat = 10.776889;
+      resolvedLng = 106.700806;
+    }
+
+    final meters = distanceTo(userPos.latitude, userPos.longitude, resolvedLat, resolvedLng);
     return formatDistance(meters);
+  }
+
+  /// Calculate distance in kilometers as a double for filtering
+  static double calculateDistanceInKm({
+    required Position? userLocation,
+    required double? branchLat,
+    required double? branchLng,
+    String? branchAddress,
+    String? branchName,
+  }) {
+    final userPos = userLocation ?? defaultVietnamPosition();
+
+    if (branchLat != null && branchLng != null && isWithinVietnam(branchLat, branchLng)) {
+      final meters = distanceTo(userPos.latitude, userPos.longitude, branchLat, branchLng);
+      return meters / 1000.0;
+    }
+
+    final textToSearch = '${branchName ?? ''} ${branchAddress ?? ''}'.toLowerCase();
+    double resolvedLat = 10.776889;
+    double resolvedLng = 106.700806;
+
+    if (textToSearch.contains('quy nhơn') || textToSearch.contains('quy nhon') || textToSearch.contains('bình định')) {
+      resolvedLat = 13.7549672;
+      resolvedLng = 109.1767596;
+    } else if (textToSearch.contains('hà nội') || textToSearch.contains('ha noi')) {
+      resolvedLat = 21.028511;
+      resolvedLng = 105.804817;
+    } else if (textToSearch.contains('đà nẵng') || textToSearch.contains('da nang')) {
+      resolvedLat = 16.054407;
+      resolvedLng = 108.202167;
+    } else if (textToSearch.contains('nha trang')) {
+      resolvedLat = 12.238791;
+      resolvedLng = 109.196749;
+    } else if (textToSearch.contains('cần thơ') || textToSearch.contains('can tho')) {
+      resolvedLat = 10.045162;
+      resolvedLng = 105.746857;
+    }
+
+    final meters = distanceTo(userPos.latitude, userPos.longitude, resolvedLat, resolvedLng);
+    return meters / 1000.0;
   }
 
   /// Estimate dynamic delivery time based on distance (or return branch deliveryTime if set)

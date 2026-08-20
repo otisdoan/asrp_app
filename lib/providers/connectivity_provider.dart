@@ -12,8 +12,10 @@ class ConnectivityNotifier extends StateNotifier<bool> {
   Timer? _timer;
   bool _isChecking = false;
 
-  ConnectivityNotifier() : super(true) {
-    _startChecking();
+  ConnectivityNotifier({bool autoCheck = true}) : super(true) {
+    if (autoCheck) {
+      _startChecking();
+    }
   }
 
   void _startChecking() {
