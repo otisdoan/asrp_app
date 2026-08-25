@@ -119,6 +119,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
+  double _lastBottomInset = 0;
   bool _isTyping = false;
   OverlayEntry? _activeOverlayEntry;
 
@@ -127,6 +129,11 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     super.initState();
     _activeBranchId = widget.initialBranchId;
     _activeBranchName = widget.initialBranchName;
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus) {
+        _scrollToBottom();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom(immediate: true);
       _checkAndResumePendingOrders();
@@ -223,30 +230,40 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         } else {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
           );
         }
       }
     });
 
-    // Schedule delayed scroll to account for dynamic card images and draft previews rendering
-    Future.delayed(const Duration(milliseconds: 150), () {
+    // Schedule delayed scrolls to account for keyboard animation, dynamic card images and draft previews rendering
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted && _scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
+          curve: Curves.easeOutCubic,
         );
       }
     });
 
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted && _scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+
+    Future.delayed(const Duration(milliseconds: 450), () {
       if (mounted && _scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
+          curve: Curves.easeOutCubic,
         );
       }
     });
@@ -1054,6 +1071,7 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _textController.dispose();
     _scrollController.dispose();
     if (_activeOverlayEntry != null) {
@@ -1067,6 +1085,14 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    if (bottomInset > 0 && bottomInset != _lastBottomInset) {
+      _lastBottomInset = bottomInset;
+      _scrollToBottom();
+    } else if (bottomInset == 0) {
+      _lastBottomInset = 0;
+    }
+
     final currentUser = ref.watch(currentUserProvider);
     final messages = ref.watch(chatHistoryProvider);
     return Scaffold(
@@ -1545,7 +1571,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
                     ),
                     Expanded(
                       child: TextField(
+                        focusNode: _focusNode,
                         controller: _textController,
+                        onTap: () => _scrollToBottom(),
                         onSubmitted: _handleSubmitted,
                         style: const TextStyle(
                           fontSize: 14,
