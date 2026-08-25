@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/topping_selection_model.dart';
 import '../../../data/repositories/branch_repository.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../core/utils/top_notification.dart';
 
 /// Represents a single option group (e.g. "Topping thêm", "Kích cỡ")
 class _OptionGroupData {
@@ -27,7 +30,7 @@ class _OptionGroupData {
 
 /// Add to Cart Page — topping selection, size, notes, quantity.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class AddToCartPage extends StatefulWidget {
+class AddToCartPage extends ConsumerStatefulWidget {
   final String name;
   final String price;
   final IconData icon;
@@ -38,6 +41,7 @@ class AddToCartPage extends StatefulWidget {
   final bool isEditing;
   final String? menuItemId;
   final String? branchId;
+  final bool isStaffOrder;
 
   const AddToCartPage({
     super.key,
@@ -51,13 +55,14 @@ class AddToCartPage extends StatefulWidget {
     this.isEditing = false,
     this.menuItemId,
     this.branchId,
+    this.isStaffOrder = false,
   });
 
   @override
-  State<AddToCartPage> createState() => _AddToCartPageState();
+  ConsumerState<AddToCartPage> createState() => _AddToCartPageState();
 }
 
-class _AddToCartPageState extends State<AddToCartPage> {
+class _AddToCartPageState extends ConsumerState<AddToCartPage> {
   int _quantity = 1;
   final TextEditingController _noteController = TextEditingController();
 
@@ -920,6 +925,14 @@ class _AddToCartPageState extends State<AddToCartPage> {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () {
+              if (!widget.isStaffOrder && isBranchStaffOrOwner(ref, widget.branchId)) {
+                TopNotification.show(
+                  context,
+                  message: 'Tài khoản của bạn thuộc chi nhánh này, không thể tự đặt món.',
+                  isError: true,
+                );
+                return;
+              }
               final selectedToppingsList = <ToppingSelectionModel>[];
 
               for (int gi = 0; gi < _optionGroups.length; gi++) {

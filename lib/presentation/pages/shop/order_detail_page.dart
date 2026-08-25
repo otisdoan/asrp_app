@@ -17,6 +17,7 @@ import '../../../data/models/cart_item_model.dart';
 import '../../../core/utils/top_notification.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/utils/qr_utils.dart';
+import '../../widgets/shop/ai_recommended_grid_section.dart';
 
 /// OrderDetailPage — Displays detailed progress and order information for a single order.
 /// Follows self-pickup business model (No delivery, customer picks up at store, QR payment).
@@ -1028,147 +1029,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   }
 
   Widget _buildSuggestedStores() {
-    final suggestedAsync = ref.watch(recommendedBranchesProvider);
-
-    return suggestedAsync.when(
-      data: (stores) {
-        if (stores.isEmpty) return const SizedBox.shrink();
-        final displayStores = stores.take(9).toList();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Có thể bạn cũng thích',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 30),
-            GridView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: displayStores.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.62,
-              ),
-              itemBuilder: (context, index) {
-                final store = displayStores[index];
-                return _buildStoreCard(store);
-              },
-            ),
-          ],
-        );
-      },
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  Widget _buildStoreCard(BranchListItemModel store) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => StoreDetailPage(
-              storeName: store.name,
-              category: store.category ?? 'Món ăn',
-              rating: store.rating,
-              reviews: store.reviewsCount ?? 0,
-              deliveryTime: store.deliveryTime,
-              distance: store.distance,
-              icon: Icons.storefront,
-              branchId: store.id,
-              imageUrl: store.imageUrl,
-            ),
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Square image with rounded corners
-          AspectRatio(
-            aspectRatio: 1,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                color: AppColors.bgWarm,
-                child: store.imageUrl.isNotEmpty
-                    ? Image.network(
-                        store.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(Icons.storefront,
-                              size: 28, color: AppColors.textTertiary),
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(Icons.storefront,
-                            size: 28, color: AppColors.textTertiary),
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Store name - 2 lines max
-          Text(
-            store.name,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-              height: 1.3,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 3),
-          // Distance & rating
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  store.distance.isNotEmpty ? store.distance : '0.1km',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textTertiary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (store.rating > 0) ...[
-                const Text(
-                  ' · ',
-                  style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                ),
-                const Icon(Icons.star, size: 11, color: AppColors.star),
-                const SizedBox(width: 1),
-                Text(
-                  store.rating.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
+    return const AiRecommendedGridSection(
+      title: 'Có thể bạn cũng thích',
+      padding: EdgeInsets.zero,
     );
   }
 

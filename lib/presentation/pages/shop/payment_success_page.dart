@@ -7,6 +7,7 @@ import 'order_detail_page.dart';
 import 'store_detail_page.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../widgets/shop/ai_recommended_grid_section.dart';
 
 class PaymentSuccessPage extends ConsumerWidget {
   final String orderId;
@@ -91,54 +92,9 @@ class PaymentSuccessPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               // "Có thể bạn cũng thích" Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Có thể bạn cũng thích',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    ref.watch(recommendedBranchesProvider).when(
-                          data: (stores) {
-                            if (stores.isEmpty) return const SizedBox.shrink();
-                            final displayStores = stores.take(9).toList();
-
-                            return GridView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: displayStores.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.62,
-                              ),
-                              itemBuilder: (context, index) {
-                                final store = displayStores[index];
-                                return _buildStoreCard(context, store);
-                              },
-                            );
-                          },
-                          loading: () => const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: CircularProgressIndicator(
-                                  color: AppColors.primary),
-                            ),
-                          ),
-                          error: (_, __) => const SizedBox.shrink(),
-                        ),
-                  ],
-                ),
+              const AiRecommendedGridSection(
+                title: 'Có thể bạn cũng thích',
+                padding: EdgeInsets.symmetric(horizontal: 24),
               ),
               const SizedBox(height: 40),
             ],
@@ -208,94 +164,6 @@ class PaymentSuccessPage extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStoreCard(BuildContext context, BranchListItemModel store) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => StoreDetailPage(
-              storeName: store.name,
-              category: store.category ?? 'Món ăn',
-              rating: store.rating,
-              reviews: store.reviewsCount ?? 0,
-              deliveryTime: store.deliveryTime,
-              distance: store.distance,
-              icon: Icons.storefront,
-              branchId: store.id,
-              imageUrl: store.imageUrl,
-            ),
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                color: AppColors.bgWarm,
-                child: store.imageUrl.isNotEmpty
-                    ? Image.network(
-                        store.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(Icons.storefront,
-                              size: 28, color: AppColors.textTertiary),
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(Icons.storefront,
-                            size: 28, color: AppColors.textTertiary),
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            store.name,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-              height: 1.3,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 3),
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  store.distance.isNotEmpty ? store.distance : '0.1km',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textTertiary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (store.rating > 0) ...[
-                const Text(' · ',
-                    style:
-                        TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                const Icon(Icons.star, size: 11, color: AppColors.star),
-                const SizedBox(width: 1),
-                Text(
-                  store.rating.toStringAsFixed(1),
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textTertiary),
-                ),
-              ],
-            ],
-          ),
-        ],
       ),
     );
   }

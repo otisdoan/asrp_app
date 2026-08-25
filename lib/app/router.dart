@@ -14,7 +14,6 @@ import '../presentation/pages/auth/branch_registration_page.dart';
 import '../presentation/pages/staff/staff_home_page.dart';
 import '../presentation/pages/staff/cashier_page.dart';
 import '../presentation/pages/admin/admin_dashboard_page.dart';
-import '../presentation/pages/admin/superadmin_dashboard_page.dart';
 import '../presentation/pages/shop/home_page.dart';
 import '../presentation/pages/shop/search_page.dart';
 import '../presentation/pages/shop/favorite_shops_page.dart';
@@ -162,7 +161,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppConstants.routeSuperAdminDashboard,
-        builder: (context, state) => const SuperAdminDashboardPage(),
+        builder: (context, state) => const AdminDashboardPage(),
       ),
       // ===== Shop Routes =====
       GoRoute(

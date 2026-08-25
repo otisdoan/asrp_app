@@ -9,6 +9,7 @@ import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
 import '../../../data/models/branch_search_model.dart';
 import '../../../providers/branch_provider.dart';
+import '../../../providers/ai_recommendation_provider.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
@@ -403,6 +404,192 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildRecommendedSection() {
+    final aiRecsAsync = ref.watch(personalizedRecommendationsProvider);
+    final userLocation = ref.watch(userLocationProvider);
+
+    return aiRecsAsync.when(
+      data: (aiItems) {
+        if (aiItems.isNotEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+                        SizedBox(width: 6),
+                        Text(
+                          'Được đề xuất cho bạn',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Dành riêng cho bạn',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                GridView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.62,
+                  ),
+                  itemCount: aiItems.length > 9 ? 9 : aiItems.length,
+                  itemBuilder: (_, index) {
+                    final item = aiItems[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => StoreDetailPage(
+                            branchId: item.branchId,
+                            storeName: item.storeName,
+                            category: 'Quán ăn',
+                            rating: item.rating,
+                            reviews: item.reviews > 0 ? item.reviews : 100,
+                            deliveryTime: item.deliveryTime,
+                            distance: item.distance,
+                            icon: Icons.store,
+                            imageUrl: item.imageUrl,
+                            highlightFoodName: item.dishName,
+                          ),
+                        ));
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    color: AppColors.bgWarm,
+                                    child: (item.imageUrl.isNotEmpty && item.imageUrl.startsWith('http'))
+                                        ? Image.network(
+                                            item.imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const Center(
+                                              child: Icon(Icons.store, color: AppColors.textTertiary, size: 24),
+                                            ),
+                                          )
+                                        : const Center(
+                                            child: Icon(Icons.restaurant, color: AppColors.textTertiary, size: 24),
+                                          ),
+                                  ),
+                                ),
+                                if (item.tag.isNotEmpty)
+                                  Positioned(
+                                    top: 4,
+                                    left: 4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.success,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: Text(
+                                        item.tag,
+                                        style: const TextStyle(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                Positioned(
+                                  bottom: 4,
+                                  right: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      item.priceText,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            item.dishName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1.2),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.storeName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                              const SizedBox(width: 2),
+                              Text(
+                                item.rating.toStringAsFixed(1),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              ),
+                              const Text(' · ', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                              Flexible(
+                                child: Text(
+                                  item.distance.isNotEmpty ? item.distance : '1.2 km',
+                                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        }
+        return _buildFallbackRecommendedBranches(userLocation);
+      },
+      loading: () => _buildFallbackRecommendedBranches(userLocation),
+      error: (_, __) => _buildFallbackRecommendedBranches(userLocation),
+    );
+  }
+
+  Widget _buildFallbackRecommendedBranches(dynamic userLocation) {
     final recommendedAsync = ref.watch(recommendedBranchesProvider);
     return recommendedAsync.when(
       data: (stores) {
@@ -412,9 +599,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Được đề xuất',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Được đề xuất',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               GridView.builder(
@@ -424,12 +616,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   mainAxisSpacing: 14,
-                  crossAxisSpacing: 12,
+                  crossAxisSpacing: 10,
                   childAspectRatio: 0.65,
                 ),
-                itemCount: stores.length,
+                itemCount: stores.length > 9 ? 9 : stores.length,
                 itemBuilder: (_, index) {
                   final store = stores[index];
+                  final displayDistance = LocationService.calculateBranchDistance(
+                    userLocation: userLocation,
+                    branchLat: store.latitude,
+                    branchLng: store.longitude,
+                    branchAddress: store.address,
+                    fallbackDistance: store.distance,
+                  );
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(
@@ -440,7 +640,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           rating: store.rating,
                           reviews: store.reviewsCount ?? 150,
                           deliveryTime: store.deliveryTime,
-                          distance: store.distance,
+                          distance: displayDistance,
                           icon: Icons.store,
                           imageUrl: store.imageUrl,
                         ),
@@ -450,36 +650,49 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              image: DecorationImage(
-                                image: _getBranchImageProvider(store.imageUrl),
-                                fit: BoxFit.cover,
-                              ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: double.infinity,
+                              color: AppColors.bgWarm,
+                              child: (store.imageUrl.isNotEmpty && store.imageUrl.startsWith('http'))
+                                  ? Image.network(
+                                      store.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Center(
+                                        child: Icon(Icons.store, color: AppColors.textTertiary, size: 24),
+                                      ),
+                                    )
+                                  : const Center(
+                                      child: Icon(Icons.store, color: AppColors.textTertiary, size: 24),
+                                    ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           store.name,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.2),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1.2),
                         ),
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            Text(
-                              store.distance,
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                            const Text(' · ', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                            const Icon(Icons.star, size: 12, color: Color(0xFFFFC107)),
+                            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
                             const SizedBox(width: 2),
                             Text(
-                              store.rating.toString(),
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              store.rating.toStringAsFixed(1),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                            const Text(' · ', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                            Flexible(
+                              child: Text(
+                                displayDistance.isNotEmpty ? displayDistance : '1.2 km',
+                                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -492,21 +705,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
         );
       },
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      ),
+      loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildResultsView() {
+    final userLocation = ref.watch(userLocationProvider);
     final searchParams = SearchQueryParams(
       query: _query,
       sortBy: _selectedFilter,
+      latitude: userLocation?.latitude,
+      longitude: userLocation?.longitude,
       minRating: _minRating,
       hasPromo: _hasPromo == true || _selectedFilter == 'Khuyến mãi',
       maxPrice: _maxPrice,

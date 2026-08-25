@@ -363,11 +363,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             icon: Icons.dashboard_customize_outlined,
                             title: dashboardTitle,
                             subtitle: dashboardSubtitle,
-                            onTap: () => context.push(
-                              isChainReport
-                                  ? AppConstants.routeSuperAdminDashboard
-                                  : '/admin/dashboard',
-                            ),
+                            onTap: () => context.push('/admin/dashboard'),
                           ),
                           _buildMenuItem(
                             icon: Icons.people_outline_rounded,

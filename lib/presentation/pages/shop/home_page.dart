@@ -8,6 +8,7 @@ import '../../widgets/shop/deals_section.dart';
 import '../../widgets/shop/top_stores_section.dart';
 import '../../widgets/shop/nearby_stores_section.dart';
 import '../../widgets/shop/all_stores_section.dart';
+import '../../widgets/shop/ai_suggestions_section.dart';
 
 import '../../../providers/cart_provider.dart';
 import '../../../providers/shop_provider.dart';
@@ -15,6 +16,7 @@ import '../../../providers/branch_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../providers/order_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/ai_recommendation_provider.dart';
 import '../../widgets/common/require_login_dialog.dart';
 import 'cart_page.dart';
 import 'payment_page.dart';
@@ -353,6 +355,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.invalidate(branchesFutureProvider);
     ref.invalidate(recommendedBranchesProvider);
     ref.invalidate(myBrandBranchesFutureProvider);
+    ref.invalidate(personalizedRecommendationsProvider);
     try {
       await Future.wait([
         ref.read(categoriesFutureProvider.future),
@@ -535,6 +538,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: DealsSection(onItemTap: _openProductDetail),
                     ),
+                    const SizedBox(height: 12),
+                    // AI Personalized Suggestions ("Được đề xuất cho bạn")
+                    const AiSuggestionsSection(),
                     const SizedBox(height: 20),
                     // Top Stores
                     const TopStoresSection(),

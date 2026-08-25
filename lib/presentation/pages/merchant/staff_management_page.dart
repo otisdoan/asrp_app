@@ -727,7 +727,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
               Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
               SizedBox(width: 8),
               Text(
-                'Xóa tài khoản nhân sự?',
+                'Gỡ nhân sự khỏi chi nhánh?',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -736,7 +736,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
             ],
           ),
           content: Text(
-            'Bạn có chắc chắn muốn xóa nhân sự "${member.fullName}" ra khỏi hệ thống chi nhánh không? Nhân viên này sẽ không thể tiếp tục đăng nhập bán hàng.',
+            'Bạn có chắc chắn muốn gỡ nhân sự "${member.fullName}" ra khỏi chi nhánh không? Tài khoản sẽ chuyển về tài khoản khách hàng thông thường và không thể tiếp tục đăng nhập bán hàng.',
             style:
                 const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
@@ -755,19 +755,19 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
                   if (bId != null) {
                     await ref
                         .read(staffManagementProvider.notifier)
-                        .toggleStaffStatus(member.id, false);
+                        .removeStaffMemberFromBranch(member.id, targetBranchId: bId);
                     await _fetchStaffList();
                   }
                   navigator.pop();
                   TopNotification.show(
                     context,
-                    message: 'Đã vô hiệu hóa nhân sự thành công.',
+                    message: 'Đã gỡ nhân sự khỏi chi nhánh thành công.',
                   );
                 } catch (e) {
                   navigator.pop();
                   TopNotification.show(
                     context,
-                    message: 'Lỗi khi vô hiệu hóa: ${_parseError(e)}',
+                    message: 'Lỗi khi gỡ nhân sự: ${_parseError(e)}',
                     isError: true,
                   );
                 }
@@ -778,7 +778,7 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Xác nhận xóa'),
+              child: const Text('Xác nhận gỡ'),
             ),
           ],
         );

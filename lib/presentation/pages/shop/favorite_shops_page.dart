@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/favorite_shops_provider.dart';
+import '../../../providers/branch_provider.dart';
+import '../../../data/models/branch_model.dart';
 import 'store_detail_page.dart';
 import '../../../core/utils/top_notification.dart';
 
@@ -228,38 +230,74 @@ class FavoriteShopsPage extends ConsumerWidget {
 
   // ─── Trạng thái Danh sách (List State) ──────────────────────────────────────
   Widget _buildListState(BuildContext context, WidgetRef ref, List<String> favoriteNames) {
+    final realBranchesAsync = ref.watch(branchesFutureProvider);
+    final realBranches = realBranchesAsync.asData?.value ?? [];
+
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       itemCount: favoriteNames.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final favoriteName = favoriteNames[index];
-        final store = _allMockStores.firstWhere(
-          (s) => s['name'] == favoriteName,
-          orElse: () => {
-            'name': favoriteName,
-            'category': 'Món ăn ngon · Đồ uống',
-            'rating': 4.5,
-            'reviews': 150,
-            'distance': '1.0 km',
-            'time': '22 phút',
-            'promo': 'Khuyến mãi đặc biệt',
-            'icon': Icons.storefront,
-          },
+
+        final realMatch = realBranches.firstWhere(
+          (b) => b.id == favoriteName || b.name == favoriteName,
+          orElse: () => const BranchListItemModel(
+            id: '',
+            name: '',
+            imageUrl: '',
+            rating: 0.0,
+            distance: '',
+            deliveryTime: '',
+          ),
         );
 
+        Map<String, dynamic> store;
+        if (realMatch.name.isNotEmpty) {
+          store = {
+            'branchId': realMatch.id,
+            'name': realMatch.name,
+            'category': realMatch.category ?? 'Món ăn ngon · Đồ uống',
+            'rating': realMatch.rating > 0 ? realMatch.rating : 4.8,
+            'reviews': (realMatch.reviewsCount != null && realMatch.reviewsCount! > 0) ? realMatch.reviewsCount : 120,
+            'distance': realMatch.distance.isNotEmpty ? realMatch.distance : '0.8 km',
+            'time': realMatch.deliveryTime.isNotEmpty ? realMatch.deliveryTime : '20 phút',
+            'promo': realMatch.promo ?? 'Khuyến mãi đặc biệt',
+            'icon': Icons.restaurant,
+            'imageUrl': realMatch.imageUrl,
+          };
+        } else {
+          store = _allMockStores.firstWhere(
+            (s) => s['name'] == favoriteName || s['branchId'] == favoriteName,
+            orElse: () => {
+              'branchId': null,
+              'name': favoriteName,
+              'category': 'Món ăn ngon · Đồ uống',
+              'rating': 4.5,
+              'reviews': 150,
+              'distance': '1.0 km',
+              'time': '22 phút',
+              'promo': 'Khuyến mãi đặc biệt',
+              'icon': Icons.storefront,
+            },
+          );
+        }
+
+        final String? branchId = store['branchId'] as String?;
         final String name = store['name'] as String;
         final String category = store['category'] as String;
-        final double rating = store['rating'] as double;
+        final double rating = (store['rating'] as num).toDouble();
         final int reviews = store['reviews'] as int;
         final String distance = store['distance'] as String;
         final String time = store['time'] as String;
         final String promo = store['promo'] as String;
-        final IconData icon = store['icon'] as IconData;
+        final IconData icon = (store['icon'] as IconData?) ?? Icons.restaurant;
+        final String? imageUrl = store['imageUrl'] as String?;
 
         return _buildFavoriteStoreCard(
           context,
           ref,
+          branchId: branchId,
           name: name,
           category: category,
           rating: rating,
@@ -268,6 +306,7 @@ class FavoriteShopsPage extends ConsumerWidget {
           time: time,
           promo: promo,
           icon: icon,
+          imageUrl: imageUrl,
         );
       },
     );
@@ -277,6 +316,7 @@ class FavoriteShopsPage extends ConsumerWidget {
   Widget _buildFavoriteStoreCard(
     BuildContext context,
     WidgetRef ref, {
+    String? branchId,
     required String name,
     required String category,
     required double rating,
@@ -285,6 +325,7 @@ class FavoriteShopsPage extends ConsumerWidget {
     required String time,
     required String promo,
     required IconData icon,
+    String? imageUrl,
   }) {
     return GestureDetector(
       onTap: () {
@@ -299,6 +340,8 @@ class FavoriteShopsPage extends ConsumerWidget {
               deliveryTime: time,
               distance: distance,
               icon: icon,
+              branchId: branchId,
+              imageUrl: imageUrl,
             ),
           ),
         );
@@ -306,7 +349,7 @@ class FavoriteShopsPage extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white, // Thẻ Card dùng màu trắng 100% để nổi bật trên nền nhạt
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5), width: 0.8),
           boxShadow: [
@@ -328,7 +371,16 @@ class FavoriteShopsPage extends ConsumerWidget {
                 color: AppColors.bgSoft,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 34, color: AppColors.primary),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(icon, size: 34, color: AppColors.primary),
+                      )
+                    : Icon(icon, size: 34, color: AppColors.primary),
+              ),
             ),
             const SizedBox(width: 12),
             // Thông tin quán

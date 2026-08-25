@@ -86,7 +86,7 @@ class AnalyticsRepository {
       if (from != null) queryParams['from'] = from.toUtc().toIso8601String();
       if (to != null) queryParams['to'] = to.toUtc().toIso8601String();
       if (granularity != null) queryParams['granularity'] = granularity;
-      if (branchId != null) queryParams['branchId'] = branchId;
+      if (branchId != null && branchId.isNotEmpty && branchId != 'all') queryParams['branchId'] = branchId;
 
       print('[AnalyticsRepository] Fetching sales trend: $queryParams');
       final response = await _dioClient.dio.get(
@@ -119,7 +119,7 @@ class AnalyticsRepository {
       final Map<String, dynamic> queryParams = {'limit': limit};
       if (from != null) queryParams['from'] = from.toUtc().toIso8601String();
       if (to != null) queryParams['to'] = to.toUtc().toIso8601String();
-      if (branchId != null) queryParams['branchId'] = branchId;
+      if (branchId != null && branchId.isNotEmpty && branchId != 'all') queryParams['branchId'] = branchId;
 
       print('[AnalyticsRepository] Fetching menu performance: $queryParams');
       final response = await _dioClient.dio.get(
@@ -151,7 +151,7 @@ class AnalyticsRepository {
       final Map<String, dynamic> queryParams = {};
       if (from != null) queryParams['from'] = from.toUtc().toIso8601String();
       if (to != null) queryParams['to'] = to.toUtc().toIso8601String();
-      if (branchId != null) queryParams['branchId'] = branchId;
+      if (branchId != null && branchId.isNotEmpty && branchId != 'all') queryParams['branchId'] = branchId;
 
       print('[AnalyticsRepository] Fetching operations: $queryParams');
       final response = await _dioClient.dio.get(
@@ -183,7 +183,7 @@ class AnalyticsRepository {
       final Map<String, dynamic> queryParams = {};
       if (from != null) queryParams['from'] = from.toUtc().toIso8601String();
       if (to != null) queryParams['to'] = to.toUtc().toIso8601String();
-      if (branchId != null) queryParams['branchId'] = branchId;
+      if (branchId != null && branchId.isNotEmpty && branchId != 'all') queryParams['branchId'] = branchId;
 
       print('[AnalyticsRepository] Fetching inventory wastage: $queryParams');
       final response = await _dioClient.dio.get(

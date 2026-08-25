@@ -43,6 +43,8 @@ final recommendedBranchesProvider = FutureProvider<List<BranchListItemModel>>((r
 class SearchQueryParams {
   final String query;
   final String sortBy;
+  final double? latitude;
+  final double? longitude;
   final double? minRating;
   final bool? hasPromo;
   final double? maxPrice;
@@ -50,6 +52,8 @@ class SearchQueryParams {
   SearchQueryParams({
     required this.query,
     required this.sortBy,
+    this.latitude,
+    this.longitude,
     this.minRating,
     this.hasPromo,
     this.maxPrice,
@@ -62,6 +66,8 @@ class SearchQueryParams {
           runtimeType == other.runtimeType &&
           query == other.query &&
           sortBy == other.sortBy &&
+          latitude == other.latitude &&
+          longitude == other.longitude &&
           minRating == other.minRating &&
           hasPromo == other.hasPromo &&
           maxPrice == other.maxPrice;
@@ -70,6 +76,8 @@ class SearchQueryParams {
   int get hashCode =>
       query.hashCode ^
       sortBy.hashCode ^
+      (latitude?.hashCode ?? 0) ^
+      (longitude?.hashCode ?? 0) ^
       (minRating?.hashCode ?? 0) ^
       (hasPromo?.hashCode ?? 0) ^
       (maxPrice?.hashCode ?? 0);
@@ -78,11 +86,13 @@ class SearchQueryParams {
 final searchResultsProvider = FutureProvider.family<List<BranchSearchResultModel>, SearchQueryParams>((ref, params) async {
   final repository = ref.watch(branchRepositoryProvider);
   final location = ref.watch(userLocationProvider);
+  final lat = params.latitude ?? location?.latitude;
+  final lng = params.longitude ?? location?.longitude;
   return repository.getSearchResults(
     query: params.query,
     sortBy: params.sortBy,
-    latitude: location?.latitude,
-    longitude: location?.longitude,
+    latitude: lat,
+    longitude: lng,
     minRating: params.minRating,
     hasPromo: params.hasPromo,
     maxPrice: params.maxPrice,

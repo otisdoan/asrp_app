@@ -118,6 +118,7 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
         initialSelectedToppings: existingItem?.selectedToppings ?? [],
         initialNote: existingItem?.note,
         isEditing: existingItem != null,
+        isStaffOrder: true,
       ),
     );
 

@@ -70,6 +70,14 @@ class BrandDashboardSummaryModel {
   final double averageOrderValue;
   final int paidOrders;
   final int activeBranches;
+  final double totalDiscount;
+  final double foodCost;
+  final double grossMargin;
+  final double wastageCost;
+  final double netProfit;
+  final double grossMarginPercentage;
+  final double netProfitPercentage;
+  final bool isProfitable;
 
   BrandDashboardSummaryModel({
     required this.revenue,
@@ -80,11 +88,29 @@ class BrandDashboardSummaryModel {
     required this.averageOrderValue,
     required this.paidOrders,
     required this.activeBranches,
+    this.totalDiscount = 0.0,
+    this.foodCost = 0.0,
+    this.grossMargin = 0.0,
+    this.wastageCost = 0.0,
+    this.netProfit = 0.0,
+    this.grossMarginPercentage = 0.0,
+    this.netProfitPercentage = 0.0,
+    this.isProfitable = true,
   });
 
   factory BrandDashboardSummaryModel.fromJson(Map<String, dynamic> json) {
+    final rev = (json['revenue'] as num?)?.toDouble() ?? 0.0;
+    final discount = (json['totalDiscount'] as num?)?.toDouble() ?? 0.0;
+    final fc = (json['foodCost'] as num?)?.toDouble() ?? 0.0;
+    final gm = (json['grossMargin'] as num?)?.toDouble() ?? (rev - fc);
+    final wc = (json['wastageCost'] as num?)?.toDouble() ?? 0.0;
+    final np = (json['netProfit'] as num?)?.toDouble() ?? (gm - wc);
+    final gmPct = (json['grossMarginPercentage'] as num?)?.toDouble() ?? (rev > 0 ? (gm / rev * 100) : 0.0);
+    final npPct = (json['netProfitPercentage'] as num?)?.toDouble() ?? (rev > 0 ? (np / rev * 100) : 0.0);
+    final isProf = json['isProfitable'] as bool? ?? (np >= 0);
+
     return BrandDashboardSummaryModel(
-      revenue: (json['revenue'] as num?)?.toDouble() ?? 0.0,
+      revenue: rev,
       orderCount: json['orderCount'] as int? ?? 0,
       completedOrders: json['completedOrders'] as int? ?? 0,
       pendingOrders: json['pendingOrders'] as int? ?? 0,
@@ -92,6 +118,14 @@ class BrandDashboardSummaryModel {
       averageOrderValue: (json['averageOrderValue'] as num?)?.toDouble() ?? 0.0,
       paidOrders: json['paidOrders'] as int? ?? 0,
       activeBranches: json['activeBranches'] as int? ?? 0,
+      totalDiscount: discount,
+      foodCost: fc,
+      grossMargin: gm,
+      wastageCost: wc,
+      netProfit: np,
+      grossMarginPercentage: gmPct,
+      netProfitPercentage: npPct,
+      isProfitable: isProf,
     );
   }
 }
@@ -109,6 +143,13 @@ class BranchDashboardItemModel {
   final double averageOrderValue;
   final int paidOrders;
   final PaymentBreakdownModel paymentBreakdown;
+  final double totalDiscount;
+  final double foodCost;
+  final double grossMargin;
+  final double wastageCost;
+  final double netProfit;
+  final double netProfitPercentage;
+  final bool isProfitable;
 
   BranchDashboardItemModel({
     required this.branchId,
@@ -123,15 +164,31 @@ class BranchDashboardItemModel {
     required this.averageOrderValue,
     required this.paidOrders,
     required this.paymentBreakdown,
+    this.totalDiscount = 0.0,
+    this.foodCost = 0.0,
+    this.grossMargin = 0.0,
+    this.wastageCost = 0.0,
+    this.netProfit = 0.0,
+    this.netProfitPercentage = 0.0,
+    this.isProfitable = true,
   });
 
   factory BranchDashboardItemModel.fromJson(Map<String, dynamic> json) {
+    final rev = (json['revenue'] as num?)?.toDouble() ?? 0.0;
+    final discount = (json['totalDiscount'] as num?)?.toDouble() ?? 0.0;
+    final fc = (json['foodCost'] as num?)?.toDouble() ?? 0.0;
+    final gm = (json['grossMargin'] as num?)?.toDouble() ?? (rev - fc);
+    final wc = (json['wastageCost'] as num?)?.toDouble() ?? 0.0;
+    final np = (json['netProfit'] as num?)?.toDouble() ?? (gm - wc);
+    final npPct = (json['netProfitPercentage'] as num?)?.toDouble() ?? (rev > 0 ? (np / rev * 100) : 0.0);
+    final isProf = json['isProfitable'] as bool? ?? (np >= 0);
+
     return BranchDashboardItemModel(
       branchId: json['branchId'] as String? ?? '',
       branchName: json['branchName'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? false,
       status: json['status'] as String? ?? 'Closed',
-      revenue: (json['revenue'] as num?)?.toDouble() ?? 0.0,
+      revenue: rev,
       orderCount: json['orderCount'] as int? ?? 0,
       completedOrders: json['completedOrders'] as int? ?? 0,
       pendingOrders: json['pendingOrders'] as int? ?? 0,
@@ -141,6 +198,13 @@ class BranchDashboardItemModel {
       paymentBreakdown: PaymentBreakdownModel.fromJson(
         (json['paymentBreakdown'] as Map<String, dynamic>?) ?? {},
       ),
+      totalDiscount: discount,
+      foodCost: fc,
+      grossMargin: gm,
+      wastageCost: wc,
+      netProfit: np,
+      netProfitPercentage: npPct,
+      isProfitable: isProf,
     );
   }
 }
@@ -665,6 +729,11 @@ class BranchDashboardSummaryModel {
   final double totalDiscount;
   final double foodCost;
   final double grossMargin;
+  final double wastageCost;
+  final double netProfit;
+  final double grossMarginPercentage;
+  final double netProfitPercentage;
+  final bool isProfitable;
 
   BranchDashboardSummaryModel({
     required this.revenue,
@@ -677,20 +746,40 @@ class BranchDashboardSummaryModel {
     required this.totalDiscount,
     required this.foodCost,
     required this.grossMargin,
+    this.wastageCost = 0.0,
+    this.netProfit = 0.0,
+    this.grossMarginPercentage = 0.0,
+    this.netProfitPercentage = 0.0,
+    this.isProfitable = true,
   });
 
   factory BranchDashboardSummaryModel.fromJson(Map<String, dynamic> json) {
+    final rev = (json['revenue'] as num?)?.toDouble() ?? 0.0;
+    final discount = (json['totalDiscount'] as num?)?.toDouble() ?? 0.0;
+    final fc = (json['foodCost'] as num?)?.toDouble() ?? 0.0;
+    final gm = (json['grossMargin'] as num?)?.toDouble() ?? (rev - fc);
+    final wc = (json['wastageCost'] as num?)?.toDouble() ?? 0.0;
+    final np = (json['netProfit'] as num?)?.toDouble() ?? (gm - wc);
+    final gmPct = (json['grossMarginPercentage'] as num?)?.toDouble() ?? (rev > 0 ? (gm / rev * 100) : 0.0);
+    final npPct = (json['netProfitPercentage'] as num?)?.toDouble() ?? (rev > 0 ? (np / rev * 100) : 0.0);
+    final isProf = json['isProfitable'] as bool? ?? (np >= 0);
+
     return BranchDashboardSummaryModel(
-      revenue: (json['revenue'] as num?)?.toDouble() ?? 0.0,
+      revenue: rev,
       orderCount: json['orderCount'] as int? ?? 0,
       completedOrders: json['completedOrders'] as int? ?? 0,
       pendingOrders: json['pendingOrders'] as int? ?? 0,
       cancelledOrders: json['cancelledOrders'] as int? ?? 0,
       averageOrderValue: (json['averageOrderValue'] as num?)?.toDouble() ?? 0.0,
       paidOrders: json['paidOrders'] as int? ?? 0,
-      totalDiscount: (json['totalDiscount'] as num?)?.toDouble() ?? 0.0,
-      foodCost: (json['foodCost'] as num?)?.toDouble() ?? 0.0,
-      grossMargin: (json['grossMargin'] as num?)?.toDouble() ?? 0.0,
+      totalDiscount: discount,
+      foodCost: fc,
+      grossMargin: gm,
+      wastageCost: wc,
+      netProfit: np,
+      grossMarginPercentage: gmPct,
+      netProfitPercentage: npPct,
+      isProfitable: isProf,
     );
   }
 }

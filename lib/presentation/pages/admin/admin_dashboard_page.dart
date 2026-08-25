@@ -56,18 +56,39 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     }
   }
 
-  Map<String, dynamic> _getCombinedFinancialData(BranchDashboardDetailModel apiData, SalesTrendModel trendData) {
-    final summary = apiData.summary;
-
-    final cashVal = apiData.paymentBreakdown.cash;
-    final payOsVal = apiData.paymentBreakdown.payOS;
+  Map<String, dynamic> _getCombinedFinancialData({
+    required double revenue,
+    required double totalDiscount,
+    required double foodCost,
+    required double grossMargin,
+    required double wastageCost,
+    required double netProfit,
+    required double grossMarginPercentage,
+    required double netProfitPercentage,
+    required bool isProfitable,
+    required int orderCount,
+    required int cancelledOrders,
+    required double cashVal,
+    required double payOsVal,
+    required List<OrderSourceBreakdownModel> orderSources,
+  }) {
     final totalPayment = cashVal + payOsVal;
-    
     final cashPct = totalPayment > 0 ? (cashVal / totalPayment) : 0.0;
     final payOsPct = totalPayment > 0 ? (payOsVal / totalPayment) : 0.0;
 
-    final netSalesStr = FormatUtils.formatCurrency(summary.revenue);
-    
+    final grossSales = revenue + totalDiscount;
+    final netSalesStr = FormatUtils.formatCurrency(revenue);
+    final grossSalesStr = FormatUtils.formatCurrency(grossSales);
+    final discountsStr = FormatUtils.formatCurrency(totalDiscount);
+    final foodCostStr = FormatUtils.formatCurrency(foodCost);
+    final grossMarginStr = FormatUtils.formatCurrency(grossMargin);
+    final wastageCostStr = FormatUtils.formatCurrency(wastageCost);
+    final netProfitStr = FormatUtils.formatCurrency(netProfit);
+
+    final foodCostPct = revenue > 0 ? (foodCost / revenue * 100).toStringAsFixed(1) : '0.0';
+    final grossMarginPct = revenue > 0 ? (grossMargin / revenue * 100).toStringAsFixed(1) : '0.0';
+    final netProfitPct = revenue > 0 ? (netProfit / revenue * 100).toStringAsFixed(1) : '0.0';
+
     final List<Map<String, dynamic>> updatedPaymentBreakdown = [
       {
         'method': 'Tiền mặt',
@@ -86,10 +107,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       }
     ];
 
-    final foodCostPct = summary.revenue > 0 ? (summary.foodCost / summary.revenue * 100).toStringAsFixed(0) : '0';
-    final grossMarginPct = summary.revenue > 0 ? (summary.grossMargin / summary.revenue * 100).toStringAsFixed(0) : '0';
-
-    List<Map<String, dynamic>> updatedOrderSources = apiData.orderSources.map((item) {
+    List<Map<String, dynamic>> updatedOrderSources = orderSources.map((item) {
       return {
         'source': item.source,
         'percentage': item.percentage,
@@ -100,12 +118,12 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     if (updatedOrderSources.isEmpty) {
       updatedOrderSources = [
         {
-          'source': 'Tại bàn (Kiosk/POS)',
+          'source': 'Tại bàn',
           'percentage': 0.0,
           'value': '0đ',
         },
         {
-          'source': 'Đặt trực tuyến (App/Web)',
+          'source': 'Đặt trực tuyến',
           'percentage': 0.0,
           'value': '0đ',
         },
@@ -119,15 +137,22 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
     return {
       'netSales': netSalesStr,
-      'discounts': FormatUtils.formatCurrency(summary.totalDiscount),
-      'foodCost': FormatUtils.formatCurrency(summary.foodCost),
+      'grossSales': grossSalesStr,
+      'discounts': discountsStr,
+      'foodCost': foodCostStr,
       'foodCostPct': '$foodCostPct%',
-      'grossMargin': FormatUtils.formatCurrency(summary.grossMargin),
+      'grossMargin': grossMarginStr,
       'grossMarginPct': '$grossMarginPct%',
+      'wastageCost': wastageCostStr,
+      'netProfit': netProfitStr,
+      'netProfitRaw': netProfit,
+      'netProfitPct': '$netProfitPct%',
+      'isProfitable': isProfitable,
+      'revenueRaw': revenue,
       'paymentBreakdown': updatedPaymentBreakdown,
       'orderSources': updatedOrderSources,
-      'cancellationRate': summary.orderCount > 0 
-          ? '${(summary.cancelledOrders / summary.orderCount * 100).toStringAsFixed(1)}%'
+      'cancellationRate': orderCount > 0 
+          ? '${(cancelledOrders / orderCount * 100).toStringAsFixed(1)}%'
           : '0.0%',
     };
   }
@@ -416,13 +441,11 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       if (brandDashboardAsync != null) {
         final branchesList = brandDashboardAsync.value?.branches ?? [];
         availableBranches = branchesList;
-        if (branchesList.isNotEmpty) {
+        if (_selectedBranchId == null || _selectedBranchId == 'all') {
+          activeBranchId = 'all';
+        } else {
           final hasSelected = branchesList.any((b) => b.branchId == _selectedBranchId);
-          if (!hasSelected) {
-            activeBranchId = branchesList.first.branchId;
-          } else {
-            activeBranchId = _selectedBranchId!;
-          }
+          activeBranchId = hasSelected ? _selectedBranchId! : 'all';
         }
       }
     }
@@ -433,11 +456,11 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     );
 
     Widget tabContent;
-    if (isBrandAdmin && brandDashboardAsync != null && brandDashboardAsync.isLoading && activeBranchId.isEmpty) {
+    if (isBrandAdmin && brandDashboardAsync != null && brandDashboardAsync.isLoading && availableBranches.isEmpty) {
       tabContent = _buildLoadingWidget();
-    } else if (isBrandAdmin && brandDashboardAsync != null && brandDashboardAsync.hasError && activeBranchId.isEmpty) {
+    } else if (isBrandAdmin && brandDashboardAsync != null && brandDashboardAsync.hasError && availableBranches.isEmpty) {
       tabContent = _buildErrorWidget(brandDashboardAsync.error!, () => ref.invalidate(brandDashboardFutureProvider(_currentDateRange)));
-    } else if (activeBranchId.isEmpty) {
+    } else if (!isBrandAdmin && activeBranchId.isEmpty) {
       tabContent = const Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 40.0),
@@ -451,24 +474,89 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     } else {
       switch (_selectedTabIdx) {
         case 0:
-          final detailAsync = ref.watch(branchDashboardDetailProvider(params));
-          final trendAsync = ref.watch(salesTrendProvider(params));
-
-          tabContent = detailAsync.when(
-            loading: () => _buildLoadingWidget(),
-            error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(branchDashboardDetailProvider(params))),
-            data: (detailData) {
-              return trendAsync.when(
+          if (isBrandAdmin && activeBranchId == 'all') {
+            if (brandDashboardAsync!.isLoading) {
+              tabContent = _buildLoadingWidget();
+            } else if (brandDashboardAsync.hasError) {
+              tabContent = _buildErrorWidget(brandDashboardAsync.error!, () => ref.invalidate(brandDashboardFutureProvider(_currentDateRange)));
+            } else if (brandDashboardAsync.value != null) {
+              final brandData = brandDashboardAsync.value!;
+              final trendAsync = ref.watch(salesTrendProvider(params));
+              tabContent = trendAsync.when(
                 loading: () => _buildLoadingWidget(),
                 error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(salesTrendProvider(params))),
                 data: (trendData) {
-                  final combinedData = _getCombinedFinancialData(detailData, trendData);
-                  final ordersAsync = ref.watch(branchOrdersProvider(activeBranchId));
-                  return _buildFinancialTab(combinedData, detailData, trendData, ordersAsync);
+                  final summary = brandData.summary;
+                  final totalCash = brandData.branches.fold(0.0, (sum, b) => sum + b.paymentBreakdown.cash);
+                  final totalPayOs = brandData.branches.fold(0.0, (sum, b) => sum + b.paymentBreakdown.payOS);
+                  final combinedData = _getCombinedFinancialData(
+                    revenue: summary.revenue,
+                    totalDiscount: summary.totalDiscount,
+                    foodCost: summary.foodCost,
+                    grossMargin: summary.grossMargin,
+                    wastageCost: summary.wastageCost,
+                    netProfit: summary.netProfit,
+                    grossMarginPercentage: summary.grossMarginPercentage,
+                    netProfitPercentage: summary.netProfitPercentage,
+                    isProfitable: summary.isProfitable,
+                    orderCount: summary.orderCount,
+                    cancelledOrders: summary.cancelledOrders,
+                    cashVal: totalCash,
+                    payOsVal: totalPayOs,
+                    orderSources: [],
+                  );
+                  return _buildFinancialTab(
+                    data: combinedData,
+                    trendData: trendData,
+                    branches: brandData.branches,
+                    isBrandView: true,
+                  );
                 },
               );
-            },
-          );
+            } else {
+              tabContent = const SizedBox.shrink();
+            }
+          } else {
+            final detailAsync = ref.watch(branchDashboardDetailProvider(params));
+            final trendAsync = ref.watch(salesTrendProvider(params));
+
+            tabContent = detailAsync.when(
+              loading: () => _buildLoadingWidget(),
+              error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(branchDashboardDetailProvider(params))),
+              data: (detailData) {
+                return trendAsync.when(
+                  loading: () => _buildLoadingWidget(),
+                  error: (err, stack) => _buildErrorWidget(err, () => ref.invalidate(salesTrendProvider(params))),
+                  data: (trendData) {
+                    final summary = detailData.summary;
+                    final combinedData = _getCombinedFinancialData(
+                      revenue: summary.revenue,
+                      totalDiscount: summary.totalDiscount,
+                      foodCost: summary.foodCost,
+                      grossMargin: summary.grossMargin,
+                      wastageCost: summary.wastageCost,
+                      netProfit: summary.netProfit,
+                      grossMarginPercentage: summary.grossMarginPercentage,
+                      netProfitPercentage: summary.netProfitPercentage,
+                      isProfitable: summary.isProfitable,
+                      orderCount: summary.orderCount,
+                      cancelledOrders: summary.cancelledOrders,
+                      cashVal: detailData.paymentBreakdown.cash,
+                      payOsVal: detailData.paymentBreakdown.payOS,
+                      orderSources: detailData.orderSources,
+                    );
+                    final ordersAsync = ref.watch(branchOrdersProvider(activeBranchId));
+                    return _buildFinancialTab(
+                      data: combinedData,
+                      trendData: trendData,
+                      ordersAsync: ordersAsync,
+                      isBrandView: false,
+                    );
+                  },
+                );
+              },
+            );
+          }
           break;
         case 1:
           final menuAsync = ref.watch(menuPerformanceProvider(params));
@@ -536,17 +624,24 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                _selectedTabTitle,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textPrimary,
+                              Expanded(
+                                child: Text(
+                                  _selectedTabTitle,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (isBrandAdmin && availableBranches.length > 1)
+                              if (isBrandAdmin && availableBranches.length > 1) ...[
+                                const SizedBox(width: 10),
                                 _buildBranchSelector(availableBranches, activeBranchId),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -667,22 +762,28 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   Widget _buildBranchSelector(List<BranchDashboardItemModel> branches, String activeBranchId) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: activeBranchId.isEmpty ? null : activeBranchId,
-          icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 18),
-          elevation: 3,
+          value: activeBranchId.isEmpty ? 'all' : activeBranchId,
+          icon: const Padding(
+            padding: EdgeInsets.only(left: 4.0),
+            child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary, size: 16),
+          ),
+          elevation: 2,
+          isDense: true,
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
           ),
+          borderRadius: BorderRadius.circular(8),
           onChanged: (String? newValue) {
             if (newValue != null) {
               setState(() {
@@ -690,12 +791,18 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
               });
             }
           },
-          items: branches.map<DropdownMenuItem<String>>((BranchDashboardItemModel branch) {
-            return DropdownMenuItem<String>(
-              value: branch.branchId,
-              child: Text(branch.branchName),
-            );
-          }).toList(),
+          items: [
+            const DropdownMenuItem<String>(
+              value: 'all',
+              child: Text('Tất cả chi nhánh'),
+            ),
+            ...branches.map<DropdownMenuItem<String>>((BranchDashboardItemModel branch) {
+              return DropdownMenuItem<String>(
+                value: branch.branchId,
+                child: Text(branch.branchName),
+              );
+            }),
+          ],
         ),
       ),
     );
@@ -846,12 +953,13 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   // ─── Financial Tab Widget ──────────────────────────────────────────────
 
-  Widget _buildFinancialTab(
-    Map<String, dynamic> data, 
-    BranchDashboardDetailModel apiData, 
-    SalesTrendModel trendData,
-    AsyncValue<List<MockOrder>> ordersAsync,
-  ) {
+  Widget _buildFinancialTab({
+    required Map<String, dynamic> data, 
+    required SalesTrendModel trendData,
+    AsyncValue<List<MockOrder>>? ordersAsync,
+    List<BranchDashboardItemModel>? branches,
+    bool isBrandView = false,
+  }) {
     final List<double> chartData = trendData.items.map((e) => e.revenue.toDouble()).toList();
     final List<String> labels = trendData.items.map((e) => e.label).toList();
 
@@ -859,88 +967,663 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       key: const ValueKey('financial_tab'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Sleek Gradient Net Sales Card
+        // 1. Sleek Gradient Net Sales & Profit Status Master Card
         _buildNetSalesOverview(data),
         const SizedBox(height: 18),
 
-        // 2. Interactive Revenue Trend Chart
+        // 2. Waterfall P&L Breakdown Card
+        _buildWaterfallPLBreakdown(data),
+        const SizedBox(height: 18),
+
+        // 3. If Brand View: Branch Profitability & Performance Ranking Table
+        if (isBrandView && branches != null && branches.isNotEmpty) ...[
+          _buildBranchComparisonSection(branches),
+          const SizedBox(height: 18),
+        ],
+
+        // 4. Interactive Revenue Trend Chart
         _buildTrendChart(chartData, labels),
         const SizedBox(height: 18),
 
-        // 3. KPI Financial Cards List Stacked to prevent horizontal truncation
-        _buildFinancialKPIGrid(data),
-        const SizedBox(height: 18),
-
-        // 4. Payment Structure Breakdown
+        // 5. Payment Structure Breakdown
         _buildPaymentBreakdown(data['paymentBreakdown'] as List<dynamic>),
         const SizedBox(height: 18),
 
-        // 5. Order Source Breakdown
-        _buildOrderSourceBreakdown(data['orderSources'] as List<dynamic>),
-        const SizedBox(height: 24),
+        // 6. Order Source Breakdown
+        if (!isBrandView && (data['orderSources'] as List<dynamic>).isNotEmpty) ...[
+          _buildOrderSourceBreakdown(data['orderSources'] as List<dynamic>),
+          const SizedBox(height: 24),
+        ],
 
-        // 6. Transaction List Table
-        _buildRecentTransactionsSection(ordersAsync),
+        // 7. Transaction List Table
+        if (!isBrandView && ordersAsync != null)
+          _buildRecentTransactionsSection(ordersAsync),
       ],
     );
   }
 
   Widget _buildNetSalesOverview(Map<String, dynamic> data) {
+    final double netProfitRaw = (data['netProfitRaw'] as num?)?.toDouble() ?? 0.0;
+    final double revenueRaw = (data['revenueRaw'] as num?)?.toDouble() ?? 0.0;
+    final String netProfitPct = data['netProfitPct'] as String? ?? '0.0%';
+
+    String badgeLabel;
+    IconData badgeIcon;
+    if (netProfitRaw > 0) {
+      badgeLabel = 'ĐANG LÃI $netProfitPct';
+      badgeIcon = Icons.trending_up_rounded;
+    } else if (netProfitRaw < 0) {
+      badgeLabel = 'ĐANG LỖ $netProfitPct';
+      badgeIcon = Icons.trending_down_rounded;
+    } else {
+      badgeLabel = revenueRaw > 0 ? 'HÒA VỐN 0.0%' : 'CHƯA CÓ ĐƠN';
+      badgeIcon = Icons.trending_flat_rounded;
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.secondary],
+          colors: [
+            Color(0xFFD84315),
+            Color(0xFFFF6F00),
+            Color(0xFFFF8F00),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+            color: const Color(0xFFD84315).withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'TỔNG DOANH THU THUẦN',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.white70,
-              letterSpacing: 1.0,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Text(
+                  'DOANH THU THỰC TẾ',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white70,
+                    letterSpacing: 0.8,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      badgeIcon,
+                      color: Colors.white,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      badgeLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             data['netSales'] as String,
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 30,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             _selectedTimeFilter == 'Hôm nay'
-                ? 'Báo cáo doanh thu hôm nay'
+                ? 'Báo cáo doanh thu & kết quả kinh doanh hôm nay'
                 : _selectedTimeFilter == 'Tuần này'
-                    ? 'Báo cáo doanh thu tuần này'
+                    ? 'Báo cáo doanh thu & kết quả kinh doanh tuần này'
                     : _selectedTimeFilter == 'Tháng này'
-                        ? 'Báo cáo doanh thu tháng này'
+                        ? 'Báo cáo doanh thu & kết quả kinh doanh tháng này'
                         : 'Báo cáo khoảng thời gian tùy chọn',
             style: const TextStyle(
               fontSize: 11,
-              color: Colors.white60,
+              color: Colors.white70,
               fontWeight: FontWeight.w500,
             ),
           ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildOverviewMiniMetric(
+                  label: 'Doanh thu gộp',
+                  value: data['grossSales'] as String,
+                ),
+                Container(width: 1, height: 28, color: Colors.white24),
+                _buildOverviewMiniMetric(
+                  label: 'Giá vốn nguyên liệu',
+                  value: data['foodCost'] as String,
+                ),
+                Container(width: 1, height: 28, color: Colors.white24),
+                _buildOverviewMiniMetric(
+                  label: 'Lợi nhuận ròng',
+                  value: data['netProfit'] as String,
+                  isBold: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewMiniMetric({
+    required String label,
+    required String value,
+    bool isBold = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWaterfallPLBreakdown(Map<String, dynamic> data) {
+    final double netProfitRaw = (data['netProfitRaw'] as num?)?.toDouble() ?? 0.0;
+    final double revenueRaw = (data['revenueRaw'] as num?)?.toDouble() ?? 0.0;
+
+    String statusLabel;
+    Color statusBg;
+    Color statusText;
+    Color profitBoxBg;
+    Color profitBoxBorder;
+    Color profitBoxTextColor;
+    Color profitBoxValueColor;
+
+    if (netProfitRaw > 0) {
+      statusLabel = 'Kinh doanh có lãi';
+      statusBg = AppColors.badgeBestBg;
+      statusText = AppColors.badgeBestText;
+      profitBoxBg = const Color(0xFFE8F5E9);
+      profitBoxBorder = const Color(0xFF81C784);
+      profitBoxTextColor = const Color(0xFF2E7D32);
+      profitBoxValueColor = const Color(0xFF1B5E20);
+    } else if (netProfitRaw < 0) {
+      statusLabel = 'Cảnh báo thâm hụt';
+      statusBg = AppColors.badgeHotBg;
+      statusText = AppColors.badgeHotText;
+      profitBoxBg = const Color(0xFFFFEBEE);
+      profitBoxBorder = const Color(0xFFE57373);
+      profitBoxTextColor = const Color(0xFFC62828);
+      profitBoxValueColor = const Color(0xFFB71C1C);
+    } else {
+      statusLabel = revenueRaw > 0 ? 'Hòa vốn' : 'Chưa có đơn';
+      statusBg = const Color(0xFFFFF3E0);
+      statusText = const Color(0xFFE65100);
+      profitBoxBg = const Color(0xFFFFF8E1);
+      profitBoxBorder = const Color(0xFFFFCC80);
+      profitBoxTextColor = const Color(0xFFE65100);
+      profitBoxValueColor = const Color(0xFFE65100);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Báo cáo Lãi / Lỗ kinh doanh',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    color: statusText,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildPLRow(
+            prefix: '(+)',
+            title: 'Doanh thu gộp',
+            subtitle: 'Tổng giá trị món ăn niêm yết',
+            value: data['grossSales'] as String,
+            color: AppColors.textPrimary,
+          ),
+          _buildPLDivider(),
+          _buildPLRow(
+            prefix: '(-)',
+            title: 'Giảm giá khuyến mãi',
+            subtitle: 'Chương trình ưu đãi giảm giá',
+            value: '- ${data['discounts']}',
+            color: const Color(0xFFE53935),
+          ),
+          _buildPLDivider(),
+          _buildPLRow(
+            prefix: '(=)',
+            title: 'Doanh thu thực tế',
+            subtitle: 'Thực thu từ khách hàng',
+            value: data['netSales'] as String,
+            color: const Color(0xFFD84315),
+            isHighlighted: true,
+          ),
+          _buildPLDivider(),
+          _buildPLRow(
+            prefix: '(-)',
+            title: 'Giá vốn nguyên liệu',
+            subtitle: 'Chi phí định lượng nguyên vật liệu',
+            value: '- ${data['foodCost']}',
+            badgeText: data['foodCostPct'] as String,
+            color: const Color(0xFFEF6C00),
+          ),
+          _buildPLDivider(),
+          _buildPLRow(
+            prefix: '(=)',
+            title: 'Lợi nhuận gộp',
+            subtitle: 'Doanh thu thực tế trừ giá vốn',
+            value: data['grossMargin'] as String,
+            badgeText: data['grossMarginPct'] as String,
+            color: const Color(0xFF00897B),
+          ),
+          _buildPLDivider(),
+          _buildPLRow(
+            prefix: '(-)',
+            title: 'Chi phí hao hụt kho',
+            subtitle: 'Hao hụt, hư hỏng hoặc hết hạn',
+            value: '- ${data['wastageCost']}',
+            color: const Color(0xFFC2185B),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: profitBoxBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: profitBoxBorder,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LỢI NHUẬN RÒNG THỰC TẾ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: profitBoxTextColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        netProfitRaw > 0
+                            ? 'Biên lợi nhuận ròng: ${data['netProfitPct']}'
+                            : netProfitRaw < 0
+                                ? 'Tỷ lệ lỗ vốn: ${data['netProfitPct']}'
+                                : 'Hòa vốn kinh doanh',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: profitBoxTextColor.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  data['netProfit'] as String,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: profitBoxValueColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPLRow({
+    required String prefix,
+    required String title,
+    required String subtitle,
+    required String value,
+    required Color color,
+    String? badgeText,
+    bool isHighlighted = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.5),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                prefix,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isHighlighted ? FontWeight.w800 : FontWeight.w600,
+                    color: isHighlighted ? AppColors.textPrimary : AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: AppColors.textTertiary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          if (badgeText != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                badgeText,
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color),
+              ),
+            ),
+          ],
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isHighlighted ? 13 : 12,
+              fontWeight: isHighlighted ? FontWeight.w900 : FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPLDivider() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 4.0),
+      child: Divider(color: AppColors.divider, height: 1),
+    );
+  }
+
+  Widget _buildBranchComparisonSection(List<BranchDashboardItemModel> branches) {
+    if (branches.isEmpty) return const SizedBox.shrink();
+
+    // Sort by Net Profit descending
+    final sortedBranches = List<BranchDashboardItemModel>.from(branches)
+      ..sort((a, b) => b.netProfit.compareTo(a.netProfit));
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Hiệu quả Lãi/Lỗ giữa các chi nhánh',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                '${branches.length} chi nhánh',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...sortedBranches.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final b = entry.value;
+            final isProfitable = b.isProfitable;
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedBranchId = b.branchId;
+                });
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isProfitable
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.red.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: idx == 0
+                            ? Colors.amber.shade100
+                            : idx == 1
+                                ? Colors.grey.shade200
+                                : AppColors.surfaceContainerLowest,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '#${idx + 1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: idx == 0 ? Colors.amber.shade900 : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            b.branchName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Doanh thu: ${FormatUtils.formatCurrency(b.revenue)} · ${b.completedOrders} đơn',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          FormatUtils.formatCurrency(b.netProfit),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: isProfitable ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isProfitable ? AppColors.badgeBestBg : AppColors.badgeHotBg,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            isProfitable
+                                ? 'Lãi ${b.netProfitPercentage.toStringAsFixed(1)}%'
+                                : 'Lỗ ${b.netProfitPercentage.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: isProfitable ? AppColors.badgeBestText : AppColors.badgeHotText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -1141,118 +1824,6 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinancialKPIGrid(Map<String, dynamic> data) {
-    return Column(
-      children: [
-        _buildKPITile(
-          title: 'Giảm giá khuyến mãi',
-          value: data['discounts']!,
-          icon: Icons.local_offer_rounded,
-          iconBg: AppColors.badgeHotBg,
-          iconColor: AppColors.badgeHotText,
-        ),
-        const SizedBox(height: 10),
-        _buildKPITile(
-          title: 'Chi phí nguyên liệu',
-          value: data['foodCost']!,
-          icon: Icons.kitchen_rounded,
-          iconBg: AppColors.badgeNewBg,
-          iconColor: AppColors.badgeNewText,
-          badgeText: data['foodCostPct']!,
-        ),
-        const SizedBox(height: 10),
-        _buildKPITile(
-          title: 'Lợi nhuận gộp thực tế',
-          value: data['grossMargin']!,
-          icon: Icons.trending_up_rounded,
-          iconBg: AppColors.badgeBestBg,
-          iconColor: AppColors.badgeBestText,
-          badgeText: data['grossMarginPct']!,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKPITile({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    String? badgeText,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (badgeText != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Text(
-                badgeText,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: iconColor,
-                ),
-              ),
-            ),
         ],
       ),
     );

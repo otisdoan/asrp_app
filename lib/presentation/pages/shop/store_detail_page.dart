@@ -501,6 +501,15 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
   void _handleCartResult(dynamic result, {required String name, required String price, String? imageUrl, required IconData icon, String? menuItemId}) {
     if (result != null && result is Map<String, dynamic>) {
+      final targetBranchId = _lastResolvedDetail?.id ?? widget.branchId;
+      if (isBranchStaffOrOwner(ref, targetBranchId)) {
+        TopNotification.show(
+          context,
+          message: 'Tài khoản của bạn thuộc chi nhánh này, không thể tự đặt món.',
+          isError: true,
+        );
+        return;
+      }
       final priceVal = int.tryParse(price.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
       final cartItem = CartItemModel(
         id: '${DateTime.now().millisecondsSinceEpoch}_$name',
@@ -1217,6 +1226,15 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
     return GestureDetector(
       onTap: () async {
+        final targetBranchId = _lastResolvedDetail?.id ?? widget.branchId;
+        if (isBranchStaffOrOwner(ref, targetBranchId)) {
+          TopNotification.show(
+            context,
+            message: 'Tài khoản của bạn thuộc chi nhánh này, không thể tự đặt món.',
+            isError: true,
+          );
+          return;
+        }
         if (_lastResolvedDetail != null && !_lastResolvedDetail!.isOpen) {
           TopNotification.show(
             context,
@@ -1363,6 +1381,15 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
 
     return GestureDetector(
       onTap: isSoldOut ? null : () async {
+        final targetBranchId = _lastResolvedDetail?.id ?? widget.branchId;
+        if (isBranchStaffOrOwner(ref, targetBranchId)) {
+          TopNotification.show(
+            context,
+            message: 'Tài khoản của bạn thuộc chi nhánh này, không thể tự đặt món.',
+            isError: true,
+          );
+          return;
+        }
         if (_lastResolvedDetail != null && !_lastResolvedDetail!.isOpen) {
           TopNotification.show(
             context,

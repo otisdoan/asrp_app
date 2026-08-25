@@ -88,9 +88,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   BranchCart _getBranchCart(CartState cart) {
-    final targetBranchId = widget.branchId ?? cart.branchId ?? 'default_branch';
-    return cart.carts[targetBranchId] ??
-        (cart.carts.isNotEmpty ? cart.carts.values.first : const BranchCart());
+    if (widget.branchId != null && widget.branchId!.isNotEmpty) {
+      return cart.carts[widget.branchId] ?? const BranchCart();
+    }
+    final targetBranchId = cart.branchId ?? 'default_branch';
+    return cart.carts[targetBranchId] ?? const BranchCart();
   }
 
   Map<String, dynamic> _buildOrderPayload(CartState cart,
@@ -158,6 +160,19 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _fetchOrderPreview({bool showLoader = true}) async {
+    final cart = ref.read(cartProvider);
+    final branchCart = _getBranchCart(cart);
+
+    if (branchCart.items.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isFirstLoad = false;
+        });
+      }
+      return;
+    }
+
     if (showLoader) {
       setState(() {
         _isLoading = true;
@@ -165,7 +180,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     try {
-      final cart = ref.read(cartProvider);
       final payload =
           _buildOrderPayload(cart, selectedTime: _selectedPickupTime);
       print('[Checkout] Payload sent to preview: $payload');
@@ -190,9 +204,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _isLoading = false;
           _isFirstLoad = false;
         });
+        String errorMsg = 'Không thể tính toán giá đơn hàng';
+        if (e is DioException) {
+          final data = e.response?.data;
+          if (data is Map && data['detail'] != null) {
+            errorMsg = data['detail'].toString();
+          } else if (data is Map && data['message'] != null) {
+            errorMsg = data['message'].toString();
+          }
+        }
         TopNotification.show(
           context,
-          message: 'Không thể tính toán giá đơn hàng: $e',
+          message: errorMsg,
           isError: true,
         );
       }
@@ -361,6 +384,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   // ─── App Bar ───────────────────────────────────────────────────────────
   Widget _buildAppBar(BuildContext context) {
+    final cart = ref.watch(cartProvider);
+    final branchCart = _getBranchCart(cart);
+    final storeName = (branchCart.storeName != null && branchCart.storeName!.isNotEmpty)
+        ? branchCart.storeName!
+        : widget.storeName;
+    final distance = (branchCart.distance != null && branchCart.distance!.isNotEmpty)
+        ? branchCart.distance!
+        : widget.distance;
+
     return SliverAppBar(
       pinned: true,
       backgroundColor: AppColors.primary,
@@ -373,7 +405,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.storeName,
+            storeName,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -383,7 +415,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            'Khoảng cách tới quán: ${widget.distance}',
+            'Khoảng cách tới quán: $distance',
             style: TextStyle(
               fontSize: 12,
               color: AppColors.onPrimary.withValues(alpha: 0.8),
@@ -639,7 +671,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ref.read(cartProvider.notifier).removeItem(item.id);
               TopNotification.show(
                 context,
-                message: 'Đã xóa "${item.name}" khỏi đơn hàng',
+                message: 'Đã xóa "${item.name}" khỏi giỏ hàng',
               );
             },
             style: ElevatedButton.styleFrom(

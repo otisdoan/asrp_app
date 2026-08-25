@@ -7,6 +7,7 @@ import '../data/repositories/auth_repository.dart';
 import '../core/network/dio_client.dart';
 import '../core/constants/app_constants.dart';
 import '../core/services/notification_service.dart';
+import 'branch_provider.dart';
 
 // ===== Auth State =====
 class AuthState {
@@ -185,3 +186,34 @@ final isAuthenticatedProvider = Provider<bool>(
 final currentUserProvider = Provider<UserModel?>(
   (ref) => ref.watch(authProvider).user,
 );
+
+/// Checks if current logged in user is a staff/manager/owner of the specified target branch.
+bool isBranchStaffOrOwner(dynamic ref, String? targetBranchId, {String? storeBrandId}) {
+  if (targetBranchId == null || targetBranchId.isEmpty) return false;
+
+  final UserModel? user = ref.read(currentUserProvider);
+  if (user == null) return false;
+
+  final role = user.role.toLowerCase();
+  if (role == 'customer') return false;
+
+  // 1. If user is directly assigned to a specific branchId (e.g. Staff or Branch Manager)
+  if (user.branchId != null && user.branchId!.isNotEmpty) {
+    return user.branchId == targetBranchId;
+  }
+
+  // 2. If user is a Merchant Owner / Brand Manager (has brandId)
+  if (user.brandId != null && user.brandId!.isNotEmpty) {
+    if (storeBrandId != null && storeBrandId.isNotEmpty && storeBrandId == user.brandId) {
+      return true;
+    }
+    try {
+      final brandBranches = ref.read(myBrandBranchesFutureProvider).valueOrNull;
+      if (brandBranches != null && brandBranches.isNotEmpty) {
+        return brandBranches.any((b) => b.id == targetBranchId);
+      }
+    } catch (_) {}
+  }
+
+  return false;
+}

@@ -168,6 +168,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
         initialSelectedToppings: existingItem?.selectedToppings ?? [],
         initialNote: existingItem?.note,
         isEditing: existingItem != null,
+        isStaffOrder: true,
       ),
     );
 

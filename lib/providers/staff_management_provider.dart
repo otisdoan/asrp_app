@@ -223,9 +223,25 @@ class StaffManagementNotifier extends StateNotifier<List<StaffMemberModel>> {
     }
   }
 
-  /// Vô hiệu hóa nhân viên (tương đương Xóa trên UI FE)
-  Future<void> deleteStaffMember(String id) async {
-    await toggleStaffStatus(id, false);
+  /// Gỡ nhân viên khỏi chi nhánh (chuyển về tài khoản Customer, giữ nguyên quyền đăng nhập cá nhân)
+  Future<void> removeStaffMemberFromBranch(String userId, {String? targetBranchId}) async {
+    final branchId = targetBranchId ?? _branchId;
+    if (branchId == null || branchId.isEmpty) return;
+
+    try {
+      await _dioClient.dio.delete(
+        '/branches/$branchId/employees/$userId',
+      );
+      await fetchStaffMembers(branchId);
+    } catch (e) {
+      print('[StaffManagementNotifier] Error removing staff from branch: $e');
+      rethrow;
+    }
+  }
+
+  /// Xóa / Gỡ nhân viên khỏi chi nhánh
+  Future<void> deleteStaffMember(String id, {String? targetBranchId}) async {
+    await removeStaffMemberFromBranch(id, targetBranchId: targetBranchId);
   }
 }
 

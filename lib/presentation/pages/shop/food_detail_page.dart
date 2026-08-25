@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/branch_repository.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../core/utils/top_notification.dart';
 import 'add_to_cart_page.dart';
 
 /// Food Item Detail Page — shows food image, info, price, and reviews.
 /// Follows RULE: UI-only, uses AppColors, responsive.
-class FoodDetailPage extends StatefulWidget {
+class FoodDetailPage extends ConsumerStatefulWidget {
   final String name;
   final String price;
   final String sold;
@@ -28,10 +31,10 @@ class FoodDetailPage extends StatefulWidget {
   });
 
   @override
-  State<FoodDetailPage> createState() => _FoodDetailPageState();
+  ConsumerState<FoodDetailPage> createState() => _FoodDetailPageState();
 }
 
-class _FoodDetailPageState extends State<FoodDetailPage> {
+class _FoodDetailPageState extends ConsumerState<FoodDetailPage> {
   late ScrollController _scrollController;
   bool _isCollapsed = false;
   final Set<String> _likedReviews = {};
@@ -441,6 +444,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
               // Add button
               GestureDetector(
                 onTap: () async {
+                  if (isBranchStaffOrOwner(ref, widget.branchId)) {
+                    TopNotification.show(
+                      context,
+                      message: 'Tài khoản của bạn thuộc chi nhánh này, không thể tự đặt món.',
+                      isError: true,
+                    );
+                    return;
+                  }
                   final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -931,6 +942,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             Expanded(
               child: ElevatedButton(
                 onPressed: () async {
+                  if (isBranchStaffOrOwner(ref, widget.branchId)) {
+                    TopNotification.show(
+                      context,
+                      message: 'Tài khoản của bạn thuộc chi nhánh này, không thể tự đặt món.',
+                      isError: true,
+                    );
+                    return;
+                  }
                   final result = await Navigator.push(
                       context,
                       MaterialPageRoute(

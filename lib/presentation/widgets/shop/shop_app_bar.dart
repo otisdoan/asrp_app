@@ -164,7 +164,6 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 ),
               ),
               const SizedBox(width: 8),
-
               // 3. Red Heart Favorite Shops Button
               GestureDetector(
                 onTap: () => context.push(AppConstants.routeFavoriteShops),
@@ -220,8 +219,6 @@ class ShopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 ),
               ),
               const SizedBox(width: 8),
-
-              // 4. Profile Avatar (Far Right)
               GestureDetector(
                 onTap: () => context.push(
                   isLoggedIn ? AppConstants.routeProfile : AppConstants.routeLogin,

@@ -7,7 +7,6 @@ import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../providers/branch_provider.dart';
 
 /// Login Page — professional, clean design.
 /// Two tabs: Khách hàng (phone + password) and Nhân viên (phone + password).
@@ -85,23 +84,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           } else {
             context.go(AppConstants.routeOnboarding);
           }
-        } else if (role == 'superadmin') {
-          context.go(AppConstants.routeSuperAdminDashboard);
-        } else if (role == 'admin') {
-          try {
-            final branches =
-                await ref.read(branchRepositoryProvider).getMyBrandBranches();
-            if (!mounted) return;
-            if (branches.length > 1) {
-              context.go(AppConstants.routeSuperAdminDashboard);
-            } else {
-              context.go('/admin/dashboard');
-            }
-          } catch (_) {
-            if (mounted) {
-              context.go('/admin/dashboard');
-            }
-          }
+        } else if (role == 'superadmin' || role == 'admin') {
+          context.go('/admin/dashboard');
         } else {
           context.go(AppConstants.routeCashier);
         }
