@@ -270,34 +270,16 @@ class _AllTransactionsPageState extends ConsumerState<AllTransactionsPage>
     // Status styling
     Color statusColor;
     String statusText;
-    IconData statusIcon;
     switch (order.status) {
       case MockOrderStatus.cancelled:
         statusColor = AppColors.error;
         statusText = 'Đã hủy';
-        statusIcon = Icons.cancel_rounded;
       case MockOrderStatus.completed:
         statusColor = AppColors.success;
         statusText = 'Hoàn thành';
-        statusIcon = Icons.check_circle_rounded;
       default:
         statusColor = const Color(0xFFED6C02);
         statusText = 'Đang xử lý';
-        statusIcon = Icons.schedule_rounded;
-    }
-
-    // Order source
-    String sourceLabel;
-    IconData sourceIcon;
-    if (order.orderType == 'Kiosk' || order.orderType == '1') {
-      sourceLabel = 'Kiosk';
-      sourceIcon = Icons.tablet_mac_rounded;
-    } else if (order.orderType == 'InStore' || order.orderType == '2') {
-      sourceLabel = 'POS';
-      sourceIcon = Icons.point_of_sale_rounded;
-    } else {
-      sourceLabel = 'Online';
-      sourceIcon = Icons.language_rounded;
     }
 
     // Payment method
@@ -320,13 +302,10 @@ class _AllTransactionsPageState extends ConsumerState<AllTransactionsPage>
           key: PageStorageKey<String>(order.id),
           initiallyExpanded: isExpanded,
           onExpansionChanged: (v) => setState(() => _expandedIndex = v ? index : null),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           childrenPadding: EdgeInsets.zero,
 
-          // ── Leading status icon ──
-          leading: Icon(statusIcon, color: statusColor, size: 22),
-
-          // ── Title row: order code + amount ──
+          // ── Title row: order code + status badge + amount ──
           title: Row(
             children: [
               Text(
@@ -353,39 +332,16 @@ class _AllTransactionsPageState extends ConsumerState<AllTransactionsPage>
             ],
           ),
 
-          // ── Subtitle: time + items preview ──
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Text(
-                    '$timeStr · $dateStr',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(sourceIcon, size: 12, color: AppColors.textTertiary),
-                  const SizedBox(width: 2),
-                  Text(
-                    sourceLabel,
-                    style: const TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-              if (order.items.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  order.items.map((i) => '${i.quantity}x ${i.name}').join(', '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                ),
-              ],
-            ],
+          // ── Subtitle: time only ──
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              '$timeStr · $dateStr',
+              style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            ),
           ),
 
-          // ── Expanded detail section ──
+          // ── Expanded detail ──
           children: [
             const Divider(height: 1, color: Color(0xFFF0F0F0), indent: 14, endIndent: 14),
             Padding(
@@ -393,24 +349,18 @@ class _AllTransactionsPageState extends ConsumerState<AllTransactionsPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Items list
                   ...order.items.map(_buildItemRow),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   const Divider(height: 1, color: Color(0xFFF0F0F0)),
                   const SizedBox(height: 8),
-
-                  // Info rows
                   _infoRow('Thanh toán', paymentLabel),
-                  if (order.storeName.isNotEmpty) _infoRow('Chi nhánh', order.storeName),
                   if (order.customerPhone != null && order.customerPhone!.isNotEmpty)
                     _infoRow('Khách hàng', '${order.customerName ?? 'Khách'} · ${order.customerPhone}'),
-                  const SizedBox(height: 6),
-
-                  // Total
+                  const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Tổng thanh toán', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                      const Text('Tổng', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                       Text(
                         FormatUtils.formatCurrency(order.totalAmount),
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primary),
@@ -463,8 +413,8 @@ class _AllTransactionsPageState extends ConsumerState<AllTransactionsPage>
             Padding(
               padding: const EdgeInsets.only(left: 16, top: 2),
               child: Text(
-                '📝 ${item.note}',
-                style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.tertiary),
+                'Ghi chú: ${item.note}',
+                style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.textTertiary),
               ),
             ),
         ],
