@@ -780,8 +780,7 @@ final reviewedOrdersProvider = StateNotifierProvider<ReviewedOrdersNotifier, Set
   return ReviewedOrdersNotifier();
 });
 
-final branchOrdersProvider = FutureProvider.family<List<MockOrder>, String>((ref, branchId) async {
-  if (branchId.isEmpty) return [];
+final branchOrdersProvider = FutureProvider.autoDispose.family<List<MockOrder>, String>((ref, branchId) async {
   final orderRepository = OrderRepository();
   final branchRepository = BranchRepository();
   final Map<String, String> branchNames = {};
@@ -795,8 +794,10 @@ final branchOrdersProvider = FutureProvider.family<List<MockOrder>, String>((ref
     print('[branchOrdersProvider] Error loading branch names: $e');
   }
 
+  final effectiveBranchId = (branchId.isNotEmpty && branchId != 'all') ? branchId : null;
+
   try {
-    final rawOrders = await orderRepository.getManagementOrders(branchId: branchId);
+    final rawOrders = await orderRepository.getManagementOrders(branchId: effectiveBranchId);
     return rawOrders
         .map((item) {
           try {

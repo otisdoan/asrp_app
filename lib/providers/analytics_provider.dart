@@ -7,7 +7,7 @@ final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
   return AnalyticsRepository();
 });
 
-final brandDashboardFutureProvider = FutureProvider.family<BrandDashboardResponseModel, DateTimeRange?>((ref, dateRange) async {
+final brandDashboardFutureProvider = FutureProvider.autoDispose.family<BrandDashboardResponseModel, DateTimeRange?>((ref, dateRange) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getBrandDashboard(
     from: dateRange?.start,
@@ -35,7 +35,7 @@ class BranchAnalyticsParams {
 }
 
 /// Provider cho chi tiết báo cáo chi nhánh
-final branchDashboardDetailProvider = FutureProvider.family<BranchDashboardDetailModel, BranchAnalyticsParams>((ref, params) async {
+final branchDashboardDetailProvider = FutureProvider.autoDispose.family<BranchDashboardDetailModel, BranchAnalyticsParams>((ref, params) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getBranchDashboardDetail(
     params.branchId,
@@ -45,7 +45,7 @@ final branchDashboardDetailProvider = FutureProvider.family<BranchDashboardDetai
 });
 
 /// Provider cho xu hướng doanh thu chi nhánh
-final salesTrendProvider = FutureProvider.family<SalesTrendModel, BranchAnalyticsParams>((ref, params) async {
+final salesTrendProvider = FutureProvider.autoDispose.family<SalesTrendModel, BranchAnalyticsParams>((ref, params) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getSalesTrend(
     from: params.dateRange?.start,
@@ -55,7 +55,7 @@ final salesTrendProvider = FutureProvider.family<SalesTrendModel, BranchAnalytic
 });
 
 /// Provider cho hiệu suất thực đơn của chi nhánh
-final menuPerformanceProvider = FutureProvider.family<MenuPerformanceModel, BranchAnalyticsParams>((ref, params) async {
+final menuPerformanceProvider = FutureProvider.autoDispose.family<MenuPerformanceModel, BranchAnalyticsParams>((ref, params) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getMenuPerformance(
     from: params.dateRange?.start,
@@ -65,7 +65,7 @@ final menuPerformanceProvider = FutureProvider.family<MenuPerformanceModel, Bran
 });
 
 /// Provider cho hiệu suất vận hành của chi nhánh
-final operationsAnalyticsProvider = FutureProvider.family<OperationsAnalyticsModel, BranchAnalyticsParams>((ref, params) async {
+final operationsAnalyticsProvider = FutureProvider.autoDispose.family<OperationsAnalyticsModel, BranchAnalyticsParams>((ref, params) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getOperations(
     from: params.dateRange?.start,
@@ -75,7 +75,7 @@ final operationsAnalyticsProvider = FutureProvider.family<OperationsAnalyticsMod
 });
 
 /// Provider cho hao hụt kho của chi nhánh
-final inventoryWastageProvider = FutureProvider.family<InventoryWastageAnalyticsModel, BranchAnalyticsParams>((ref, params) async {
+final inventoryWastageProvider = FutureProvider.autoDispose.family<InventoryWastageAnalyticsModel, BranchAnalyticsParams>((ref, params) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getInventoryWastage(
     from: params.dateRange?.start,
@@ -85,7 +85,7 @@ final inventoryWastageProvider = FutureProvider.family<InventoryWastageAnalytics
 });
 
 /// Provider cho tồn kho của chi nhánh
-final branchInventoriesProvider = FutureProvider.family<List<BranchInventoryItem>, String>((ref, branchId) async {
+final branchInventoriesProvider = FutureProvider.autoDispose.family<List<BranchInventoryItem>, String>((ref, branchId) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getBranchInventory(branchId);
 });
@@ -108,7 +108,7 @@ class TransferTicketParams {
   int get hashCode => (branchId?.hashCode ?? 0) ^ (status?.hashCode ?? 0);
 }
 
-final transferTicketsProvider = FutureProvider.family<List<TransferTicketModel>, TransferTicketParams>((ref, params) async {
+final transferTicketsProvider = FutureProvider.autoDispose.family<List<TransferTicketModel>, TransferTicketParams>((ref, params) async {
   final repository = ref.watch(analyticsRepositoryProvider);
   return repository.getTransferTickets(
     branchId: params.branchId,

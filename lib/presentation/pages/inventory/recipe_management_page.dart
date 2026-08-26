@@ -23,13 +23,6 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
     });
   }
 
-  String _formatPrice(int price) {
-    return price.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
-  }
-
   void _loadRecipe(MenuItemRecipe recipe) {
     _editingItems.clear();
     for (var item in recipe.items) {
@@ -38,7 +31,6 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
         'ingredientName': item.ingredientName,
         'unit': item.unit,
         'quantityController': TextEditingController(text: item.quantityNeeded.toStringAsFixed(0)),
-        'costEstimate': item.costEstimate,
       });
     }
   }
@@ -52,71 +44,14 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
     final double defaultQty = ing.unit == 'kg' ? 100 : (ing.unit == 'lít' ? 50 : 1);
     final String defaultUnit = ing.unit == 'kg' ? 'gram' : (ing.unit == 'lít' ? 'ml' : ing.unit);
 
-    // Mock unit cost calculation
-    int baseCost = 0;
-    final nameLower = ing.name.toLowerCase();
-    if (nameLower.contains('mì')) {
-      baseCost = 32; // 32k/kg = 32đ/gram
-    } else if (nameLower.contains('bò')) {
-      baseCost = 210; // 210k/kg = 210đ/gram
-    } else if (nameLower.contains('hành')) {
-      baseCost = 18; // 18k/kg = 18đ/gram
-    } else if (nameLower.contains('gia')) {
-      baseCost = 15; // 15k/kg = 15đ/gram
-    } else if (nameLower.contains('tôm')) {
-      baseCost = 3000; // 3000đ/con
-    } else if (nameLower.contains('dầu')) {
-      baseCost = 24; // 24đ/ml
-    } else {
-      baseCost = 10;
-    }
-
-    final costEst = (defaultQty * baseCost).toInt();
-
     setState(() {
       _editingItems.add({
         'ingredientId': ing.id,
         'ingredientName': ing.name,
         'unit': defaultUnit,
         'quantityController': TextEditingController(text: defaultQty.toStringAsFixed(0)),
-        'costEstimate': costEst,
       });
     });
-  }
-
-  void _recalculateCostRow(Map<String, dynamic> item) {
-    final double qty = double.tryParse(item['quantityController'].text) ?? 0;
-    
-    // Get ingredient unit cost
-    int baseCost = 0;
-    final itemLower = item['ingredientName'].toString().toLowerCase();
-    if (itemLower.contains('mì')) {
-      baseCost = 32;
-    } else if (itemLower.contains('bò')) {
-      baseCost = 210;
-    } else if (itemLower.contains('hành')) {
-      baseCost = 18;
-    } else if (itemLower.contains('gia')) {
-      baseCost = 15;
-    } else if (itemLower.contains('tôm')) {
-      baseCost = 3000;
-    } else if (itemLower.contains('dầu')) {
-      baseCost = 24;
-    } else {
-      baseCost = 10;
-    }
-
-    setState(() {
-      item['costEstimate'] = (qty * baseCost).toInt();
-    });
-  }
-
-  int get _totalFoodCost {
-    int total = 0;
-    for (var item in _editingItems) {
-      total += item['costEstimate'] as int;
-    }
-    return total;
   }
 
   void _showIngredientSelector(List<InventoryIngredient> ingredients) {
@@ -228,12 +163,13 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
         ingredientName: item['ingredientName'],
         quantityNeeded: qty,
         unit: item['unit'],
-        costEstimate: item['costEstimate'] as int,
+        costEstimate: (item['costEstimate'] as int?) ?? 0,
       ));
     }
 
     ref.read(inventoryProvider.notifier).saveRecipe(_selectedRecipeId!, itemsPayload);
     TopNotification.show(context, message: 'Đã lưu công thức định lượng thành công');
+    Navigator.pop(context);
   }
 
   @override
@@ -291,8 +227,6 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
       _selectedRecipeId = state.recipes.first.menuItemId;
       _loadRecipe(state.recipes.first);
     }
-
-    final activeRecipe = state.recipes.firstWhere((e) => e.menuItemId == _selectedRecipeId, orElse: () => state.recipes.first);
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -432,34 +366,16 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Giá bán món ăn:',
+                        'Tổng số nguyên liệu:',
                         style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
                       Text(
-                        '${_formatPrice(activeRecipe.sellPrice)}đ',
+                        '${_editingItems.length} thành phần',
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Ước tính Food Cost:',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        '${_formatPrice(_totalFoodCost)}đ (${(activeRecipe.sellPrice > 0 ? (_totalFoodCost / activeRecipe.sellPrice) * 100 : 0).toStringAsFixed(1)}% Giá bán)',
-                        style: TextStyle(
-                          fontSize: 14, 
-                          fontWeight: FontWeight.bold, 
-                          color: (_totalFoodCost / activeRecipe.sellPrice) > 0.5 ? AppColors.primary : AppColors.success,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -471,7 +387,7 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
-                      child: const Text('Lưu công thức', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('Lưu công thức', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                   ),
                 ],
@@ -511,9 +427,9 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Giá vốn ước tính: ${_formatPrice(item['costEstimate'] as int)}đ',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                const Text(
+                  'Định lượng trừ kho 1 suất ăn',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -537,9 +453,6 @@ class _RecipeManagementPageState extends ConsumerState<RecipeManagementPage> {
                       controller: item['quantityController'],
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-                      onChanged: (val) {
-                        _recalculateCostRow(item);
-                      },
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,

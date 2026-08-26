@@ -383,6 +383,13 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       _selectedTimeFilter = filter;
       _selectedChartBarIndex = 0; // Reset chart index on filter change
     });
+    ref.invalidate(brandDashboardFutureProvider);
+    ref.invalidate(branchDashboardDetailProvider);
+    ref.invalidate(salesTrendProvider);
+    ref.invalidate(menuPerformanceProvider);
+    ref.invalidate(operationsAnalyticsProvider);
+    ref.invalidate(inventoryWastageProvider);
+    ref.invalidate(branchOrdersProvider);
   }
 
   Future<void> _selectCustomDateRange() async {
@@ -607,56 +614,68 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
             // 2. Scrollable Body
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 3. Sliding Segmented Tab Selector (Primary navigation)
-                      _buildTabSelector(),
-                      const SizedBox(height: 16),
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async {
+                  ref.invalidate(brandDashboardFutureProvider);
+                  ref.invalidate(branchDashboardDetailProvider);
+                  ref.invalidate(salesTrendProvider);
+                  ref.invalidate(menuPerformanceProvider);
+                  ref.invalidate(operationsAnalyticsProvider);
+                  ref.invalidate(inventoryWastageProvider);
+                  ref.invalidate(branchOrdersProvider);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 3. Sliding Segmented Tab Selector (Primary navigation)
+                        _buildTabSelector(),
+                        const SizedBox(height: 16),
 
-                      // 4. Dynamic Title & Filter Chips
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _selectedTabTitle,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
+                        // 4. Dynamic Title & Filter Chips
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _selectedTabTitle,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              if (isBrandAdmin && availableBranches.length > 1) ...[
-                                const SizedBox(width: 10),
-                                _buildBranchSelector(availableBranches, activeBranchId),
+                                if (isBrandAdmin && availableBranches.length > 1) ...[
+                                  const SizedBox(width: 10),
+                                  _buildBranchSelector(availableBranches, activeBranchId),
+                                ],
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          _buildTimeFilterChips(),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildTimeFilterChips(),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
 
-                      // 5. Dynamic Tab View contents
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: tabContent,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                        // 5. Dynamic Tab View contents
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: tabContent,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
               ),
