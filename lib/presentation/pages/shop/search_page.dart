@@ -10,6 +10,7 @@ import '../../../data/models/category_model.dart';
 import '../../../data/models/branch_search_model.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/ai_recommendation_provider.dart';
+import '../../../providers/auth_provider.dart';
 
 /// Search Page — two states:
 /// 1. Typing: autocomplete suggestions
@@ -406,6 +407,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _buildRecommendedSection() {
     final aiRecsAsync = ref.watch(personalizedRecommendationsProvider);
     final userLocation = ref.watch(userLocationProvider);
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
 
     return aiRecsAsync.when(
       data: (aiItems) {
@@ -418,13 +420,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
-                        SizedBox(width: 6),
+                        Icon(
+                          isAuthenticated ? Icons.auto_awesome : Icons.local_fire_department,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 6),
                         Text(
-                          'Được đề xuất cho bạn',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          isAuthenticated ? 'Được đề xuất cho bạn' : 'Món bán chạy nhất',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                         ),
                       ],
                     ),
@@ -434,9 +440,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
-                        'Dành riêng cho bạn',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      child: Text(
+                        isAuthenticated ? 'Dành riêng cho bạn' : '🔥 Bán chạy',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
                       ),
                     ),
                   ],

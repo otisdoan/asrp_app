@@ -1221,11 +1221,12 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
     final String sold = item is MenuItemModel ? '${item.soldCount ?? 0}+' : (item['sold'] as String);
     final String? imageUrl = item is MenuItemModel ? item.imageUrl : null;
     final IconData icon = item is MenuItemModel ? Icons.restaurant : (item['icon'] as IconData);
+    final bool isSoldOut = item is MenuItemModel ? item.isSoldOut : (item['isSoldOut'] as bool? ?? false);
 
     final String? menuItemId = item is MenuItemModel ? (item.menuItemId ?? item.id) : null;
 
     return GestureDetector(
-      onTap: () async {
+      onTap: isSoldOut ? null : () async {
         final targetBranchId = _lastResolvedDetail?.id ?? widget.branchId;
         if (isBranchStaffOrOwner(ref, targetBranchId)) {
           TopNotification.show(
@@ -1258,96 +1259,134 @@ class _StoreDetailPageState extends ConsumerState<StoreDetailPage> {
         ));
         _handleCartResult(result, name: name, price: priceStr, imageUrl: imageUrl, icon: icon, menuItemId: menuItemId);
       },
-      child: Container(
-        width: 130,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image with sold badge
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-              child: Stack(
-                children: [
-                  Container(
-                    height: 80,
-                    width: double.infinity,
-                    color: AppColors.bgWarm,
-                    child: (imageUrl != null && imageUrl.isNotEmpty)
-                        ? (imageUrl.startsWith('http')
-                            ? CachedNetworkImage(
-                                imageUrl: imageUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => Icon(icon, size: 32, color: AppColors.textTertiary),
-                                errorWidget: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary),
-                              )
-                            : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary)))
-                        : Icon(icon, size: 32, color: AppColors.textTertiary),
-                  ),
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$sold đã bán',
-                        style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Opacity(
+        opacity: isSoldOut ? 0.6 : 1.0,
+        child: Container(
+          width: 130,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image with sold badge
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                child: Stack(
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    Container(
+                      height: 80,
+                      width: double.infinity,
+                      color: AppColors.bgWarm,
+                      child: (imageUrl != null && imageUrl.isNotEmpty)
+                          ? (imageUrl.startsWith('http')
+                              ? CachedNetworkImage(
+                                  imageUrl: imageUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => Icon(icon, size: 32, color: AppColors.textTertiary),
+                                  errorWidget: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary),
+                                )
+                              : Image.asset(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, size: 32, color: AppColors.textTertiary)))
+                          : Icon(icon, size: 32, color: AppColors.textTertiary),
                     ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          price,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
+                        child: Text(
+                          '$sold đã bán',
+                          style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                    if (isSoldOut)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Icon(Icons.add, size: 16, color: Colors.white),
+                          child: const Text(
+                            'Hết hàng',
+                            style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ],
+              // Info
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              price,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          isSoldOut
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.outlineVariant,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'Hết',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.add, size: 16, color: Colors.white),
+                                ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

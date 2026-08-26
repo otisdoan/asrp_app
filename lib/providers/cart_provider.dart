@@ -1,6 +1,6 @@
 // ignore_for_file: non_const_argument_for_const_parameter
 import 'dart:convert';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/models/cart_item_model.dart';
@@ -63,23 +63,10 @@ class BranchCart {
       if (deliveryTime != null) 'deliveryTime': deliveryTime,
       if (storeImageUrl != null) 'storeImageUrl': storeImageUrl,
       if (branchId != null) 'branchId': branchId,
-      if (icon != null) ...{
-        'iconCodePoint': icon!.codePoint,
-        'iconFontFamily': icon!.fontFamily,
-        'iconFontPackage': icon!.fontPackage,
-      }
     };
   }
 
   factory BranchCart.fromJson(Map<String, dynamic> json) {
-    IconData? parsedIcon;
-    if (json['iconCodePoint'] != null) {
-      parsedIcon = IconData(
-        json['iconCodePoint'] as int,
-        fontFamily: json['iconFontFamily'] as String?,
-        fontPackage: json['iconFontPackage'] as String?,
-      );
-    }
     return BranchCart(
       items: (json['items'] as List<dynamic>?)
               ?.map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
@@ -91,7 +78,7 @@ class BranchCart {
       deliveryTime: json['deliveryTime'] as String?,
       storeImageUrl: json['storeImageUrl'] as String?,
       branchId: json['branchId'] as String?,
-      icon: parsedIcon,
+      icon: Icons.restaurant,
     );
   }
 }

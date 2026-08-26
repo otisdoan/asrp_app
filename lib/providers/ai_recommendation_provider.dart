@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/dio_client.dart';
-import 'auth_provider.dart';
 
 class AiRecommendationModel {
   final String branchId;
@@ -50,17 +49,13 @@ class AiRecommendationModel {
 }
 
 final personalizedRecommendationsProvider = FutureProvider.autoDispose<List<AiRecommendationModel>>((ref) async {
-  final isAuthenticated = ref.watch(isAuthenticatedProvider);
-  if (!isAuthenticated) {
-    return [];
-  }
-
   try {
     final response = await DioClient().dio.get('/ai/recommendations/personalized', queryParameters: {'limit': 10});
     if (response.statusCode == 200 && response.data is List) {
       return (response.data as List).map((e) => AiRecommendationModel.fromJson(e as Map<String, dynamic>)).toList();
     }
   } catch (e) {
+    // ignore: avoid_print
     print('[AiRecommendationProvider] Error fetching recommendations: $e');
   }
   return [];
