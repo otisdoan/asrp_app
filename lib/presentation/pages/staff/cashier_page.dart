@@ -84,6 +84,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
           price: priceVal,
           imageUrl: item.imageUrl,
           category: section.name,
+          isSoldOut: item.isSoldOut,
         ));
       }
     }
@@ -146,6 +147,16 @@ class _CashierPageState extends ConsumerState<CashierPage>
 
   Future<void> _openTakeawayCustomization(_MenuItem menuItem,
       {int? existingIndex}) async {
+    if (menuItem.isSoldOut && existingIndex == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Món "${menuItem.name}" hiện đã hết hàng!'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final user = ref.read(currentUserProvider);
     final branchId = user?.branchId ?? '';
     if (branchId.isEmpty) return;
@@ -2364,7 +2375,7 @@ class _CashierPageState extends ConsumerState<CashierPage>
                           child: SizedBox(
                             height: 48,
                             child: ElevatedButton.icon(
-                              onPressed: () {
+                              onPressed: () async {
                                 final reason = reasonController.text.trim();
                                 if (reason.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -2378,17 +2389,27 @@ class _CashierPageState extends ConsumerState<CashierPage>
                                   return;
                                 }
                                 Navigator.pop(ctx);
-                                ref
-                                    .read(orderProvider.notifier)
-                                    .cancelOrder(order.id, reason);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Đã từ chối đơn #${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(0, 8)}. Khách hàng đã được thông báo.'),
-                                    backgroundColor: const Color(0xFFDC2626),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                                final user = ref.read(currentUserProvider);
+                                try {
+                                  await ref
+                                      .read(orderProvider.notifier)
+                                      .cancelOrder(order.id, reason);
+                                  if (user?.branchId != null) {
+                                    await ref
+                                        .read(orderProvider.notifier)
+                                        .fetchBranchOrders(branchId: user!.branchId);
+                                  }
+                                } catch (_) {}
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Đã từ chối đơn #${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(0, 8)}. Khách hàng đã được thông báo.'),
+                                      backgroundColor: const Color(0xFFDC2626),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
                               },
                               icon: const Icon(Icons.cancel_rounded, size: 18),
                               label: const Text('Xác nhận từ chối',
@@ -2806,79 +2827,44 @@ class _CashierPageState extends ConsumerState<CashierPage>
         break;
       case 'make_ready':
         final isTakeaway = order.orderType == 'Online' || order.orderType == '0';
-        if (isTakeaway) {
-          title = 'Đã chuẩn bị xong?';
-          description =
-              'Xác nhận đơn $orderLabel đã hoàn thành chuẩn bị và sẵn sàng để khách đến lấy?';
-          confirmText = 'Xong & Báo khách';
-          icon = Icons.restaurant_rounded;
-          iconColor = const Color(0xFF059669);
-          iconBgColor = const Color(0xFFD1FAE5);
-          onConfirm = () async {
-            final user = ref.read(currentUserProvider);
-            try {
-              await ref.read(orderProvider.notifier).makeReady(order.id);
-              if (user?.branchId != null) {
-                await ref.read(orderProvider.notifier).fetchBranchOrders(branchId: user!.branchId);
-              }
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đã hoàn thành món! Thông báo đã gửi cho khách hàng.'),
-                    backgroundColor: Color(0xFF059669),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Lỗi cập nhật đơn: ${_parseError(e)}'),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
+        title = isTakeaway ? 'Đã chuẩn bị xong?' : 'Xác nhận xong món?';
+        description = isTakeaway
+            ? 'Xác nhận đơn $orderLabel đã hoàn thành chuẩn bị và sẵn sàng để khách đến lấy?'
+            : 'Xác nhận đơn $orderLabel đã chế biến xong và mang ra phục vụ tại bàn? (Bấm Thanh toán khi khách tính tiền)';
+        confirmText = isTakeaway ? 'Xong & Báo khách' : 'Xong món tại bàn';
+        icon = Icons.restaurant_rounded;
+        iconColor = const Color(0xFF059669);
+        iconBgColor = const Color(0xFFD1FAE5);
+        onConfirm = () async {
+          final user = ref.read(currentUserProvider);
+          try {
+            await ref.read(orderProvider.notifier).makeReady(order.id);
+            if (user?.branchId != null) {
+              await ref.read(orderProvider.notifier).fetchBranchOrders(branchId: user!.branchId);
             }
-          };
-        } else {
-          title = 'Hoàn tất phục vụ?';
-          description =
-              'Xác nhận đơn $orderLabel đã hoàn thành chế biến và phục vụ xong tại bàn?';
-          confirmText = 'Hoàn tất đơn';
-          icon = Icons.check_circle_rounded;
-          iconColor = const Color(0xFF059669);
-          iconBgColor = const Color(0xFFD1FAE5);
-          onConfirm = () async {
-            final user = ref.read(currentUserProvider);
-            try {
-              await ref.read(orderProvider.notifier).completeOrder(order.id);
-              if (user?.branchId != null) {
-                await ref.read(orderProvider.notifier).fetchBranchOrders(branchId: user!.branchId);
-              }
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đơn hàng tại bàn đã được hoàn tất phục vụ thành công!'),
-                    backgroundColor: Color(0xFF059669),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Lỗi hoàn tất đơn: ${_parseError(e)}'),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(isTakeaway
+                      ? 'Đã hoàn thành món! Thông báo đã gửi cho khách hàng.'
+                      : 'Đã xong món tại bàn! Vui lòng bấm Thanh toán khi khách tính tiền.'),
+                  backgroundColor: const Color(0xFF059669),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
             }
-          };
-        }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Lỗi cập nhật đơn: ${_parseError(e)}'),
+                  backgroundColor: AppColors.error,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        };
         break;
       case 'pay':
       case 'complete':
@@ -3444,139 +3430,197 @@ class _CashierPageState extends ConsumerState<CashierPage>
         const SizedBox(height: 8),
         // Menu list (matching staff page style)
         Expanded(
-          child: filteredItems.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.search_off,
-                          size: 48, color: AppColors.textTertiary),
-                      SizedBox(height: 12),
-                      Text(
-                        'Không tìm thấy món',
-                        style: TextStyle(
-                            fontSize: 14, color: AppColors.textSecondary),
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              final user = ref.read(currentUserProvider);
+              if (user?.branchId != null && user!.branchId!.isNotEmpty) {
+                ref.invalidate(branchDetailFutureProvider(user.branchId!));
+                ref.invalidate(categoriesFutureProvider);
+                await ref
+                    .read(orderProvider.notifier)
+                    .fetchBranchOrders(branchId: user.branchId);
+              }
+            },
+            child: filteredItems.isEmpty
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Container(
+                      height: MediaQuery.of(context).size.height * 0.45,
+                      alignment: Alignment.center,
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 48, color: AppColors.textTertiary),
+                          SizedBox(height: 12),
+                          Text(
+                            'Không tìm thấy món',
+                            style: TextStyle(
+                                fontSize: 14, color: AppColors.textSecondary),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  itemCount: filteredItems.length,
-                  itemBuilder: (_, index) {
-                    final item = filteredItems[index];
-                    final qty = _getTakeawayQty(item);
-                    return GestureDetector(
-                      onTap: () => _openTakeawayCustomization(item),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 12),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLowest,
-                          borderRadius: BorderRadius.circular(12),
-                          border: qty > 0
-                              ? Border.all(
-                                  color:
-                                      AppColors.primary.withValues(alpha: 0.3))
-                              : null,
-                        ),
-                        child: Row(
-                          children: [
-                            // Food image (52x52 matching staff)
-                            Container(
-                              width: 52,
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: AppColors.bgSoft,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: item.imageUrl.startsWith('http')
-                                    ? Image.network(
-                                        item.imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(Icons.restaurant,
-                                                color: AppColors.textTertiary),
-                                      )
-                                    : Image.asset(
-                                        item.imageUrl.isNotEmpty
-                                            ? item.imageUrl
-                                            : 'assets/images/tra_sua.jpg',
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(Icons.restaurant,
-                                                color: AppColors.textTertiary),
-                                      ),
-                              ),
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    itemCount: filteredItems.length,
+                    itemBuilder: (_, index) {
+                      final item = filteredItems[index];
+                      final qty = _getTakeawayQty(item);
+                      final bool isSoldOut = item.isSoldOut;
+
+                      return Opacity(
+                        opacity: isSoldOut ? 0.55 : 1.0,
+                        child: GestureDetector(
+                          onTap: isSoldOut
+                              ? () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Món "${item.name}" hiện đã hết hàng!'),
+                                      backgroundColor: AppColors.error,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              : () => _openTakeawayCustomization(item),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10, horizontal: 12),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: isSoldOut
+                                  ? const Color(0xFFF8FAFC)
+                                  : AppColors.surfaceContainerLowest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: qty > 0
+                                  ? Border.all(
+                                      color:
+                                          AppColors.primary.withValues(alpha: 0.3))
+                                  : (isSoldOut ? Border.all(color: AppColors.divider) : null),
                             ),
-                            const SizedBox(width: 12),
-                            // Item info
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.name,
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary)),
-                                  const SizedBox(height: 4),
-                                  Text(_formatPriceFull(item.price),
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.primary)),
-                                ],
-                              ),
-                            ),
-                            // Quantity controls
-                            if (qty > 0) ...[
-                              GestureDetector(
-                                onTap: () => _removeTakeawayItem(item),
-                                child: Container(
-                                  width: 30,
-                                  height: 30,
+                            child: Row(
+                              children: [
+                                // Food image (52x52 matching staff)
+                                Container(
+                                  width: 52,
+                                  height: 52,
                                   decoration: BoxDecoration(
                                     color: AppColors.bgSoft,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.remove,
-                                      size: 16, color: AppColors.textPrimary),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: item.imageUrl.startsWith('http')
+                                        ? Image.network(
+                                            item.imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(Icons.restaurant,
+                                                    color: AppColors.textTertiary),
+                                          )
+                                        : Image.asset(
+                                            item.imageUrl.isNotEmpty
+                                                ? item.imageUrl
+                                                : 'assets/images/tra_sua.jpg',
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(Icons.restaurant,
+                                                    color: AppColors.textTertiary),
+                                          ),
+                                  ),
                                 ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 10),
-                                child: Text('$qty',
-                                    style: const TextStyle(
-                                        fontSize: 15,
+                                const SizedBox(width: 12),
+                                // Item info
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: isSoldOut ? AppColors.textSecondary : AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(_formatPriceFull(item.price),
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: isSoldOut ? AppColors.textTertiary : AppColors.primary)),
+                                    ],
+                                  ),
+                                ),
+                                // Quantity controls
+                                if (isSoldOut) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                                    ),
+                                    child: const Text(
+                                      'Tạm hết',
+                                      style: TextStyle(
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary)),
-                              ),
-                            ],
-                            // Add button
-                            GestureDetector(
-                              onTap: () => _openTakeawayCustomization(item),
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(Icons.add,
-                                    size: 16, color: AppColors.onPrimary),
-                              ),
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ),
+                                ] else ...[
+                                  if (qty > 0) ...[
+                                    GestureDetector(
+                                      onTap: () => _removeTakeawayItem(item),
+                                      child: Container(
+                                        width: 30,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.bgSoft,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.remove,
+                                            size: 16, color: AppColors.textPrimary),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.symmetric(horizontal: 10),
+                                      child: Text('$qty',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textPrimary)),
+                                    ),
+                                  ],
+                                  // Add button
+                                  GestureDetector(
+                                    onTap: () => _openTakeawayCustomization(item),
+                                    child: Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.add,
+                                          size: 16, color: AppColors.onPrimary),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+          ),
         ),
       ],
     );
@@ -3684,332 +3728,340 @@ class _CashierPageState extends ConsumerState<CashierPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.75,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Đơn hiện tại',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              setState(() => _takeawayItems.clear());
-                              Navigator.pop(ctx);
-                            },
-                            child: const Text(
-                              'Xóa tất cả',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.error),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          GestureDetector(
-                            onTap: () => Navigator.pop(ctx),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppColors.divider.withValues(alpha: 0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                size: 18,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.shopping_bag_outlined,
-                          size: 14, color: AppColors.textSecondary),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Đơn mang đi · $_takeawayCount món',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: AppColors.divider),
-            // Items list
-            Expanded(
-              child: ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                itemCount: _takeawayItems.length,
-                itemBuilder: (_, index) {
-                  final item = _takeawayItems[index];
-                  return Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                          bottom:
-                              BorderSide(color: AppColors.divider, width: 0.5)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Left: Dish details
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.menuItem.name,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              if (item.selectedToppings.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  item.selectedToppings
-                                      .map((t) => t.name)
-                                      .join(', '),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                              if (item.note != null &&
-                                  item.note!.trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Ghi chú: "${item.note}"',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontStyle: FontStyle.italic,
-                                          color: AppColors.textTertiary,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  _openTakeawayCustomization(item.menuItem,
-                                      existingIndex: index);
-                                },
-                                behavior: HitTestBehavior.opaque,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.edit_note_rounded,
-                                        size: 14, color: AppColors.primary),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Sửa tùy chọn',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.primary,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: AppColors.primary
-                                            .withValues(alpha: 0.5),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                        const Text(
+                          'Đơn hiện tại',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        // Right: Price & Counter controls
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              _formatPriceFull(item.totalPrice),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
+                            GestureDetector(
+                              onTap: () {
+                                setSheetState(() {
+                                  setState(() => _takeawayItems.clear());
+                                });
+                                Navigator.pop(ctx);
+                              },
+                              child: const Text(
+                                'Xóa tất cả',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.error),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      if (item.quantity > 1) {
-                                        item.quantity--;
-                                      } else {
-                                        _takeawayItems.removeAt(index);
-                                      }
-                                    });
-                                    if (_takeawayItems.isEmpty) {
-                                      Navigator.pop(ctx);
-                                    }
-                                  },
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.bgSoft,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: AppColors.divider
-                                              .withValues(alpha: 0.5)),
-                                    ),
-                                    child: const Icon(Icons.remove,
-                                        size: 14, color: AppColors.textPrimary),
-                                  ),
+                            const SizedBox(width: 14),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(ctx),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.divider.withValues(alpha: 0.5),
+                                  shape: BoxShape.circle,
                                 ),
-                                Container(
-                                  width: 32,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '${item.quantity}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: AppColors.textSecondary,
                                 ),
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      item.quantity++;
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Icon(Icons.add,
-                                        size: 14, color: AppColors.onPrimary),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
-            // Total & Action Button
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.divider)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 8),
+                    Row(
                       children: [
-                        const Text(
-                          'Tổng cộng',
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
-                        ),
+                        const Icon(Icons.shopping_bag_outlined,
+                            size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 6),
                         Text(
-                          _formatPriceFull(_takeawayTotal),
+                          'Đơn mang đi · $_takeawayCount món',
                           style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        final user = ref.read(currentUserProvider);
-                        _confirmTakeaway(user?.branchId);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.onPrimary,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Xác nhận đơn',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w700),
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+              const Divider(height: 1, color: AppColors.divider),
+              // Items list
+              Expanded(
+                child: ListView.builder(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemCount: _takeawayItems.length,
+                  itemBuilder: (_, index) {
+                    final item = _takeawayItems[index];
+                    return Container(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                            bottom:
+                                BorderSide(color: AppColors.divider, width: 0.5)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left: Dish details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.menuItem.name,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                if (item.selectedToppings.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.selectedToppings
+                                        .map((t) => t.name)
+                                        .join(', '),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                                if (item.note != null &&
+                                    item.note!.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Ghi chú: "${item.note}"',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontStyle: FontStyle.italic,
+                                            color: AppColors.textTertiary,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _openTakeawayCustomization(item.menuItem,
+                                        existingIndex: index);
+                                  },
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.edit_note_rounded,
+                                          size: 14, color: AppColors.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Sửa tùy chọn',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primary,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: AppColors.primary
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Right: Price & Counter controls
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                _formatPriceFull(item.totalPrice),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      setSheetState(() {
+                                        setState(() {
+                                          if (item.quantity > 1) {
+                                            item.quantity--;
+                                          } else {
+                                            _takeawayItems.removeAt(index);
+                                          }
+                                        });
+                                      });
+                                      if (_takeawayItems.isEmpty) {
+                                        Navigator.pop(ctx);
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.bgSoft,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                            color: AppColors.divider
+                                                .withValues(alpha: 0.5)),
+                                      ),
+                                      child: const Icon(Icons.remove,
+                                          size: 14, color: AppColors.textPrimary),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 32,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '${item.quantity}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setSheetState(() {
+                                        setState(() {
+                                          item.quantity++;
+                                        });
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(Icons.add,
+                                          size: 14, color: AppColors.onPrimary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Total & Action Button
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.divider)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tổng cộng',
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          Text(
+                            _formatPriceFull(_takeawayTotal),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          final user = ref.read(currentUserProvider);
+                          _confirmTakeaway(user?.branchId);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.onPrimary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Xác nhận đơn',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -4624,13 +4676,15 @@ class _MenuItem {
   final int price;
   final String imageUrl;
   final String category;
+  final bool isSoldOut;
 
   _MenuItem(
       {this.id,
       required this.name,
       required this.price,
       required this.imageUrl,
-      this.category = ''});
+      this.category = '',
+      this.isSoldOut = false});
 }
 
 class _OrderItem {

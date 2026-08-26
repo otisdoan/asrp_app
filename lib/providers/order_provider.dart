@@ -130,16 +130,17 @@ enum MockOrderStatus {
 
 MockOrderStatus _mapBackendStatus(dynamic status) {
   if (status == null) return MockOrderStatus.pendingConfirm;
-  final statusStr = status.toString();
-  if (statusStr == '0' || statusStr == 'PendingConfirmation') {
+  final statusStr = status.toString().trim();
+  final lower = statusStr.toLowerCase();
+  if (lower == '0' || lower == 'pendingconfirmation' || lower == 'pendingconfirm' || lower == 'pending') {
     return MockOrderStatus.pendingConfirm;
-  } else if (statusStr == '1' || statusStr == 'PendingInventory' || statusStr == '2' || statusStr == 'Preparing') {
+  } else if (lower == '1' || lower == 'pendinginventory' || lower == '2' || lower == 'preparing') {
     return MockOrderStatus.preparing;
-  } else if (statusStr == '3' || statusStr == 'ReadyForPickup') {
+  } else if (lower == '3' || lower == 'readyforpickup' || lower == 'ready') {
     return MockOrderStatus.ready;
-  } else if (statusStr == '4' || statusStr == 'Completed') {
+  } else if (lower == '4' || lower == 'completed' || lower == 'complete') {
     return MockOrderStatus.completed;
-  } else if (statusStr == '5' || statusStr == 'Cancelled') {
+  } else if (lower == '5' || lower == 'cancelled' || lower == 'canceled' || lower == 'cancel') {
     return MockOrderStatus.cancelled;
   }
   return MockOrderStatus.pendingConfirm;
@@ -433,6 +434,14 @@ class MockOrder {
       }
     }
 
+    String? parsedPagerNumber = json['pagerNumber']?.toString();
+    if (parsedPagerNumber == null || parsedPagerNumber.isEmpty || parsedPagerNumber == 'null') {
+      final m = RegExp(r'(?:Bàn|Table)\s*[:#\-]?\s*(\d+)', caseSensitive: false).firstMatch(noteText);
+      if (m != null) {
+        parsedPagerNumber = m.group(1);
+      }
+    }
+
     return MockOrder(
       id: json['id']?.toString() ?? '',
       storeName: branchName,
@@ -452,7 +461,7 @@ class MockOrder {
       paymentStatus: json['paymentStatus']?.toString() ?? 'Pending',
       orderType: json['orderType']?.toString() ?? 'Online',
       branchId: branchId,
-      pagerNumber: json['pagerNumber']?.toString(),
+      pagerNumber: parsedPagerNumber,
       customerName: parsedCustName,
       customerPhone: parsedCustPhone,
       customerAddress: parsedCustAddress,
@@ -620,7 +629,17 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       final updatedOrderJson = await _orderRepository.confirmOrder(id);
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
-      state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      MockOrder? existingOrder;
+      for (final o in state) {
+        if (o.id.toLowerCase() == id.toLowerCase()) {
+          existingOrder = o;
+          break;
+        }
+      }
+      final finalOrder = (updatedOrder.pagerNumber == null && existingOrder?.pagerNumber != null)
+          ? updatedOrder.copyWith(pagerNumber: existingOrder!.pagerNumber)
+          : updatedOrder;
+      state = state.map((o) => o.id.toLowerCase() == id.toLowerCase() ? finalOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] confirmOrder error: $e');
       rethrow;
@@ -630,7 +649,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
   /// Thu ngân xin thêm phút (sử dụng API propose-pickup-time)
   Future<void> requestExtraMinutes(String id, int extraMins, {String? reason}) async {
     try {
-      final orderIndex = state.indexWhere((o) => o.id == id);
+      final orderIndex = state.indexWhere((o) => o.id.toLowerCase() == id.toLowerCase());
       if (orderIndex == -1) return;
       final order = state[orderIndex];
       final newPickupTime = order.pickupTime.add(Duration(minutes: extraMins));
@@ -647,7 +666,10 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
-      state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      final finalOrder = (updatedOrder.pagerNumber == null && order.pagerNumber != null)
+          ? updatedOrder.copyWith(pagerNumber: order.pagerNumber)
+          : updatedOrder;
+      state = state.map((o) => o.id.toLowerCase() == id.toLowerCase() ? finalOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] requestExtraMinutes error: $e');
       rethrow;
@@ -660,7 +682,17 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       final updatedOrderJson = await _orderRepository.markReadyForPickup(id);
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
-      state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      MockOrder? existingOrder;
+      for (final o in state) {
+        if (o.id.toLowerCase() == id.toLowerCase()) {
+          existingOrder = o;
+          break;
+        }
+      }
+      final finalOrder = (updatedOrder.pagerNumber == null && existingOrder?.pagerNumber != null)
+          ? updatedOrder.copyWith(pagerNumber: existingOrder!.pagerNumber)
+          : updatedOrder;
+      state = state.map((o) => o.id.toLowerCase() == id.toLowerCase() ? finalOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] makeReady error: $e');
       rethrow;
@@ -673,7 +705,17 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       final updatedOrderJson = await _orderRepository.completeOrder(id);
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
-      state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      MockOrder? existingOrder;
+      for (final o in state) {
+        if (o.id.toLowerCase() == id.toLowerCase()) {
+          existingOrder = o;
+          break;
+        }
+      }
+      final finalOrder = (updatedOrder.pagerNumber == null && existingOrder?.pagerNumber != null)
+          ? updatedOrder.copyWith(pagerNumber: existingOrder!.pagerNumber)
+          : updatedOrder;
+      state = state.map((o) => o.id.toLowerCase() == id.toLowerCase() ? finalOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] completeOrder error: $e');
       rethrow;
@@ -704,6 +746,9 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
             orderType: o.orderType,
             branchId: o.branchId,
             pagerNumber: o.pagerNumber,
+            customerName: o.customerName,
+            customerPhone: o.customerPhone,
+            customerAddress: o.customerAddress,
           );
         }
         return o;
@@ -717,7 +762,17 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       final updatedOrderJson = await _orderRepository.cancelOrder(id, reason: reason);
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
-      state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      MockOrder? existingOrder;
+      for (final o in state) {
+        if (o.id.toLowerCase() == id.toLowerCase()) {
+          existingOrder = o;
+          break;
+        }
+      }
+      final finalOrder = (updatedOrder.pagerNumber == null && existingOrder?.pagerNumber != null)
+          ? updatedOrder.copyWith(pagerNumber: existingOrder!.pagerNumber)
+          : updatedOrder;
+      state = state.map((o) => o.id.toLowerCase() == id.toLowerCase() ? finalOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] cancelOrder error: $e');
       rethrow;
@@ -730,7 +785,17 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       final updatedOrderJson = await _orderRepository.acceptProposedPickupTime(id);
       await _ensureBranchNamesLoaded();
       final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
-      state = state.map((o) => o.id == id ? updatedOrder : o).toList();
+      MockOrder? existingOrder;
+      for (final o in state) {
+        if (o.id.toLowerCase() == id.toLowerCase()) {
+          existingOrder = o;
+          break;
+        }
+      }
+      final finalOrder = (updatedOrder.pagerNumber == null && existingOrder?.pagerNumber != null)
+          ? updatedOrder.copyWith(pagerNumber: existingOrder!.pagerNumber)
+          : updatedOrder;
+      state = state.map((o) => o.id.toLowerCase() == id.toLowerCase() ? finalOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] acceptProposedTime error: $e');
       rethrow;
