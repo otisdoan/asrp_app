@@ -84,12 +84,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ? registration.registeredBranches.length
             : 1);
 
+    final String userRole = user?.role.toLowerCase() ?? '';
     final bool isBrandAdmin = user != null &&
-        (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'superadmin');
+        (userRole == 'admin' || userRole == 'superadmin');
+
+    final bool isStaffOrBranchEmployee = userRole == 'staff' ||
+        userRole == 'cashier' ||
+        userRole == 'manager';
 
     final bool isMultiBranchBrand = isBrandAdmin &&
         (branchCount > 1 ||
-         user.role.toLowerCase() == 'superadmin' ||
+         userRole == 'superadmin' ||
          registration.registeredBranches.length > 1);
 
     final bool isChainReport = isMultiBranchBrand;
@@ -232,25 +237,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               'Danh sách các chi nhánh của BMC Phở Express.');
                         },
                       ),
-                      _buildMenuItem(
-                        icon: Icons.add_business_outlined,
-                        title: 'Đăng ký chi nhánh',
-                        subtitle: registration.status == 'pending'
-                            ? 'Hồ sơ thương hiệu đang chờ duyệt'
-                            : (registration.status == 'approved'
-                                ? 'Thương hiệu đã hoạt động · Đăng ký thêm chi nhánh'
-                                : 'Hợp tác mở rộng kinh doanh cùng DineX'),
-                        trailing: registration.status == 'pending'
-                            ? _buildBadge(
-                                'Chờ duyệt', AppColors.accent, AppColors.bgSoft)
-                            : (registration.status == 'approved'
-                                ? _buildBadge('Đã duyệt', AppColors.success,
-                                    AppColors.successContainer)
-                                : null),
-                        onTap: () {
-                          context.push(AppConstants.routeBranchRegistration);
-                        },
-                      ),
+                      if (!isStaffOrBranchEmployee)
+                        _buildMenuItem(
+                          icon: Icons.add_business_outlined,
+                          title: 'Đăng ký chi nhánh',
+                          subtitle: registration.status == 'pending'
+                              ? 'Hồ sơ thương hiệu đang chờ duyệt'
+                              : (registration.status == 'approved'
+                                  ? 'Thương hiệu đã hoạt động · Đăng ký thêm chi nhánh'
+                                  : 'Hợp tác mở rộng kinh doanh cùng DineX'),
+                          trailing: registration.status == 'pending'
+                              ? _buildBadge(
+                                  'Chờ duyệt', AppColors.accent, AppColors.bgSoft)
+                              : (registration.status == 'approved'
+                                  ? _buildBadge('Đã duyệt', AppColors.success,
+                                      AppColors.successContainer)
+                                  : null),
+                          onTap: () {
+                            context.push(AppConstants.routeBranchRegistration);
+                          },
+                        ),
                       _buildMenuItem(
                         icon: Icons.qr_code_scanner_outlined,
                         title: 'Phương thức thanh toán',
