@@ -217,11 +217,15 @@ class MerchantRepository {
     required String name,
     required String phone,
     required String address,
+    double? latitude,
+    double? longitude,
   }) async {
     final payload = {
       "name": name,
       "phone": phone,
       "address": address,
+      if (latitude != null) "latitude": latitude,
+      if (longitude != null) "longitude": longitude,
     };
     try {
       await _dioClient.dio.post(
