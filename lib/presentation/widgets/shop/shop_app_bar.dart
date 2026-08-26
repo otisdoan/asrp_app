@@ -269,11 +269,12 @@ class _AnimatedSearchPlaceholder extends ConsumerStatefulWidget {
 class _AnimatedSearchPlaceholderState extends ConsumerState<_AnimatedSearchPlaceholder>
     with SingleTickerProviderStateMixin {
   static const _hints = [
-    'Phở bò tái nạm',
-    'Cơm sườn nướng',
-    'Trà sữa trân châu',
-    'Bún bò Huế',
-    'Gà rán giòn',
+    'Tìm quán: Phở Nam Văn',
+    'Tìm chi nhánh gần bạn...',
+    'Tìm món: Cơm sườn nướng',
+    'Tìm chi nhánh: Bama',
+    'Tìm món: Trà sữa trân châu',
+    'Tìm món: Bún bò Huế',
   ];
 
   int _currentIndex = 0;

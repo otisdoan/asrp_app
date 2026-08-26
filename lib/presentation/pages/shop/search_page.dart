@@ -7,6 +7,7 @@ import 'store_detail_page.dart';
 import '../../../providers/shop_provider.dart';
 import '../../../providers/category_provider.dart';
 import '../../../data/models/category_model.dart';
+import '../../../data/models/branch_model.dart';
 import '../../../data/models/branch_search_model.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/ai_recommendation_provider.dart';
@@ -146,7 +147,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         style: const TextStyle(fontSize: 13, color: Colors.black),
                         cursorColor: AppColors.primary,
                         decoration: InputDecoration(
-                          hintText: 'Bạn có muốn ăn gì không?',
+                          hintText: 'Tìm tên chi nhánh, quán ăn, món ăn...',
                           hintStyle: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[500],
@@ -190,20 +191,58 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // STATE 1: TYPING — Autocomplete suggestions
+  // STATE 1: TYPING — Autocomplete suggestions & Matched Branches
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildTypingView() {
     if (_query.isNotEmpty) {
       final suggestionsAsync = ref.watch(searchAutocompleteProvider(_query));
+      final allBranchesAsync = ref.watch(branchesFutureProvider);
+      final cleanQuery = _query.toLowerCase().trim();
+
+      final matchedBranches = allBranchesAsync.maybeWhen(
+        data: (branches) => branches.where((b) {
+          final nameMatch = b.name.toLowerCase().contains(cleanQuery);
+          final addrMatch = b.address?.toLowerCase().contains(cleanQuery) ?? false;
+          final catMatch = b.category?.toLowerCase().contains(cleanQuery) ?? false;
+          return nameMatch || addrMatch || catMatch;
+        }).toList(),
+        orElse: () => <BranchListItemModel>[],
+      );
+
       return suggestionsAsync.when(
         data: (suggestions) => ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
+            // 1. Matched Branches Section (if any)
+            if (matchedBranches.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 6),
+                child: Row(
+                  children: [
+                    Icon(Icons.storefront_rounded, size: 16, color: AppColors.primary),
+                    SizedBox(width: 6),
+                    Text(
+                      'Chi nhánh & Quán ăn',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...matchedBranches.take(3).map((branch) => _buildMatchedBranchItem(branch)),
+              const SizedBox(height: 6),
+              const Divider(height: 1),
+            ],
+
+            // 2. Autocomplete Suggestions
             if (suggestions.isNotEmpty) ...[
               ...suggestions.map((s) => _buildSuggestionItem(s)),
               const Divider(height: 1),
               const SizedBox(height: 8),
-              _buildSearchInCategory('Nhà hàng'),
+              _buildSearchInCategory('Chi nhánh & Quán ăn'),
               _buildSearchInCategory('Món ăn'),
             ],
           ],
@@ -229,6 +268,97 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         _buildRecommendedSection(),
         const SizedBox(height: 20),
       ],
+    );
+  }
+
+  Widget _buildMatchedBranchItem(BranchListItemModel branch) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => StoreDetailPage(
+            branchId: branch.id,
+            storeName: branch.name,
+            category: branch.category ?? 'Đồ ăn · Đồ uống',
+            rating: branch.rating,
+            reviews: branch.reviewsCount ?? 150,
+            deliveryTime: branch.deliveryTime,
+            distance: branch.distance,
+            icon: Icons.store,
+            imageUrl: branch.imageUrl,
+          ),
+        ));
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image(
+                image: _getBranchImageProvider(branch.imageUrl),
+                width: 44,
+                height: 44,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 44,
+                  height: 44,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.store, size: 24, color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.verified, color: AppColors.success, size: 14),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          branch.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    branch.address ?? 'Chi nhánh chính thức',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Text(
+                'Vào quán',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
