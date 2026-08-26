@@ -116,4 +116,27 @@ final transferTicketsProvider = FutureProvider.autoDispose.family<List<TransferT
   );
 });
 
+/// Provider lấy ma trận tồn kho toàn chuỗi cho tất cả các chi nhánh
+final chainInventoryMatrixProvider = FutureProvider.autoDispose.family<Map<String, Map<String, BranchInventoryItem>>, String>((ref, branchIdsKey) async {
+  final repository = ref.watch(analyticsRepositoryProvider);
+  final Map<String, Map<String, BranchInventoryItem>> matrix = {};
+
+  final branchIds = branchIdsKey.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  if (branchIds.isEmpty) return matrix;
+
+  final futures = branchIds.map((id) => repository.getBranchInventory(id).catchError((_) => <BranchInventoryItem>[]));
+  final results = await Future.wait(futures);
+
+  for (int i = 0; i < branchIds.length; i++) {
+    final branchItems = results[i];
+    for (final item in branchItems) {
+      matrix.putIfAbsent(item.ingredientName, () => {});
+      matrix[item.ingredientName]![item.branchId] = item;
+    }
+  }
+
+  return matrix;
+});
+
+
 

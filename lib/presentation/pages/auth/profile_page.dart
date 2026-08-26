@@ -87,10 +87,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final bool isBrandAdmin = user != null &&
         (user.role.toLowerCase() == 'admin' || user.role.toLowerCase() == 'superadmin');
 
-    final bool isChainReport = isBrandAdmin &&
+    final bool isMultiBranchBrand = isBrandAdmin &&
         (branchCount > 1 ||
          user.role.toLowerCase() == 'superadmin' ||
          registration.registeredBranches.length > 1);
+
+    final bool isChainReport = isMultiBranchBrand;
 
     final String dashboardTitle = isChainReport ? 'Báo cáo chuỗi' : 'Báo cáo doanh thu';
     final String dashboardSubtitle = isChainReport
@@ -274,38 +276,40 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             _showMyBranchesBottomSheet(context, user);
                           },
                         ),
-                        _buildMenuItem(
-                          icon: Icons.store_mall_directory_outlined,
-                          title: 'Thiết lập cửa hàng',
-                          subtitle:
-                              'Cập nhật ảnh đại diện, ảnh bìa, hotline, giờ hoạt động',
-                          onTap: () {
-                            context.push(AppConstants.routeStoreSetup);
-                          },
-                        ),
-                        _buildMenuItem(
-                          icon: Icons.restaurant_menu_rounded,
-                          title: 'Quản lý thực đơn & Topping',
-                          subtitle:
-                              'Thiết lập danh mục, món ăn và tùy chọn topping chuẩn GrabFood',
-                          onTap: () {
-                            context.push(AppConstants.routeMenuBuilder);
-                          },
-                        ),
-                        _buildMenuItem(
-                          icon: Icons.inventory_2_outlined,
-                          title: 'Quản lý kho nguyên liệu',
-                          subtitle:
-                              'Xem tồn kho, lập phiếu nhập kho, kiểm kho & định lượng',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const InventoryDashboardPage(),
-                              ),
-                            );
-                          },
-                        ),
+                        if (!isMultiBranchBrand) ...[
+                          _buildMenuItem(
+                            icon: Icons.store_mall_directory_outlined,
+                            title: 'Thiết lập cửa hàng',
+                            subtitle:
+                                'Cập nhật ảnh đại diện, ảnh bìa, hotline, giờ hoạt động',
+                            onTap: () {
+                              context.push(AppConstants.routeStoreSetup);
+                            },
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.restaurant_menu_rounded,
+                            title: 'Quản lý thực đơn & Topping',
+                            subtitle:
+                                'Thiết lập danh mục, món ăn và tùy chọn topping chuẩn GrabFood',
+                            onTap: () {
+                              context.push(AppConstants.routeMenuBuilder);
+                            },
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.inventory_2_outlined,
+                            title: 'Quản lý kho nguyên liệu',
+                            subtitle:
+                                'Xem tồn kho, lập phiếu nhập kho, kiểm kho & định lượng',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const InventoryDashboardPage(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ],
                       const SizedBox(height: 20),
 

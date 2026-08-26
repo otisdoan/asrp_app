@@ -1042,6 +1042,7 @@ class _InventoryDashboardPageState extends ConsumerState<InventoryDashboardPage>
       ref.invalidate(transferTicketsProvider(
           TransferTicketParams(branchId: branchId, status: 'Dispatched')));
       ref.invalidate(transferTicketsProvider(TransferTicketParams()));
+      ref.invalidate(chainInventoryMatrixProvider);
       TopNotification.show(
         context,
         message:
