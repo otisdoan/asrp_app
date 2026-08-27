@@ -19,14 +19,18 @@ import '../../../data/repositories/order_repository.dart';
 
 final chatHistoryProvider =
     StateNotifierProvider<ChatHistoryNotifier, List<Map<String, dynamic>>>((ref) {
-  return ChatHistoryNotifier();
+  final user = ref.watch(currentUserProvider);
+  final userId = (user != null && user.id.isNotEmpty) ? user.id : 'guest';
+  return ChatHistoryNotifier(userId: userId);
 });
 
 class ChatHistoryNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  static const _storageKey = 'asrp_ai_chat_history_v2';
+  final String userId;
 
-  ChatHistoryNotifier() : super(_initialMessages()) {
+  String get _storageKey => 'asrp_ai_chat_history_v2_$userId';
+
+  ChatHistoryNotifier({required this.userId}) : super(_initialMessages()) {
     _loadFromStorage();
   }
 
@@ -61,10 +65,13 @@ class ChatHistoryNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           super.state = decoded
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
+          return;
         }
       }
+      super.state = _initialMessages();
     } catch (e) {
       debugPrint('[ChatHistoryNotifier] Error loading local history: $e');
+      super.state = _initialMessages();
     }
   }
 
@@ -87,8 +94,11 @@ class ChatHistoryNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     state = cb(state);
   }
 
-  void clearHistory() {
+  void clearHistory() async {
     state = _initialMessages();
+    try {
+      await _storage.delete(key: _storageKey);
+    } catch (_) {}
   }
 }
 
@@ -164,29 +174,36 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
       if (data is Map && data.containsKey('data')) {
         data = data['data'];
       }
-      if (data is List && data.isNotEmpty) {
-        final loadedMessages = data.map((item) {
-          Map<String, dynamic>? paymentData;
-          if (item['paymentData'] != null && item['paymentData'] is Map) {
-            paymentData = Map<String, dynamic>.from(item['paymentData'] as Map);
-          }
-          return {
-            'isUser': item['isUser'] as bool? ?? false,
-            'text': item['text'] as String? ?? '',
-            'time': item['time'] as String? ?? '',
-            'orderDraft': item['orderDraft'],
-            'orderPreview': item['orderDraftPreview'] ?? item['orderPreview'],
-            'resolvedItems': item['resolvedItems'],
-            'recommendations': item['recommendations'],
-            'branchRecommendations': item['branchRecommendations'],
-            'paymentData': paymentData,
-            'showChips': false,
-          };
-        }).toList();
+      if (data is List) {
+        if (data.isNotEmpty) {
+          final loadedMessages = data.map((item) {
+            Map<String, dynamic>? paymentData;
+            if (item['paymentData'] != null && item['paymentData'] is Map) {
+              paymentData = Map<String, dynamic>.from(item['paymentData'] as Map);
+            }
+            return {
+              'isUser': item['isUser'] as bool? ?? false,
+              'text': item['text'] as String? ?? '',
+              'time': item['time'] as String? ?? '',
+              'orderDraft': item['orderDraft'],
+              'orderPreview': item['orderDraftPreview'] ?? item['orderPreview'],
+              'resolvedItems': item['resolvedItems'],
+              'recommendations': item['recommendations'],
+              'branchRecommendations': item['branchRecommendations'],
+              'paymentData': paymentData,
+              'showChips': false,
+            };
+          }).toList();
 
-        ref.read(chatHistoryProvider.notifier).state = loadedMessages;
-        _scrollToBottom(immediate: true);
-        _checkAndResumePendingOrders();
+          ref.read(chatHistoryProvider.notifier).state = loadedMessages;
+          _scrollToBottom(immediate: true);
+          _checkAndResumePendingOrders();
+        } else {
+          final current = ref.read(chatHistoryProvider);
+          if (current.any((m) => m['isUser'] == true)) {
+            ref.read(chatHistoryProvider.notifier).clearHistory();
+          }
+        }
       }
     } catch (e) {
       debugPrint('[ChatAssistant] Error loading chat history from database: $e');
