@@ -126,6 +126,36 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     }
     return 'session_guest_device';
   }
+  bool _isCrossBranchSearchQuery(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('chi nhánh nào') ||
+        lower.contains('chi nhanh nao') ||
+        lower.contains('quán nào') ||
+        lower.contains('quan nao') ||
+        lower.contains('ở đâu') ||
+        lower.contains('o dau') ||
+        lower.contains('tìm quán') ||
+        lower.contains('tim quan') ||
+        lower.contains('gợi ý quán') ||
+        lower.contains('dưới') ||
+        lower.contains('duoi') ||
+        lower.contains('<') ||
+        lower.contains('giá rẻ') ||
+        lower.contains('gia re') ||
+        lower.contains('món nào') ||
+        lower.contains('mon nao') ||
+        lower.contains('có quán') ||
+        lower.contains('co quan') ||
+        lower.contains('các quán') ||
+        lower.contains('cac quan') ||
+        lower.contains('các chi nhánh') ||
+        lower.contains('cac chi nhanh') ||
+        lower.contains('chi nhánh có') ||
+        lower.contains('quán có') ||
+        lower.contains('gần tôi') ||
+        lower.contains('quanh đây') ||
+        lower.contains('gần đây');
+  }
 
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -314,9 +344,17 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
     _scrollToBottom();
 
     // 2. Resolve active branch ID & User GPS Location
-    String branchId = _activeBranchId ??
-        widget.initialBranchId ??
-        '00000000-0000-0000-0000-000000000000';
+    final bool isCrossBranch = _isCrossBranchSearchQuery(text);
+    if (isCrossBranch) {
+      _activeBranchId = null;
+      _activeBranchName = null;
+    }
+
+    String branchId = isCrossBranch
+        ? '00000000-0000-0000-0000-000000000000'
+        : (_activeBranchId ??
+            widget.initialBranchId ??
+            '00000000-0000-0000-0000-000000000000');
     final userLoc = ref.read(userLocationProvider);
 
     // 3. Format chat history
@@ -377,9 +415,9 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         }
       }
 
-      // 2. If response has branch recommendations belonging to a single branch (e.g. branch menu query), remember that branch!
+      // 2. If response has branch recommendations belonging to a single branch (and user wasn't doing a cross-branch search), remember that branch!
       final branchRecs = data['branchRecommendations'] as List<dynamic>?;
-      if (branchRecs != null && branchRecs.isNotEmpty) {
+      if (!isCrossBranch && branchRecs != null && branchRecs.isNotEmpty) {
         final distinctBranchIds = branchRecs
             .map((r) => r is Map ? r['branchId']?.toString() : null)
             .where((id) =>
