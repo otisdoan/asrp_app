@@ -228,11 +228,6 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
           ref.read(chatHistoryProvider.notifier).state = loadedMessages;
           _scrollToBottom(immediate: true);
           _checkAndResumePendingOrders();
-        } else {
-          final current = ref.read(chatHistoryProvider);
-          if (current.any((m) => m['isUser'] == true)) {
-            ref.read(chatHistoryProvider.notifier).clearHistory();
-          }
         }
       }
     } catch (e) {
