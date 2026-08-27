@@ -31,15 +31,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _scrollController = ScrollController()..addListener(_onScroll);
 
     // Fetch branch registration status and fresh profile points/tier from server on page load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (ref.read(isAuthenticatedProvider)) {
-        ref.read(authProvider.notifier).refreshProfile();
-        ref
-            .read(branchRegistrationProvider.notifier)
-            .fetchApplicationStatus()
-            .catchError((err) {
+        await ref.read(authProvider.notifier).refreshProfile();
+        try {
+          await ref
+              .read(branchRegistrationProvider.notifier)
+              .fetchApplicationStatus();
+          ref.invalidate(myBrandBranchesFutureProvider);
+        } catch (err) {
           print('[ProfilePage] Error fetching branch application status: $err');
-        });
+        }
       }
     });
   }
@@ -85,8 +87,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             : 1);
 
     final String userRole = user?.role.toLowerCase() ?? '';
-    final bool isBrandAdmin = user != null &&
-        (userRole == 'admin' || userRole == 'superadmin');
+    final bool isApprovedMerchant = registration.status == 'approved' ||
+        (user != null && user.brandId != null && user.brandId!.isNotEmpty);
+
+    final bool isBrandAdmin = (user != null &&
+        (userRole == 'admin' || userRole == 'superadmin')) || isApprovedMerchant;
 
     final bool isStaffOrBranchEmployee = userRole == 'staff' ||
         userRole == 'cashier' ||
@@ -170,6 +175,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             color: AppColors.primary,
             onRefresh: () async {
               await ref.read(authProvider.notifier).refreshProfile();
+              await ref
+                  .read(branchRegistrationProvider.notifier)
+                  .fetchApplicationStatus();
+              ref.invalidate(myBrandBranchesFutureProvider);
             },
             child: SingleChildScrollView(
               controller: _scrollController,
@@ -267,10 +276,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         },
                       ),
 
-                      // Group 2.5: Merchant Portal (Only if Admin or Manager)
-                      if (user.role.toLowerCase() == 'admin' ||
-                          user.role.toLowerCase() == 'superadmin' ||
-                          user.role.toLowerCase() == 'manager') ...[
+                      // Group 2.5: Merchant Portal (If Admin, Manager, or Approved Merchant)
+                      if (isBrandAdmin ||
+                          userRole == 'admin' ||
+                          userRole == 'superadmin' ||
+                          userRole == 'manager') ...[
                         const SizedBox(height: 20),
                         _buildSectionHeader('Quản lý cửa hàng'),
                         _buildMenuItem(

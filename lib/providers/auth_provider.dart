@@ -114,6 +114,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final freshUser = await repo.fetchProfile();
       if (freshUser != null) {
         final current = state.user;
+        final mergedRole = (freshUser.role.isNotEmpty && freshUser.role.toLowerCase() != 'customer')
+            ? freshUser.role
+            : ((freshUser.brandId != null && freshUser.brandId!.isNotEmpty)
+                ? 'Admin'
+                : (freshUser.branchId != null && freshUser.branchId!.isNotEmpty
+                    ? 'Manager'
+                    : (freshUser.role.isNotEmpty
+                        ? freshUser.role
+                        : (current?.role ?? 'Customer'))));
+
         final mergedUser = UserModel(
           id: freshUser.id.isNotEmpty ? freshUser.id : (current?.id ?? ''),
           username: freshUser.username.isNotEmpty ? freshUser.username : (current?.username ?? ''),
@@ -125,7 +135,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           birthday: freshUser.birthday ?? current?.birthday,
           brandId: freshUser.brandId ?? current?.brandId,
           branchId: freshUser.branchId ?? current?.branchId,
-          role: (current?.role != null && current!.role.isNotEmpty) ? current.role : freshUser.role,
+          role: mergedRole,
           isActive: freshUser.isActive,
           points: freshUser.points,
           tier: freshUser.tier,

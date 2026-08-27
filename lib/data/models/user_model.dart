@@ -37,27 +37,31 @@ class UserModel {
     required this.updatedAt,
   });
 
-  // Role priority: highest-privilege role wins when user has multiple roles.
-  static const _rolePriority = <String, int>{
-    'SuperAdmin': 0,
-    'Admin': 1,
-    'Manager': 2,
-    'Staff': 3,
-    'Customer': 4,
-  };
-
   static String _pickHighestRole(List<dynamic> roles) {
     String best = 'Customer';
-    int bestPriority = _rolePriority['Customer'] ?? 99;
+    int bestPriority = 99;
 
     for (final r in roles) {
       final String name;
       if (r is Map) {
-        name = (r['name'] ?? r['roleName'] ?? r['role'] ?? '').toString();
+        name = (r['name'] ?? r['roleName'] ?? r['role'] ?? '').toString().trim();
       } else {
-        name = r.toString();
+        name = r.toString().trim();
       }
-      final priority = _rolePriority[name] ?? 99;
+      final lower = name.toLowerCase();
+      int priority = 99;
+      if (lower == 'superadmin') {
+        priority = 0;
+      } else if (lower == 'admin') {
+        priority = 1;
+      } else if (lower == 'manager') {
+        priority = 2;
+      } else if (lower == 'staff' || lower == 'cashier') {
+        priority = 3;
+      } else if (lower == 'customer') {
+        priority = 4;
+      }
+
       if (priority < bestPriority) {
         bestPriority = priority;
         best = name;
@@ -68,14 +72,12 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     String resolvedRole = 'Customer';
-    if (json['role'] != null) {
+    if (json['roles'] != null && json['roles'] is List && (json['roles'] as List).isNotEmpty) {
+      resolvedRole = _pickHighestRole(json['roles'] as List);
+    } else if (json['role'] != null && json['role'].toString().isNotEmpty) {
       resolvedRole = json['role'].toString();
     } else if (json['roles'] != null) {
-      if (json['roles'] is List && (json['roles'] as List).isNotEmpty) {
-        resolvedRole = _pickHighestRole(json['roles'] as List);
-      } else {
-        resolvedRole = json['roles'].toString();
-      }
+      resolvedRole = json['roles'].toString();
     }
 
     if (resolvedRole.trim().isEmpty) {
