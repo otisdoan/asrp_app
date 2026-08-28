@@ -137,6 +137,8 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         lower.contains('tìm quán') ||
         lower.contains('tim quan') ||
         lower.contains('gợi ý quán') ||
+        lower.contains('gợi ý') ||
+        lower.contains('goi y') ||
         lower.contains('dưới') ||
         lower.contains('duoi') ||
         lower.contains('<') ||
@@ -144,6 +146,22 @@ class _ChatAssistantPageState extends ConsumerState<ChatAssistantPage> {
         lower.contains('gia re') ||
         lower.contains('món nào') ||
         lower.contains('mon nao') ||
+        lower.contains('món gì') ||
+        lower.contains('mon gi') ||
+        lower.contains('có món') ||
+        lower.contains('co mon') ||
+        lower.contains('có phở') ||
+        lower.contains('co pho') ||
+        lower.contains('có cơm') ||
+        lower.contains('co com') ||
+        lower.contains('có bún') ||
+        lower.contains('co bun') ||
+        lower.contains('có bánh') ||
+        lower.contains('co banh') ||
+        lower.contains('có trà') ||
+        lower.contains('co tra') ||
+        lower.contains('có cà phê') ||
+        lower.contains('co cafe') ||
         lower.contains('có quán') ||
         lower.contains('co quan') ||
         lower.contains('các quán') ||
