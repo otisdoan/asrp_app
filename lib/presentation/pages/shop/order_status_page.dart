@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
-import '../../../providers/branch_provider.dart';
-import '../../../data/models/branch_model.dart';
-import 'store_detail_page.dart';
 import 'cancel_success_page.dart';
 import 'order_detail_page.dart';
 import 'order_review_page.dart';
@@ -449,6 +446,32 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                 ],
               ),
               const SizedBox(height: 8),
+
+              // Store Address chip
+              if (order.branchAddress != null && order.branchAddress!.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFFEDD5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded, size: 13, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Địa chỉ lấy món: ${order.branchAddress}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
 
               // Customer Info chip
               if (order.customerName != null || order.customerPhone != null || order.customerAddress != null) ...[

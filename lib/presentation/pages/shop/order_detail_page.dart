@@ -6,7 +6,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/order_provider.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../data/models/branch_model.dart';
 import '../../../data/repositories/order_repository.dart';
 import 'store_detail_page.dart';
 import 'cancel_success_page.dart';
@@ -135,6 +134,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
               // ─── Status Informative Banner ───────────────────────────────────
               _buildStatusBanner(order, pickupTimeStr),
+              const SizedBox(height: 12),
+
+              // ─── Store Pickup Location Card ──────────────────────────────────
+              _buildStorePickupLocationCard(order),
               const SizedBox(height: 12),
 
               // ─── Customer Buyer Info Card ─────────────────────────────────────
@@ -436,6 +439,178 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStorePickupLocationCard(MockOrder order) {
+    final branchName = order.storeName;
+    final branchAddress = (order.branchAddress != null && order.branchAddress!.isNotEmpty)
+        ? order.branchAddress!
+        : 'Địa chỉ quán đang được cập nhật';
+    final branchPhone = order.branchPhone;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Địa chỉ quán (Điểm lấy món)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.directions_walk_rounded, size: 12, color: Colors.green.shade700),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Tự đến lấy',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Branch Name & View Store Link
+          InkWell(
+            onTap: () {
+              if (order.branchId.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StoreDetailPage(
+                      branchId: order.branchId,
+                      storeName: branchName,
+                      category: 'Quán ăn',
+                      rating: 5.0,
+                      reviews: 100,
+                      deliveryTime: '15-20 phút',
+                      distance: 'Gần bạn',
+                      icon: Icons.storefront_rounded,
+                    ),
+                  ),
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      branchName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Address Row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.location_on_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  branchAddress,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: branchAddress));
+                  TopNotification.show(
+                    context,
+                    message: 'Đã sao chép địa chỉ quán vào bộ nhớ tạm!',
+                  );
+                },
+                child: const Icon(Icons.copy_rounded, size: 14, color: AppColors.textTertiary),
+              ),
+            ],
+          ),
+          if (branchPhone != null && branchPhone.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.phone_in_talk_rounded, size: 15, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Hotline: $branchPhone',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF2563EB),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

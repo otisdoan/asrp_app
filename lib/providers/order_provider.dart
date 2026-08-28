@@ -224,6 +224,8 @@ class MockOrder {
   final String? customerName;
   final String? customerPhone;
   final String? customerAddress;
+  final String? branchAddress;
+  final String? branchPhone;
 
   MockOrder({
     required this.id,
@@ -248,6 +250,8 @@ class MockOrder {
     this.customerName,
     this.customerPhone,
     this.customerAddress,
+    this.branchAddress,
+    this.branchPhone,
   });
 
   bool get isPaid => paymentStatus == 'Paid' || paymentStatus == '1' || payments.any((p) => p.status == 'Đã thanh toán');
@@ -276,6 +280,8 @@ class MockOrder {
     String? customerName,
     String? customerPhone,
     String? customerAddress,
+    String? branchAddress,
+    String? branchPhone,
   }) {
     return MockOrder(
       id: id ?? this.id,
@@ -300,10 +306,12 @@ class MockOrder {
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
       customerAddress: customerAddress ?? this.customerAddress,
+      branchAddress: branchAddress ?? this.branchAddress,
+      branchPhone: branchPhone ?? this.branchPhone,
     );
   }
 
-  factory MockOrder.fromJson(Map<String, dynamic> json, Map<String, String> branchNames) {
+  factory MockOrder.fromJson(Map<String, dynamic> json, Map<String, String> branchNames, [Map<String, String>? branchAddresses, Map<String, String>? branchPhones]) {
     final rawItems = json['items'] as List<dynamic>? ?? [];
     final itemsList = rawItems.map((item) => MockOrderItem.fromJson(item as Map<String, dynamic>)).toList();
     
@@ -374,7 +382,15 @@ class MockOrder {
     final originalMins = prepMinsFromJson ?? (diff > 0 && diff <= 180 ? diff : 15);
 
     final branchId = json['branchId']?.toString() ?? '';
-    final branchName = branchNames[branchId] ?? 'Cửa hàng DineX';
+    final branchName = json['branchName']?.toString() ?? branchNames[branchId] ?? 'Cửa hàng DineX';
+    final branchAddress = json['branchAddress']?.toString() ??
+        json['branch']?['address']?.toString() ??
+        json['storeAddress']?.toString() ??
+        branchAddresses?[branchId];
+    final branchPhone = json['branchPhone']?.toString() ??
+        json['branch']?['phone']?.toString() ??
+        json['storePhone']?.toString() ??
+        branchPhones?[branchId];
 
     // Calculate extra minutes if proposed pickup time is set
     int extraMins = 0;
@@ -465,6 +481,8 @@ class MockOrder {
       customerName: parsedCustName,
       customerPhone: parsedCustPhone,
       customerAddress: parsedCustAddress,
+      branchAddress: branchAddress,
+      branchPhone: branchPhone,
     );
   }
 }
@@ -474,6 +492,8 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
   final OrderRepository _orderRepository = OrderRepository();
   final BranchRepository _branchRepository = BranchRepository();
   final Map<String, String> _branchNames = {};
+  final Map<String, String> _branchAddresses = {};
+  final Map<String, String> _branchPhones = {};
   bool _isLoading = false;
 
   bool get isLoading => _isLoading;
@@ -488,6 +508,8 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       final branches = await _branchRepository.getBranches();
       for (var b in branches) {
         _branchNames[b.id] = b.name;
+        if (b.address != null && b.address!.isNotEmpty) _branchAddresses[b.id] = b.address!;
+        if (b.phone != null && b.phone!.isNotEmpty) _branchPhones[b.id] = b.phone!;
       }
     } catch (e) {
       print('[OrderListNotifier] Error loading branch names: $e');
@@ -508,7 +530,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       state = rawOrders
           .map((item) {
             try {
-              return MockOrder.fromJson(item as Map<String, dynamic>, _branchNames);
+              return MockOrder.fromJson(item as Map<String, dynamic>, _branchNames, _branchAddresses, _branchPhones);
             } catch (e, stack) {
               print('[OrderListNotifier] Error parsing customer order: $e');
               print('Order JSON: $item');
@@ -552,7 +574,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       state = rawOrders
           .map((item) {
             try {
-              return MockOrder.fromJson(item as Map<String, dynamic>, _branchNames);
+              return MockOrder.fromJson(item as Map<String, dynamic>, _branchNames, _branchAddresses, _branchPhones);
             } catch (e, stack) {
               print('[OrderListNotifier] Error parsing branch order: $e');
               print('Order JSON: $item');
@@ -574,7 +596,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       await _ensureBranchNamesLoaded();
       final orderJson = await _orderRepository.getOrderById(id);
-      final updatedOrder = MockOrder.fromJson(orderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(orderJson, _branchNames, _branchAddresses, _branchPhones);
       final index = state.indexWhere((o) => o.id == id);
       if (index != -1) {
         state = state.map((o) => o.id == id ? updatedOrder : o).toList();
@@ -610,7 +632,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       
       final orderJson = await _orderRepository.placeKioskOrder(payload);
       await _ensureBranchNamesLoaded();
-      final order = MockOrder.fromJson(orderJson, _branchNames);
+      final order = MockOrder.fromJson(orderJson, _branchNames, _branchAddresses, _branchPhones);
       state = [order, ...state];
       return order;
     } catch (e) {
@@ -628,7 +650,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       final updatedOrderJson = await _orderRepository.confirmOrder(id);
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       MockOrder? existingOrder;
       for (final o in state) {
         if (o.id.toLowerCase() == id.toLowerCase()) {
@@ -665,7 +687,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
       );
       
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       final finalOrder = (updatedOrder.pagerNumber == null && order.pagerNumber != null)
           ? updatedOrder.copyWith(pagerNumber: order.pagerNumber)
           : updatedOrder;
@@ -681,7 +703,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       final updatedOrderJson = await _orderRepository.markReadyForPickup(id);
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       MockOrder? existingOrder;
       for (final o in state) {
         if (o.id.toLowerCase() == id.toLowerCase()) {
@@ -704,7 +726,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       final updatedOrderJson = await _orderRepository.completeOrder(id);
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       MockOrder? existingOrder;
       for (final o in state) {
         if (o.id.toLowerCase() == id.toLowerCase()) {
@@ -729,26 +751,9 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     } else {
       state = state.map((o) {
         if (o.id.toLowerCase() == id.toLowerCase()) {
-          return MockOrder(
-            id: o.id,
-            storeName: o.storeName,
-            items: o.items,
-            totalAmount: o.totalAmount,
+          return o.copyWith(
             status: newStatus,
-            orderTime: o.orderTime,
-            pickupTime: o.pickupTime,
-            originalMinutes: o.originalMinutes,
-            timeline: o.timeline,
-            payments: o.payments,
-            orderNumber: o.orderNumber,
-            discountPercentage: o.discountPercentage,
             paymentStatus: newStatus == MockOrderStatus.completed ? 'Paid' : o.paymentStatus,
-            orderType: o.orderType,
-            branchId: o.branchId,
-            pagerNumber: o.pagerNumber,
-            customerName: o.customerName,
-            customerPhone: o.customerPhone,
-            customerAddress: o.customerAddress,
           );
         }
         return o;
@@ -761,7 +766,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       final updatedOrderJson = await _orderRepository.cancelOrder(id, reason: reason);
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       MockOrder? existingOrder;
       for (final o in state) {
         if (o.id.toLowerCase() == id.toLowerCase()) {
@@ -784,7 +789,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       final updatedOrderJson = await _orderRepository.acceptProposedPickupTime(id);
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       MockOrder? existingOrder;
       for (final o in state) {
         if (o.id.toLowerCase() == id.toLowerCase()) {
@@ -807,7 +812,7 @@ class OrderListNotifier extends StateNotifier<List<MockOrder>> {
     try {
       final updatedOrderJson = await _orderRepository.declineProposedPickupTime(id);
       await _ensureBranchNamesLoaded();
-      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames);
+      final updatedOrder = MockOrder.fromJson(updatedOrderJson, _branchNames, _branchAddresses, _branchPhones);
       state = state.map((o) => o.id == id ? updatedOrder : o).toList();
     } catch (e) {
       print('[OrderListNotifier] declineProposedTime error: $e');
