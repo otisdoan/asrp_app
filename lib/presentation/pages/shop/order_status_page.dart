@@ -462,7 +462,7 @@ class _OrderTabContentState extends ConsumerState<OrderTabContent> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Địa chỉ lấy món: ${order.branchAddress}',
+                          'Địa chỉ quán: ${order.branchAddress}',
                           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
                           overflow: TextOverflow.ellipsis,
                         ),
